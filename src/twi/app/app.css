@@ -1,0 +1,20 @@
+:root {
+  --twi-bg: #08090c;
+  --twi-panel: #0e1014;
+  --twi-ivory: #f3efe6;
+  --twi-muted: rgba(243,239,230,.56);
+  --twi-brass: #cbab63;
+  --twi-signal: #4af2c8;
+  --twi-danger: #ed8d97;
+  --twi-line: rgba(243,239,230,.12);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: var(--twi-bg); color: var(--twi-ivory); font-family: "DM Mono", ui-monospace, monospace; }
+button, input, textarea, select { font: inherit; }
+:focus-visible { outline: 2px solid var(--twi-signal); outline-offset: 3px; }
+.twi-shell { min-height: 100vh; }
+.twi-header { padding: 18px 24px; border-bottom: 1px solid var(--twi-line); }
+.twi-mark { color: var(--twi-brass); font-weight: 700; letter-spacing: .18em; }
+.twi-entry { max-width: 900px; margin: 0 auto; padding: 12vh 24px; }
+.twi-kicker { color: var(--twi-brass); text-transform: uppercase; letter-spacing: .14em; }

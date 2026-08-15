@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.sp1epacker.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vitest/globals"]
+  },
+  "include": ["src/twi/**/*.ts", "src/twi/**/*.tsx", "vite.twi.config.ts", "vitest.twi.config.ts"]
+}
