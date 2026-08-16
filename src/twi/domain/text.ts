@@ -32,9 +32,8 @@ const INTRA_LINE_WHITESPACE = /[^\S\n]+/g;
 const BLANK_LINE_RUN = /\n{3,}/g;
 
 /**
- * The seventeen line openings the Lyria prompt template can emit, in template order.
- * Used to prove the compiler emits nothing else, and to reject lyric lines that
- * would read as a generation directive rather than as sung words.
+ * The seventeen directive line openings the Lyria prompt template can emit, in
+ * template order. Used to prove the compiler emits no directive line but these.
  */
 export const PROMPT_DIRECTIVE_PREFIXES = [
   'Create a full-length ',
@@ -90,12 +89,34 @@ export const toLyricText = (value: string): string => stripUnrenderable(value)
 export const containsLineBreak = (value: string): boolean => LINE_BREAK.test(value);
 
 /**
- * The directive a lyric line would forge, or undefined when the line is just words.
- * Lyrics sit last in the prompt, so a line that opens with a directive prefix is the
- * only way user text can still be read as an instruction.
+ * The fence that delimits the lyric block. Everything between the two markers is
+ * sung text; a reader that honours the fence cannot mistake a lyric line for a
+ * directive, which is why `Key: to my heart` is an ordinary lyric and not a 400.
+ *
+ * The markers are the reason the block is safe, so they are the one thing lyrics
+ * may not contain — see {@link closesLyricsFence}.
  */
-export const forgedDirective = (line: string): string | undefined =>
-  PROMPT_DIRECTIVE_PREFIXES.find((prefix) => line.startsWith(prefix));
+export const LYRICS_FENCE_OPEN = '---BEGIN LYRICS---';
+export const LYRICS_FENCE_CLOSE = '---END LYRICS---';
+
+/** Case-folded, punctuation-free identity: `--- End, Lyrics ---` → `endlyrics`. */
+const fenceIdentity = (line: string): string => line.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+const CLOSING_IDENTITY = fenceIdentity(LYRICS_FENCE_CLOSE);
+
+/**
+ * True when the lyrics could be read as closing their own fence — the only way
+ * fenced user text can escape back into directive position.
+ *
+ * Two spellings are refused, and only two: the literal closing marker anywhere in
+ * the text (case-insensitive, so it cannot hide mid-line), and a whole line that
+ * reduces to the marker's words once case and punctuation are dropped (so a near
+ * miss like `--- end lyrics ---` cannot be read as the close either). Ordinary
+ * lyrics — including every line the old reserved-prefix rule rejected — pass.
+ */
+export const closesLyricsFence = (lyrics: string): boolean =>
+  lyrics.toLowerCase().includes(LYRICS_FENCE_CLOSE.toLowerCase())
+  || lyrics.split('\n').some((line) => fenceIdentity(line) === CLOSING_IDENTITY);
 
 /**
  * Case- and form-insensitive identity of a normalized value. Used only as a dedup

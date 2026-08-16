@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { GenerationSpec } from './types';
-import { cleanList, forgedDirective, toLyricText, toSingleLineText } from './text';
+import { cleanList, closesLyricsFence, LYRICS_FENCE_CLOSE, toLyricText, toSingleLineText } from './text';
 
 // Raw payloads are bounded BEFORE any normalization runs. The piped caps below
 // describe the normalized contract; these describe the request. Without them the
@@ -128,28 +128,23 @@ const assertInstrumentalCarriesNoVoice = (spec: GenerationSpec, ctx: z.Refinemen
 };
 
 /**
- * Lyrics are emitted last, so they are the only user text that can still occupy a
- * whole line of the prompt. A lyric line opening with one of the template's own
- * directive prefixes would read as an instruction to the model; reject it rather
- * than rewrite what the user wrote.
+ * Lyrics are emitted inside a delimited fence, so a lyric line can say anything a
+ * songwriter wants — `Key: to my heart` is words, not a directive. The single thing
+ * it may not do is close the fence and step back out into directive position.
  */
-const assertLyricsCarryNoDirective = (spec: GenerationSpec, ctx: z.RefinementCtx): void => {
-  for (const line of spec.composition.lyrics.split('\n')) {
-    const directive = forgedDirective(line);
-    if (!directive) continue;
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['composition', 'lyrics'],
-      message: `Lyrics cannot contain a line beginning with the reserved prompt directive "${directive}".`,
-    });
-    return;
-  }
+const assertLyricsCannotCloseTheFence = (spec: GenerationSpec, ctx: z.RefinementCtx): void => {
+  if (!closesLyricsFence(spec.composition.lyrics)) return;
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ['composition', 'lyrics'],
+    message: `Lyrics cannot contain the closing lyrics marker "${LYRICS_FENCE_CLOSE}".`,
+  });
 };
 
 export const generationSpecSchema = generationSpecObject
   .superRefine((spec, ctx) => {
     assertInstrumentalCarriesNoVoice(spec, ctx);
-    assertLyricsCarryNoDirective(spec, ctx);
+    assertLyricsCannotCloseTheFence(spec, ctx);
   })
   .transform((spec) => spec as NormalizedGenerationSpec);
 

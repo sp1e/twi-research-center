@@ -1,6 +1,12 @@
 import { generationSpecSchema } from './schemas';
 import type { NormalizedGenerationSpec } from './schemas';
-import { VOCAL_DIRECTIVE_PREFIXES, containsLineBreak } from './text';
+import {
+  LYRICS_FENCE_CLOSE,
+  LYRICS_FENCE_OPEN,
+  VOCAL_DIRECTIVE_PREFIXES,
+  closesLyricsFence,
+  containsLineBreak,
+} from './text';
 
 export function normalizeGenerationSpec(input: unknown): NormalizedGenerationSpec {
   return generationSpecSchema.parse(input);
@@ -25,6 +31,15 @@ function assertDirectivesAreSingleLine(directives: readonly string[]): void {
   }
 }
 
+// Also defence in depth: the schema refuses lyrics that could close their own fence.
+// If one reaches the compiler anyway, emitting it would hand the user a directive
+// position outside the fence — the exact injection the fence exists to prevent.
+function assertLyricsStayFenced(lyrics: string): void {
+  if (closesLyricsFence(lyrics)) {
+    throw new Error('compileLyriaPrompt: lyrics close the lyrics fence; the spec was not normalized');
+  }
+}
+
 function assertInstrumentalIsSilent(prompt: string): void {
   const offender = prompt
     .split('\n')
@@ -32,6 +47,17 @@ function assertInstrumentalIsSilent(prompt: string): void {
   if (offender !== undefined) {
     throw new Error(`compileLyriaPrompt: instrumental prompt carries a vocal directive: ${offender}`);
   }
+}
+
+/**
+ * The lyric block: the directive line, then the sung text between two fence markers.
+ * Lyrics are the one legitimately multi-line field, and the fence is what lets them
+ * stay that way without any line of them being readable as a directive.
+ */
+function lyricBlock(lyrics: string): string {
+  if (!lyrics) return '';
+  assertLyricsStayFenced(lyrics);
+  return `Use these exact section-tagged lyrics:\n${LYRICS_FENCE_OPEN}\n${lyrics}\n${LYRICS_FENCE_CLOSE}`;
 }
 
 export function compileLyriaPrompt(spec: NormalizedGenerationSpec): string {
@@ -52,9 +78,9 @@ export function compileLyriaPrompt(spec: NormalizedGenerationSpec): string {
     spec.performance.timbre ? `Vocal timbre: ${spec.performance.timbre}.` : '',
     spec.performance.delivery ? `Vocal delivery: ${spec.performance.delivery}.` : '',
     spec.sound.exclusions.length ? `Avoid: ${spec.sound.exclusions.join(', ')}.` : '',
-    spec.composition.lyrics ? `Use these exact section-tagged lyrics:\n${spec.composition.lyrics}` : '',
+    lyricBlock(spec.composition.lyrics),
   ];
-  // Every entry but the lyrics block is a single directive line.
+  // Every entry but the fenced lyric block is a single directive line.
   assertDirectivesAreSingleLine(lines.slice(0, -1));
   const prompt = lines.filter(Boolean).join('\n');
   if (spec.intent.instrumental) assertInstrumentalIsSilent(prompt);
