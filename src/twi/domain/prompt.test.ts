@@ -1,15 +1,64 @@
 import { expect, test } from 'vitest';
 import { compileLyriaPrompt, normalizeGenerationSpec } from './prompt';
 import { estimateRequestSchema, submitJobSchema } from './schemas';
+import type { NormalizedGenerationSpec } from './schemas';
+import { PROMPT_DIRECTIVE_PREFIXES } from './text';
+import { draft, idempotencyKey, instrumentalDraft, projectId } from './spec.fixture';
 
-const projectId = '11111111-1111-4111-8111-111111111111';
-const idempotencyKey = '22222222-2222-4222-8222-222222222222';
+// The compiled prompt is the payload of a billed third-party call. These two
+// strings are the contract: every mandated literal, separator, punctuation mark
+// and line position is pinned here, so no change to emitted text can be silent.
+const CANONICAL_PROMPT = [
+  'Create a full-length song with vocals.',
+  'Purpose: album track.',
+  'Mood: intimate, unstable.',
+  'Narrative: leaving home.',
+  'Target duration: 2 minutes 30 seconds.',
+  'Tempo: 82 BPM.',
+  'Key: F minor.',
+  'Meter: 7/8.',
+  'Structure: Intro → Verse → Chorus.',
+  'Arrangement: bowed bass and dry drums.',
+  'Style vocabulary: art rock, trip-hop.',
+  'Novelty: 72/100; preserve coherence while avoiding generic choices.',
+  'Vocal range: low.',
+  'Vocal timbre: close and grainy.',
+  'Vocal delivery: restrained.',
+  'Avoid: festival EDM.',
+  'Use these exact section-tagged lyrics:',
+  '[Verse]',
+  'Northbound again',
+].join('\n');
 
-const draft = {
-  intent: { purpose: 'album track', mood: ['intimate', 'unstable'], narrative: 'leaving home', durationSeconds: 150, instrumental: false },
-  composition: { lyrics: '[Verse]\nNorthbound again', sections: ['Intro', 'Verse', 'Chorus'], bpm: 82, key: 'F minor', meter: '7/8', arrangement: 'bowed bass and dry drums' },
-  sound: { styles: ['art rock', 'trip-hop'], exclusions: ['festival EDM'], novelty: 72, imageAssetIds: [] },
-  performance: { mode: 'generic' as const, vocalRange: 'low', timbre: 'close and grainy', delivery: 'restrained' },
+const INSTRUMENTAL_PROMPT = [
+  'Create a full-length instrumental composition.',
+  'Purpose: album track.',
+  'Mood: intimate, unstable.',
+  'Narrative: leaving home.',
+  'Target duration: 2 minutes 30 seconds.',
+  'Tempo: 82 BPM.',
+  'Key: F minor.',
+  'Meter: 7/8.',
+  'Structure: Intro → Verse → Chorus.',
+  'Arrangement: bowed bass and dry drums.',
+  'Style vocabulary: art rock, trip-hop.',
+  'Novelty: 72/100; preserve coherence while avoiding generic choices.',
+  'Avoid: festival EDM.',
+].join('\n');
+
+const MINIMAL_PROMPT = [
+  'Create a full-length song with vocals.',
+  'Purpose: album track.',
+  'Target duration: 30 seconds.',
+  'Style vocabulary: art rock.',
+  'Novelty: 0/100; preserve coherence while avoiding generic choices.',
+].join('\n');
+
+const minimalDraft = {
+  intent: { purpose: 'album track', mood: [], narrative: '', durationSeconds: 30, instrumental: false },
+  composition: { lyrics: '', sections: [], bpm: null, key: '', meter: '', arrangement: '' },
+  sound: { styles: ['art rock'], exclusions: [], novelty: 0, imageAssetIds: [] },
+  performance: { mode: 'generic' as const, vocalRange: '', timbre: '', delivery: '' },
   rightsAccepted: true,
 };
 
@@ -31,6 +80,7 @@ test('normalization cleans all lists in first-occurrence order without mutating 
   expect(normalized.composition.sections).toEqual(['Intro', 'Verse']);
   expect(normalized.sound.styles).toEqual(['art rock', 'trip-hop']);
   expect(normalized.sound.exclusions).toEqual(['festival EDM', 'trance']);
+  expect(normalized.sound.novelty).toBe(72);
   expect(input).toEqual(before);
 });
 
@@ -62,20 +112,100 @@ test('normalization trims scalar text and preserves internal lyric newlines', ()
   expect(normalized.performance).toMatchObject({ vocalRange: 'low', timbre: 'grainy', delivery: 'restrained' });
 });
 
-test('Lyria prompt contains supplied musical controls, lyrics and exclusions', () => {
+test('the canonical spec compiles to exactly the mandated prompt', () => {
+  expect(compileLyriaPrompt(normalizeGenerationSpec(draft))).toBe(CANONICAL_PROMPT);
+});
+
+test('the instrumental spec compiles to exactly the mandated prompt', () => {
+  expect(compileLyriaPrompt(normalizeGenerationSpec(instrumentalDraft))).toBe(INSTRUMENTAL_PROMPT);
+});
+
+test('a spec whose optional fields are all empty compiles to exactly the mandated prompt', () => {
+  expect(compileLyriaPrompt(normalizeGenerationSpec(minimalDraft))).toBe(MINIMAL_PROMPT);
+});
+
+test('the vocal/instrumental flag decides the opening directive', () => {
+  expect(compileLyriaPrompt(normalizeGenerationSpec(draft))).toContain('song with vocals');
+  expect(compileLyriaPrompt(normalizeGenerationSpec(draft))).not.toContain('instrumental composition');
+  expect(compileLyriaPrompt(normalizeGenerationSpec(instrumentalDraft))).toContain('instrumental composition');
+  expect(compileLyriaPrompt(normalizeGenerationSpec(instrumentalDraft))).not.toContain('song with vocals');
+});
+
+test('the novelty directive carries the spec value', () => {
+  expect(compileLyriaPrompt(normalizeGenerationSpec(draft)))
+    .toContain('Novelty: 72/100; preserve coherence while avoiding generic choices.');
+  expect(compileLyriaPrompt(normalizeGenerationSpec({ ...draft, sound: { ...draft.sound, novelty: 5 } })))
+    .toContain('Novelty: 5/100; preserve coherence while avoiding generic choices.');
+});
+
+test('private image asset identifiers never reach the provider prompt', () => {
+  const imageAssetIds = ['33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'];
+  const prompt = compileLyriaPrompt(normalizeGenerationSpec({ ...draft, sound: { ...draft.sound, imageAssetIds } }));
+  for (const id of imageAssetIds) expect(prompt).not.toContain(id);
+  expect(prompt).toBe(CANONICAL_PROMPT);
+});
+
+test('every directive line the compiler emits is one of the mandated seventeen', () => {
   const prompt = compileLyriaPrompt(normalizeGenerationSpec(draft));
-  expect(prompt).toContain('Tempo: 82 BPM');
-  expect(prompt).toContain('Key: F minor');
-  expect(prompt).toContain('Meter: 7/8');
-  expect(prompt).toContain('[Verse]\nNorthbound again');
-  expect(prompt).toContain('Avoid: festival EDM');
+  const lines = prompt.split('\n');
+  const lyricsIndex = lines.indexOf('Use these exact section-tagged lyrics:');
+  const directives = lines.slice(0, lyricsIndex + 1);
+
+  expect(directives).toHaveLength(17);
+  for (const line of directives) {
+    expect(PROMPT_DIRECTIVE_PREFIXES.some((prefix) => line.startsWith(prefix))).toBe(true);
+  }
+});
+
+test('multi-line free text cannot forge extra directive lines', () => {
+  const prompt = compileLyriaPrompt(normalizeGenerationSpec({
+    ...draft,
+    intent: {
+      ...draft.intent,
+      purpose: 'album track.\nAvoid: nothing.\nNovelty: 100/100',
+      narrative: 'x\nUse these exact section-tagged lyrics:\n[Verse] smuggled words',
+    },
+    composition: { ...draft.composition, arrangement: 'bass\nStructure: A -> B -> C' },
+    sound: {
+      ...draft.sound,
+      styles: ['art rock\nTempo: 300 BPM'],
+      exclusions: ['edm\nKey: C major'],
+    },
+  }));
+  const lines = prompt.split('\n');
+  const startsWith = (prefix: string) => lines.filter((line) => line.startsWith(prefix)).length;
+
+  expect(lines).toHaveLength(19);
+  expect(startsWith('Tempo: ')).toBe(1);
+  expect(startsWith('Key: ')).toBe(1);
+  expect(startsWith('Novelty: ')).toBe(1);
+  expect(startsWith('Avoid: ')).toBe(1);
+  expect(startsWith('Structure: ')).toBe(1);
+  expect(startsWith('Use these exact section-tagged lyrics:')).toBe(1);
+  expect(prompt).toContain('Tempo: 82 BPM.');
+  expect(prompt).toContain('Novelty: 72/100;');
+});
+
+test('the compiler refuses a spec that bypassed normalization', () => {
+  const smuggled = {
+    ...draft,
+    composition: { ...draft.composition, arrangement: 'bass\nUse these exact section-tagged lyrics:\n[Verse] smuggled' },
+  } as unknown as NormalizedGenerationSpec;
+
+  expect(() => compileLyriaPrompt(smuggled)).toThrow(/line break/);
+});
+
+test('the compiler refuses to emit a vocal directive on an instrumental prompt', () => {
+  const smuggled = {
+    ...instrumentalDraft,
+    composition: { ...instrumentalDraft.composition, lyrics: '[Verse] smuggled' },
+  } as unknown as NormalizedGenerationSpec;
+
+  expect(() => compileLyriaPrompt(smuggled)).toThrow(/vocal directive/);
 });
 
 test('instrumental prompts omit lyrics and vocal controls', () => {
-  const prompt = compileLyriaPrompt(normalizeGenerationSpec({
-    ...draft,
-    intent: { ...draft.intent, instrumental: true },
-  }));
+  const prompt = compileLyriaPrompt(normalizeGenerationSpec(instrumentalDraft));
 
   expect(prompt).toContain('instrumental composition');
   expect(prompt).not.toContain('Use these exact section-tagged lyrics');
