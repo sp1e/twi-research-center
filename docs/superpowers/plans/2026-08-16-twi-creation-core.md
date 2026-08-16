@@ -739,10 +739,12 @@ Use this exact guarded update shape:
 ```ts
 env.DB.prepare(
   `UPDATE twi_jobs
-   SET status = ?, phase = ?, updated_at = ?, error_code = ?, error_message = ?
+   SET status = ?, phase = ?, updated_at = MAX(updated_at, ?), error_code = ?, error_message = ?
    WHERE id = ? AND status = ?`
 ).bind(to, phase, now, errorCode, errorMessage, jobId, from)
 ```
+
+`updated_at` is assigned `MAX(updated_at, ?)` rather than `?` so a transition carrying an older `now` cannot roll back a newer timestamp written by a concurrent `appendCost`, which advances the same column the same way; because `MAX()` over TEXT is a lexicographic comparison in which any non-ISO string (`'now'`, a bare epoch number, a `+02:00` offset) would outrank every real date and latch the column permanently, every timestamp entering the repository must first pass strict `YYYY-MM-DDTHH:MM:SS.sssZ` validation.
 
 - [ ] **Step 5: Add a fake D1 unit test for guarded transitions**
 
