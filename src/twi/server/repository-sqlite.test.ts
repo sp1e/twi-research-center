@@ -445,12 +445,63 @@ describe('D1TwiRepository SQLite integration', () => {
 
   it('reconciles asset insert replay and rejects an immutable mismatch', async () => {
     seedProjectSpecJob(db);
-    await expect(repository.registerAsset(assetInput)).resolves.toEqual(assetInput);
-    await expect(repository.registerAsset(assetInput)).resolves.toEqual(assetInput);
+    await expect(repository.registerAsset(assetInput)).resolves.toEqual({
+      asset: assetInput,
+      outcome: 'inserted',
+    });
+    await expect(repository.registerAsset(assetInput)).resolves.toEqual({
+      asset: assetInput,
+      outcome: 'replayed',
+    });
     await expect(repository.registerAsset({ ...assetInput, sha256: 'different' })).rejects.toThrow(
       /^asset idempotency collision on id$/,
     );
     expect(db.value<number>("SELECT COUNT(*) FROM twi_assets WHERE id = 'asset-a'")).toBe(1);
+  });
+
+  it('reports its outcome alongside the asset for the insert, replay, and reconciled paths', async () => {
+    seedProjectSpecJob(db);
+
+    await expect(repository.registerAsset(assetInput)).resolves.toEqual({
+      asset: assetInput,
+      outcome: 'inserted',
+    });
+    await expect(repository.registerAsset(assetInput)).resolves.toEqual({
+      asset: assetInput,
+      outcome: 'replayed',
+    });
+
+    const racedInput = {
+      ...assetInput,
+      id: 'asset-race-outcome',
+      r2Key: 'twi/project-1/jobs/job-1/race-outcome/master.wav',
+    };
+    db.beforeNextStandaloneRun = () => {
+      db.exec(
+        `INSERT INTO twi_assets
+           (id, project_id, job_id, kind, label, r2_key, content_type, bytes, duration_seconds,
+            sha256, provenance_key, lifecycle_state, created_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        racedInput.id,
+        racedInput.projectId,
+        racedInput.jobId,
+        racedInput.kind,
+        racedInput.label,
+        racedInput.r2Key,
+        racedInput.contentType,
+        racedInput.bytes,
+        racedInput.durationSeconds,
+        racedInput.sha256,
+        racedInput.provenanceKey,
+        racedInput.lifecycleState,
+        racedInput.createdAt,
+        racedInput.deletedAt,
+      );
+    };
+    await expect(repository.registerAsset(racedInput)).resolves.toEqual({
+      asset: racedInput,
+      outcome: 'reconciled',
+    });
   });
 
   it('returns the authoritative stored spec hash after estimated-job creation', async () => {
@@ -485,7 +536,10 @@ describe('D1TwiRepository SQLite integration', () => {
         assetInput.deletedAt,
       );
     };
-    await expect(repository.registerAsset(assetInput)).resolves.toEqual(assetInput);
+    await expect(repository.registerAsset(assetInput)).resolves.toEqual({
+      asset: assetInput,
+      outcome: 'reconciled',
+    });
 
     const racedInput = {
       ...assetInput,

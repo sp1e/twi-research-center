@@ -509,7 +509,10 @@ describe('D1TwiRepository fast behavior', () => {
 
   it('reconciles asset replay and rejects immutable payload or r2-key collisions', async () => {
     db.firstResults.push(assetRow);
-    await expect(repository.registerAsset(assetInput)).resolves.toEqual(assetInput);
+    await expect(repository.registerAsset(assetInput)).resolves.toEqual({
+      asset: assetInput,
+      outcome: 'replayed',
+    });
     expect(db.runResults).toHaveLength(0);
 
     db.firstResults.push(assetRow);
@@ -518,7 +521,10 @@ describe('D1TwiRepository fast behavior', () => {
     );
 
     db.firstResults.push(null, assetRow);
-    await expect(repository.registerAsset(assetInput)).resolves.toEqual(assetInput);
+    await expect(repository.registerAsset(assetInput)).resolves.toEqual({
+      asset: assetInput,
+      outcome: 'replayed',
+    });
 
     db.firstResults.push(null, { ...assetRow, id: 'different-asset' });
     await expect(repository.registerAsset(assetInput)).rejects.toThrow(
