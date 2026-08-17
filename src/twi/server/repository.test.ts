@@ -6,6 +6,8 @@
 // proven against a real database in `repository-sqlite.test.ts`, and D1's own
 // batch semantics in `repository-d1.test.ts`.
 
+import { createHash } from 'node:crypto';
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -85,17 +87,23 @@ describe('D1TwiRepository fast behavior', () => {
 
     await expect(repository.getProject('project-1')).resolves.toMatchObject({ id: 'project-1' });
 
-    await expect(
-      repository.saveSpec({
-        id: 'spec-1',
-        projectId: 'project-1',
-        specJson: '{"z":1,"a":{"d":2,"c":3}}',
-        specSha256: 'spec-sha',
-        rightsAssertionVersion: '2026-08-16',
-        createdAt: '2026-08-16T02:00:00.000Z',
-      }),
-    ).resolves.toMatchObject({ spec: { a: { c: 3, d: 2 }, z: 1 } });
-    expect(db.statements.at(-1)!.bindings).toContain('{"a":{"c":3,"d":2},"z":1}');
+    const saved = await repository.saveSpec({
+      id: 'spec-1',
+      projectId: 'project-1',
+      specJson: '{"z":1,"a":{"d":2,"c":3}}',
+      rightsAssertionVersion: '2026-08-16',
+      createdAt: '2026-08-16T02:00:00.000Z',
+    });
+    expect(saved).toMatchObject({ spec: { a: { c: 3, d: 2 }, z: 1 } });
+
+    // The two spec columns are bound next to each other, and the digest is of the
+    // document beside it — checked against node:crypto, so an independent SHA-256
+    // has to agree. Statement shape belongs in this suite; the same invariant is
+    // proven against real stored bytes in spec-digest.test.ts.
+    const bindings = db.statements.at(-1)!.bindings;
+    expect(bindings[2]).toBe('{"a":{"c":3,"d":2},"z":1}');
+    expect(bindings[3]).toBe(createHash('sha256').update(bindings[2] as string, 'utf8').digest('hex'));
+    expect(saved.specSha256).toBe(bindings[3]);
     expect(db.drained()).toBe(true);
   });
 
@@ -311,7 +319,6 @@ describe('D1TwiRepository fast behavior', () => {
           id: 'spec-1',
           projectId: 'project-1',
           specJson: '{}',
-          specSha256: 'sha',
           rightsAssertionVersion: 'v1',
           createdAt: now,
         }),
@@ -370,7 +377,6 @@ describe('D1TwiRepository fast behavior', () => {
         id: 'spec-infinite',
         projectId: 'project-1',
         specJson: '{"nested":[1e400]}',
-        specSha256: 'sha',
         rightsAssertionVersion: 'v1',
         createdAt: '2026-08-16T02:00:00.000Z',
       }),
@@ -602,7 +608,6 @@ describe('D1TwiRepository fast behavior', () => {
         id: 'spec-1',
         projectId: 'project-1',
         specJson: '[]',
-        specSha256: 'sha',
         rightsAssertionVersion: 'v1',
         createdAt: '2026-08-16T02:00:00.000Z',
       }),

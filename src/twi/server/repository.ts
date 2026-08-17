@@ -2,7 +2,6 @@ import { assertTransition } from '../domain/job-state';
 import type { JobStatus } from '../domain/types';
 
 import { assertNonBlank, assertTimestamp } from './assertions';
-import { parseInputObjectJson } from './canonical-json';
 import type { D1ResultLike, TwiRepositoryEnv } from './d1-types';
 import { collision, conflict, validation } from './errors';
 import { mapJob, mapProject } from './mappers';
@@ -58,6 +57,7 @@ import {
   type TwiRepositoryEventSink,
   type TwiRepositoryOptions,
 } from './repository-types';
+import { canonicalSpecDocument } from './spec-digest';
 import {
   assetMatchesInput,
   costMatchesInput,
@@ -115,6 +115,11 @@ export type {
   TwiRepositoryEventSink,
   TwiRepositoryOptions,
 } from './repository-types';
+// The one sanctioned way to fingerprint a spec. `saveSpec` derives the stored
+// digest with it; the submit path needs the same value before the spec exists, to
+// find a job to replay, and must not roll its own.
+export { specSha256 } from './spec-digest';
+export type { CanonicalSpecDocument } from './spec-digest';
 
 const changesOf = (results: D1ResultLike[]): Array<number | null> =>
   results.map((result) => result?.meta.changes ?? null);
@@ -169,11 +174,12 @@ export class D1TwiRepository implements TwiRepository {
     const startedAt = Date.now();
     assertNonBlank('spec.id', input.id);
     assertNonBlank('spec.projectId', input.projectId);
-    assertNonBlank('spec.specSha256', input.specSha256);
     assertNonBlank('spec.rightsAssertionVersion', input.rightsAssertionVersion);
     assertTimestamp('spec.createdAt', input.createdAt);
-    const spec = parseInputObjectJson('spec.specJson', input.specJson);
-    const result = await insertSpec(this.env.DB, input, spec.canonical).run();
+    // The digest is derived from the canonical text this call is about to store,
+    // never accepted from the caller. See `./spec-digest`.
+    const spec = await canonicalSpecDocument('spec.specJson', input.specJson);
+    const result = await insertSpec(this.env.DB, input, spec).run();
     if (result.meta.changes !== 1) {
       conflict('generation spec insert conflict', { specId: input.id, changes: result.meta.changes });
     }
@@ -187,7 +193,7 @@ export class D1TwiRepository implements TwiRepository {
       id: input.id,
       projectId: input.projectId,
       spec: spec.object,
-      specSha256: input.specSha256,
+      specSha256: spec.sha256,
       rightsAssertionVersion: input.rightsAssertionVersion,
       createdAt: input.createdAt,
     };

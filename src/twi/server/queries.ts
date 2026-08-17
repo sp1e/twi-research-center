@@ -27,6 +27,7 @@ import type {
   SaveSpecInput,
   TransitionJobOptions,
 } from './repository-types';
+import type { CanonicalSpecDocument } from './spec-digest';
 import type { ValidatedEstimatedJob, ValidatedPublication } from './validation';
 
 const PROJECT_COLUMNS = `id, name, current_revision_id, lifecycle_state, deleted_at, created_at, updated_at`;
@@ -54,10 +55,15 @@ export const insertProject = (db: D1DatabaseLike, input: CreateProjectInput): D1
     )
     .bind(input.id, input.name, input.now, input.now);
 
+/**
+ * Both spec columns are bound from ONE {@link CanonicalSpecDocument}, so
+ * `spec_sha256` is necessarily the digest of the `spec_json` in the same row.
+ * There is no second parameter to pass a stale or foreign digest through.
+ */
 export const insertSpec = (
   db: D1DatabaseLike,
   input: SaveSpecInput,
-  canonicalSpecJson: string,
+  document: CanonicalSpecDocument,
 ): D1PreparedStatementLike =>
   db
     .prepare(
@@ -68,8 +74,8 @@ export const insertSpec = (
     .bind(
       input.id,
       input.projectId,
-      canonicalSpecJson,
-      input.specSha256,
+      document.canonical,
+      document.sha256,
       input.rightsAssertionVersion,
       input.createdAt,
     );
