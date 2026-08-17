@@ -11,8 +11,7 @@
 --     bound. The bound is what rejects Infinity and is load-bearing, so do not
 --     "simplify" it away.
 --   * Timestamps are fixed-width ISO-8601 UTC milliseconds
---     (YYYY-MM-DDTHH:MM:SS.sssZ), matching what the repository layer validates
---     at its boundary. The repository advances updated_at with
+--     (YYYY-MM-DDTHH:MM:SS.sssZ). The repository advances updated_at with
 --     MAX(updated_at, ?), a BINARY comparison over TEXT, so one differently
 --     shaped timestamp would latch the column against every later correct one.
 --     The guard is a strftime round-trip rather than a GLOB, for two measured
@@ -22,6 +21,26 @@
 --     to be strict fails at write time with "LIKE or GLOB pattern too complex"
 --     even though node:sqlite accepts it happily. The round-trip is shorter and
 --     also rejects impossible calendar dates such as month 13.
+--
+--     The round-trip has exactly one blind spot, which is what the third
+--     conjunct substr(x, 12, 2) <> '24' covers. It is load-bearing, so do not
+--     "simplify" it away. SQLite's parser accepts HH up to 24 and, for some
+--     dates, round-trips it verbatim, so without the conjunct the CHECK admits
+--     shapes the repository boundary rejects. Hour 24 is also precisely the
+--     shape that defeats MAX(): '2026-08-16T24:30:00.000Z' is the same instant
+--     as '2026-08-17T00:30:00.000Z' but sorts a whole day lower as text, so
+--     MAX() ranks it under timestamps that are really earlier and updated_at
+--     can move backwards in real time while still looking monotonic.
+--
+--     With that conjunct the schema rejects exactly what the repository
+--     boundary rejects. isIsoUtcTimestamp in src/twi/server/assertions.ts is
+--     the boundary, and src/twi/server/timestamp-parity.test.ts drives one
+--     shared set of 70k+ vectors through BOTH enforcers and asserts they agree
+--     on every single one, in both directions. The parity is therefore measured
+--     rather than structural -- the two rules are written in different
+--     languages and nothing but that test stops them drifting apart again, so
+--     any change to either side belongs in the same commit as a green run of
+--     it.
 --   * JSON columns use json_type(x) = 'object', not json_valid(x) alone.
 --     json_valid() happily accepts 123, null, "hello" and [].
 --
@@ -44,16 +63,22 @@ CREATE TABLE IF NOT EXISTS twi_projects (
     CONSTRAINT twi_projects_deleted_at_iso CHECK (
       deleted_at IS NULL
       OR (
-        typeof(deleted_at) = 'text' AND deleted_at IS strftime('%Y-%m-%dT%H:%M:%fZ', deleted_at)
+        typeof(deleted_at) = 'text'
+        AND deleted_at IS strftime('%Y-%m-%dT%H:%M:%fZ', deleted_at)
+        AND substr(deleted_at, 12, 2) <> '24'
       )
     ),
   created_at TEXT NOT NULL
     CONSTRAINT twi_projects_created_at_iso CHECK (
-      typeof(created_at) = 'text' AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      typeof(created_at) = 'text'
+      AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      AND substr(created_at, 12, 2) <> '24'
     ),
   updated_at TEXT NOT NULL
     CONSTRAINT twi_projects_updated_at_iso CHECK (
-      typeof(updated_at) = 'text' AND updated_at IS strftime('%Y-%m-%dT%H:%M:%fZ', updated_at)
+      typeof(updated_at) = 'text'
+      AND updated_at IS strftime('%Y-%m-%dT%H:%M:%fZ', updated_at)
+      AND substr(updated_at, 12, 2) <> '24'
     ),
   CONSTRAINT twi_projects_lifecycle_deleted_at CHECK (
     (lifecycle_state = 'active' AND deleted_at IS NULL)
@@ -79,7 +104,9 @@ CREATE TABLE IF NOT EXISTS twi_project_revisions (
   summary TEXT NOT NULL,
   created_at TEXT NOT NULL
     CONSTRAINT twi_project_revisions_created_at_iso CHECK (
-      typeof(created_at) = 'text' AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      typeof(created_at) = 'text'
+      AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      AND substr(created_at, 12, 2) <> '24'
     ),
   UNIQUE (project_id, id),
   CONSTRAINT twi_project_revisions_parent_not_self
@@ -103,7 +130,9 @@ CREATE TABLE IF NOT EXISTS twi_generation_specs (
     CHECK (typeof(rights_assertion_version) = 'text' AND length(rights_assertion_version) > 0),
   created_at TEXT NOT NULL
     CONSTRAINT twi_generation_specs_created_at_iso CHECK (
-      typeof(created_at) = 'text' AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      typeof(created_at) = 'text'
+      AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      AND substr(created_at, 12, 2) <> '24'
     ),
   UNIQUE (project_id, id)
 );
@@ -146,17 +175,23 @@ CREATE TABLE IF NOT EXISTS twi_jobs (
   error_message TEXT,
   created_at TEXT NOT NULL
     CONSTRAINT twi_jobs_created_at_iso CHECK (
-      typeof(created_at) = 'text' AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      typeof(created_at) = 'text'
+      AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      AND substr(created_at, 12, 2) <> '24'
     ),
   updated_at TEXT NOT NULL
     CONSTRAINT twi_jobs_updated_at_iso CHECK (
-      typeof(updated_at) = 'text' AND updated_at IS strftime('%Y-%m-%dT%H:%M:%fZ', updated_at)
+      typeof(updated_at) = 'text'
+      AND updated_at IS strftime('%Y-%m-%dT%H:%M:%fZ', updated_at)
+      AND substr(updated_at, 12, 2) <> '24'
     ),
   finished_at TEXT
     CONSTRAINT twi_jobs_finished_at_iso CHECK (
       finished_at IS NULL
       OR (
-        typeof(finished_at) = 'text' AND finished_at IS strftime('%Y-%m-%dT%H:%M:%fZ', finished_at)
+        typeof(finished_at) = 'text'
+        AND finished_at IS strftime('%Y-%m-%dT%H:%M:%fZ', finished_at)
+        AND substr(finished_at, 12, 2) <> '24'
       )
     ),
   UNIQUE (project_id, id),
@@ -184,7 +219,9 @@ CREATE TABLE IF NOT EXISTS twi_job_events (
     CHECK (json_valid(detail_json) AND json_type(detail_json) = 'object'),
   created_at TEXT NOT NULL
     CONSTRAINT twi_job_events_created_at_iso CHECK (
-      typeof(created_at) = 'text' AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      typeof(created_at) = 'text'
+      AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      AND substr(created_at, 12, 2) <> '24'
     ),
   UNIQUE (job_id, event_key)
 );
@@ -220,13 +257,17 @@ CREATE TABLE IF NOT EXISTS twi_assets (
     CONSTRAINT twi_assets_lifecycle_enum CHECK (lifecycle_state IN ('provisional','active','hidden','deleted')),
   created_at TEXT NOT NULL
     CONSTRAINT twi_assets_created_at_iso CHECK (
-      typeof(created_at) = 'text' AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      typeof(created_at) = 'text'
+      AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      AND substr(created_at, 12, 2) <> '24'
     ),
   deleted_at TEXT
     CONSTRAINT twi_assets_deleted_at_iso CHECK (
       deleted_at IS NULL
       OR (
-        typeof(deleted_at) = 'text' AND deleted_at IS strftime('%Y-%m-%dT%H:%M:%fZ', deleted_at)
+        typeof(deleted_at) = 'text'
+        AND deleted_at IS strftime('%Y-%m-%dT%H:%M:%fZ', deleted_at)
+        AND substr(deleted_at, 12, 2) <> '24'
       )
     ),
   CONSTRAINT twi_assets_lifecycle_deleted_at CHECK (
@@ -267,7 +308,9 @@ CREATE TABLE IF NOT EXISTS twi_cost_events (
     CHECK (json_valid(detail_json) AND json_type(detail_json) = 'object'),
   created_at TEXT NOT NULL
     CONSTRAINT twi_cost_events_created_at_iso CHECK (
-      typeof(created_at) = 'text' AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      typeof(created_at) = 'text'
+      AND created_at IS strftime('%Y-%m-%dT%H:%M:%fZ', created_at)
+      AND substr(created_at, 12, 2) <> '24'
     ),
   UNIQUE (job_id, idempotency_key)
 );
