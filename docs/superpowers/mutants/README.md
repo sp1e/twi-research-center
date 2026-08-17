@@ -192,6 +192,46 @@ record of what that closes.
 Round 2's numbers live in `sets[api].measuredInFixRound2`; `measuredInThisRound` beside it is fix
 round 1's. Do not add those two together either.
 
+## Changed in v1.3.0 — no new ids, three corrections and one promise kept
+
+A third adversarial re-review attacked round 2's guard with **23 constructions and 16 beat it**, ten
+of them with `npm test`, `typecheck:twi` and the contract check simultaneously green. Fix round 3
+closed all of them and added five more of its own. **No mutant ids were added**, and that is a
+deliberate choice explained below. What changed here is honesty and enforcement.
+
+- **Seven entries contradicted themselves, and now do not.** Round 2 corrected `status`,
+  `notKilledBy` and `provenance` for the six mutants it measured as ALREADY KILLED at `d441679`
+  (`API-40`, `API-41`, `API-43`, `API-44`, `API-49`, `API-50`) plus the one MIXED entry (`API-48`) —
+  and left the *boilerplate* `premise.claim` asserting "MEASURED SURVIVOR" and a `crossCheck`
+  claiming "exit 0 against the 29-check lexical version" for all seven. Both fields are now per
+  entry and say what that entry's own three other fields already said. Two of the six
+  (`API-44`, `API-49`) additionally record that the prior guard caught them **on its own terms**
+  rather than incidentally, which the shared text also got wrong in the other direction.
+- **`API-45`'s kill was over-attributed** to the `env` rule. Its payload carries a trailing
+  `void purge;`, which is an independent offender as a bare statement above the gate; strip it and
+  spell `env` as `ctx['env']` and the round-2 guard scored the same mutation **33/33 green**, because
+  that rule was a rule about one IDENTIFIER. The entry now records both halves. Round 3 closes both:
+  computed member access above the gate is refused, and the whole region must equal a declared
+  preamble.
+- **The `failureMode` on all 24 gate entries was true and is no longer.** It said that replacing the
+  AST analysis with a line scan reverts every one of them to a survivor *while every unit test stays
+  green* — and the re-review proved exactly that with a 14-line permissive stub: `npm test` 7/7, the
+  contract check still reporting the same number of checks. `scripts/twi-route-structure.test.mjs`
+  now drives the analysis directly, is wired into `npm test` as `test:twi:structure`, and takes **this
+  manifest's own `exact-from-source` find/replace pairs as its corpus** — so each entry's prose
+  premise is an executed assertion. Measured against the same stub: the contract check still passes,
+  and that suite fails **41 of 58** tests, naming the mutants.
+
+**Why round 3 added no ids.** Its 14 new constructions (a block-nested gate, a module-scope wrapper
+keeping the gate's name, a catch that serves the resource, `ctx['env']` and `ctx[key]`, a renamed
+destructuring, `export * from`, an ancestor `_middleware` at three levels, a parent-level `twi.js`, a
+`_worker.js`, a `_routes.json` exclusion, a bare public marker, a public `_middleware`) are registered
+as **named tests** in `scripts/twi-route-structure.test.mjs` rather than as JSON prose. A test that
+runs is strictly stronger than a manifest entry that does not, and this file's own
+`testCommandWarning` exists because so many entries are text-only facts no suite can see. The
+constructions are documented in `.superpowers/sdd/2026-08-16-twi-creation-core/task-5-fix-round3-report.md`
+with their before/after measurements; if a runner is ever built, they can be lifted into ids then.
+
 ## No runner, deliberately
 
 The owner chose a manifest, not an executable suite. The format is shaped so a runner can consume

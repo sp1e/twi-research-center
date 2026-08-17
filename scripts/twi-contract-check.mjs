@@ -10,9 +10,25 @@
  *      hazard in the sibling /api/[[route]].ts is pinned the same way — see the
  *      `api.indexOf('Protected')` assertions in scripts/landing-layout-check.mjs.
  *      Section 4 asserts this on a PARSED AST (scripts/lib/twi-route-structure.mjs)
- *      and over the DIRECTORY LISTING, because three review rounds showed the two
- *      things a line scan cannot see: a gate that is present and early but
- *      CONDITIONAL, and a sibling file Pages prefers by path specificity.
+ *      and over a DECLARED REGISTRY of every file under functions/
+ *      (scripts/lib/functions-registry.mjs), because three review rounds showed
+ *      the things a line scan over one directory cannot see: a gate that is
+ *      present and early but CONDITIONAL, a sibling file Pages prefers by path
+ *      specificity, and an ancestor `_middleware` that answers before either.
+ *
+ *      Round 3 changed the SHAPE of two of these assertions, and the reason is
+ *      the record rather than taste. The region above the gate and the set of
+ *      files that can answer were both pinned by enumerating what must not appear
+ *      there, and both enumerations were beaten by the next round's spelling —
+ *      three times running. Both are now EQUALITIES against something declared:
+ *      the pre-gate region must equal `EXPECTED_PREGATE_PREAMBLE`, and the
+ *      functions/ tree must equal `FUNCTIONS_REGISTRY`. A smaller claim that
+ *      holds beats a larger one that keeps being falsified, and an equality
+ *      cannot be evaded by a form nobody has thought of yet.
+ *
+ *      Section 11 asserts that the modules behind all of this are themselves
+ *      tested. They were not, and a permissive 14-line stub of the analysis kept
+ *      `npm test` green with this script's check count unchanged.
  *
  *   2. DEPLOY REACHABILITY. Cloudflare Pages builds this project with NO build
  *      command (wrangler.toml sets pages_build_output_dir = "."), and no Pages
@@ -35,7 +51,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { analyseTwiRouteFile, classifyRouteInventory } from './lib/twi-route-structure.mjs';
+import {
+  FUNCTIONS_REGISTRY,
+  ROUTES_MANIFEST_NAME,
+  classifyFunctionsTree,
+} from './lib/functions-registry.mjs';
+import { analyseTwiRouteFile, comparePreamble } from './lib/twi-route-structure.mjs';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => {
@@ -106,7 +127,7 @@ check(
  * a trailing comment containing the word "return", and `return (await h(…));`,
  * which is the admitted form with parentheses.
  */
-const structure = analyseTwiRouteFile(route);
+const structure = analyseTwiRouteFile(route, { httpSource: http });
 
 check(
   `the TWI route file parses as TypeScript, so the structural assertions below mean something${
@@ -130,13 +151,57 @@ check(
   structure.hasOnRequest && structure.gateReasons.length === 0,
 );
 
+/**
+ * The region above the gate is the only part of this function that runs
+ * unauthenticated, and round 3 pins it by EQUALITY against a declared preamble
+ * (`EXPECTED_PREGATE_PREAMBLE`) as well as by the offender rules.
+ *
+ * The reason is the record. Round 2 asserted "declarations and one preflight,
+ * nothing else, and nothing that reaches `env`" — and was beaten five ways at
+ * once: the region could be emptied by wrapping the gate in a bare `{ }` (the
+ * `indexOf` returned −1 and −1 was read as "region starts at 0"), and `env` could
+ * be reached as `ctx['env']`, as `ctx[key]`, or through a renamed destructuring,
+ * none of which is the identifier `env`. Enumerating privileged reaches has now
+ * failed in three consecutive rounds. An equality cannot be beaten by a spelling:
+ * anything added above the gate fails, whatever it does and however it is written.
+ *
+ * The offender rules are kept underneath, unchanged and extended, because they
+ * name what is wrong ("`env` is reachable above the gate: …") where the equality
+ * only says the region drifted.
+ */
+const preambleDifferences = comparePreamble(structure.preGateCanonical);
+
 check(
   `nothing above the owner gate answers except the CORS preflight${
     structure.preGateOffenders.length
       ? ` — PUBLIC, UNAUTHENTICATED code above the gate: ${structure.preGateOffenders.join(' | ')}`
       : ''
+  }${
+    preambleDifferences.length
+      ? ` — the region above the gate is NOT the declared preamble (EXPECTED_PREGATE_PREAMBLE in scripts/lib/twi-route-structure.mjs): ${preambleDifferences.join(' | ')}`
+      : ''
   }`,
-  structure.hasOnRequest && structure.gateReasons.length === 0 && structure.preGateOffenders.length === 0,
+  structure.hasOnRequest &&
+    structure.gateReasons.length === 0 &&
+    structure.preGateOffenders.length === 0 &&
+    preambleDifferences.length === 0,
+);
+
+/**
+ * The mapping `catch` runs on the gate's OWN 401, so what it may answer with is a
+ * gate question, not an error-handling one. Round 2 required it to bind, read and
+ * end in a return; it never constrained the payload, so
+ * `if (error.status === 401 && segments[0] === 'health') return json({ capabilities: … })`
+ * served the resource to an unauthenticated caller with contract, typecheck and
+ * the unit suite all green. Here every return must be an error envelope, nothing
+ * may be awaited, and the catch may borrow only `json` and `HttpError` from this
+ * file's imports — so there is no handler to call and no payload to build.
+ */
+check(
+  `the catch that maps the gate's 401 answers with an error envelope, never with the resource${
+    structure.catchOffenders.length ? ` — ${structure.catchOffenders.join(' | ')}` : ''
+  }`,
+  structure.hasOnRequest && structure.gateReasons.length === 0 && structure.catchOffenders.length === 0,
 );
 
 /**
@@ -151,12 +216,20 @@ check(
  * Compared as DECODED identifiers, so `onRequestGet` — which declares
  * `onRequestGet` and matched no regex — is the same name to this check as
  * `onRequestGet`.
+ *
+ * A star re-export (`export * from './x'`) is refused as OPAQUE rather than read:
+ * the names it carries live in another module, so `export * from` a file exporting
+ * `onRequestPost` put a second handler in this module's namespace with nothing
+ * here to compare. Whether Pages dispatches a re-exported handler is a deploy-time
+ * fact, so the guard refuses the ambiguity, as it does for _redirects precedence.
  */
 check(
   `onRequest is the only Pages handler in the TWI function, so no verb export can answer beside the gate${
     structure.extraHandlerExports.length ? ` — exports ${structure.extraHandlerExports.join(', ')}` : ''
-  }`,
-  structure.handlerExports.includes('onRequest') && structure.extraHandlerExports.length === 0,
+  }${structure.opaqueExports.length ? ` — OPAQUE: ${structure.opaqueExports.join(' | ')}` : ''}`,
+  structure.handlerExports.includes('onRequest') &&
+    structure.extraHandlerExports.length === 0 &&
+    structure.opaqueExports.length === 0,
 );
 
 /**
@@ -168,8 +241,12 @@ check(
  * `return listJobs(repo)` would reopen the leak with every test green.
  *
  * `return json(...)` is synchronous and correctly unawaited, so it is the one
- * other admitted form. The count clause keeps the check from passing vacuously
- * if the region is ever read as empty.
+ * other admitted form. The count clause keeps the check from passing vacuously if
+ * the region is ever read as empty — and it counts RETURNS, not awaits. Round 2
+ * required `awaitedReturnCount > 0`, which asks the region to contain an `await`,
+ * so a read-only sub-router whose gated returns were all `json(…)` — entirely
+ * legitimate, and likely in Tasks 6–15 — would have failed this check with a
+ * message listing no offenders at all.
  *
  * Two admitted forms and no others is the point, so this also rejects
  * `return new Response(…)` inside the gate — deliberately. A task that needs to
@@ -188,65 +265,116 @@ check(
   }`,
   structure.hasOnRequest &&
     structure.gateReasons.length === 0 &&
-    structure.awaitedReturnCount > 0 &&
+    structure.gatedReturnCount > 0 &&
     structure.unawaitedReturns.length === 0,
 );
 
 /**
- * ── 4c. The directory, because Pages routes by path specificity ──────────────
+ * ── 4c. WHICH FILE ANSWERS — a closed set, not a search ──────────────────────
  *
- * Every module under functions/ is an entry point. `functions/api/twi/health.ts`
- * answers /api/twi/health without [[route]].ts — and therefore without the gate —
- * ever being entered, and it beat all 29 of the previous checks plus the whole
- * test suite, because nothing in scripts/ enumerated any directory under
- * functions/. The gate cannot defend a file it is not in, so the inventory is
- * pinned instead.
+ * Round 2 pinned the listing of `functions/api/twi/` and refused
+ * `functions/api/twi.ts` by name. Round 3 beat that three ways without touching
+ * either: the EXISTING `functions/_middleware.ts` answering a TWI path instead of
+ * calling `next()`; a new `functions/api/_middleware.ts`; and
+ * `functions/api/twi.js`, because the parent-level refusal named one exact path
+ * with one extension. Probing those turned up two more, both one committed file
+ * away: `_worker.js`, which makes Pages ignore the whole functions/ directory, and
+ * `_routes.json`, which can exclude /api/twi/* from invoking a Function at all.
  *
- * `publicAllowlist` is empty and should stay empty. A later task that genuinely
- * needs a public TWI endpoint turns two visible keys — a name here and the
- * `TWI-PUBLIC-ROUTE:` marker with a reason in the file itself — so making a
- * route public is a reviewable decision rather than a side effect of adding a
- * file. `functions/api/twi.ts` is refused for the same reason one directory up:
- * it would answer the exact path /api/twi.
+ * Enumerating entry points has now been wrong in three consecutive rounds, so the
+ * shape of the assertion changes: EVERY file under functions/ must be declared in
+ * `FUNCTIONS_REGISTRY` (scripts/lib/functions-registry.mjs), and the check asserts
+ * the filesystem and the registry agree exactly, in both directions. Adding a file
+ * of any name, extension or depth fails until it is declared with what it may do
+ * with the TWI URL space — and the two files that CAN run for a TWI path
+ * legitimately (`functions/_middleware.ts`, the `/api/*` catch-all) are pinned by
+ * content to mention no TWI path at all.
+ *
+ * A later task that genuinely needs a public TWI endpoint still turns two visible
+ * keys: `twi: 'public'` with a `why` in the registry, and the
+ * `TWI-PUBLIC-ROUTE:` marker WITH A REASON in the file. A `_middleware` can never
+ * be one, because a middleware exemption is not one route, it is all of them.
  */
-const twiFunctionDir = 'functions/api/twi';
-const listFunctionFiles = (relativeDir) => {
+const listFilesUnder = (relativeDir) => {
   const full = path.join(root, relativeDir);
   if (!fs.existsSync(full)) return [];
-  return fs.readdirSync(full, { withFileTypes: true }).flatMap((entry) =>
-    entry.isDirectory()
-      ? listFunctionFiles(path.posix.join(relativeDir, entry.name)).map((nested) => path.posix.join(entry.name, nested))
-      : [entry.name],
-  );
+  return fs.readdirSync(full, { withFileTypes: true }).flatMap((entry) => {
+    const child = path.posix.join(relativeDir, entry.name);
+    return entry.isDirectory() ? listFilesUnder(child) : [child];
+  });
 };
 
-const inventory = classifyRouteInventory({
-  files: listFunctionFiles(twiFunctionDir),
-  gatedFile: '[[route]].ts',
-  publicAllowlist: {},
-  contentsOf: (file) => read(path.posix.join(twiFunctionDir, file)),
+const routesManifestPath = path.join(root, ROUTES_MANIFEST_NAME);
+const registryVerdict = classifyFunctionsTree({
+  files: listFilesUnder('functions'),
+  registry: FUNCTIONS_REGISTRY,
+  contentsOf: (file) => read(file),
+  rootEntries: fs.readdirSync(root),
+  routesManifest: fs.existsSync(routesManifestPath) ? fs.readFileSync(routesManifestPath, 'utf8') : null,
 });
 
-const siblingAtParent = fs.existsSync(path.join(root, 'functions/api/twi.ts'))
-  ? ['functions/api/twi.ts answers /api/twi without entering the gated catch-all']
-  : [];
-
-const inventoryOffenders = [...inventory.offenders, ...siblingAtParent];
-
+// The name is kept verbatim from round 2 so every `killedBy` entry that cites it
+// stays literally accurate. What it now covers is every file that can answer a TWI
+// path at ANY level — the gated directory at any depth and extension, a
+// parent-level `twi.*` sibling, and a `_middleware.*` at three levels — plus the
+// content pin on the two files that legitimately run for those paths.
 check(
   `functions/api/twi/ holds only the gated catch-all, so no sibling file can answer beside it${
-    inventoryOffenders.length ? ` — ${inventoryOffenders.join(' | ')}` : ''
+    registryVerdict.twiOffenders.length ? ` — ${registryVerdict.twiOffenders.join(' | ')}` : ''
   }`,
-  inventoryOffenders.length === 0,
+  registryVerdict.twiOffenders.length === 0,
 );
 
-// The CORS preflight is the one thing that may precede the gate, and it must:
-// a preflight carries no cookies, so gating it would answer 401 to the browser's
-// own probe. It returns no data, so it cannot leak anything either.
+// The set equality itself, over the WHOLE tree rather than the TWI subset. Asserted
+// under its own name because it is a stronger and different fact: a new file
+// anywhere under functions/ is a new entry point for something, and the registry is
+// where that decision is recorded.
+check(
+  `every file under functions/ is declared in FUNCTIONS_REGISTRY, so no entry point appears unreviewed${
+    registryVerdict.treeOffenders.length ? ` — ${registryVerdict.treeOffenders.join(' | ')}` : ''
+  }`,
+  registryVerdict.treeOffenders.length === 0,
+);
+
+/**
+ * And the two ways to answer /api/twi/* with no file under functions/ at all.
+ *
+ * `_worker.js` at the build output root puts Pages in advanced mode, which ignores
+ * the entire functions/ directory — every assertion above included. `_routes.json`
+ * decides which paths invoke a Function, so an `exclude` covering /api/twi/* serves
+ * those paths from static assets and the gate never runs. Neither file exists here;
+ * both are one commit away, and neither was modelled by any of the three previous
+ * rounds. Same reasoning as the `/api/` `_redirects` rule below: this is deploy
+ * configuration that outranks the code.
+ */
+check(
+  `no deploy-level takeover answers /api/twi/* instead of the gated Function (_worker.js, _routes.json)${
+    registryVerdict.deployOffenders.length ? ` — ${registryVerdict.deployOffenders.join(' | ')}` : ''
+  }`,
+  registryVerdict.deployOffenders.length === 0,
+);
+
+/**
+ * The CORS preflight is the one thing that may precede the gate, and it must: a
+ * preflight carries no cookies, so gating it would answer 401 to the browser's own
+ * probe. It returns no data, so it cannot leak anything either.
+ *
+ * The "returns no body" half was `/new Response\(null, \{ status: 204/` over the
+ * file text. That is replaced by the STRUCTURAL verdict, which is strictly
+ * stronger on the inline form — the regex accepted
+ * `{ status: 204, headers: { ...cors(), 'x-leak': String(Object.keys(ctx['env'])) } }`,
+ * and the shape check pins the option object to exactly `status: 204` and
+ * `headers: cors()` — and which additionally admits the ONE form round 2 refused
+ * for lack of visibility: `return preflight()`, resolved in src/twi/server/http.ts
+ * and required to have exactly that body there. The index comparison is kept as
+ * the secondary positional signal it always was.
+ */
 const preflightIndex = route.indexOf("method === 'OPTIONS'");
 check(
-  'the CORS preflight short-circuit is above the gate and returns no body',
-  preflightIndex > 0 && preflightIndex < gateIndex && /new Response\(null, \{ status: 204/.test(route),
+  `the CORS preflight short-circuit is above the gate and returns no body${
+    structure.preflightKind ? '' : ' — no structurally verified preflight was found above the gate'
+  }`,
+  preflightIndex > 0 && preflightIndex < gateIndex && structure.preflightKind !== null,
 );
 
 check(
@@ -463,6 +591,31 @@ check(
 check(
   'npm test is the suite runner, and the runner lists test:twi:contracts',
   /"test":\s*"node scripts\/run-tests\.mjs"/.test(packageJson) && /'test:twi:contracts'/.test(suitesBlock),
+);
+
+/**
+ * ── 11. THE GUARD'S OWN GUARD ────────────────────────────────────────────────
+ *
+ * Everything in section 4 is read off two pure modules, and until this round
+ * nothing tested them. The re-review measured what that is worth: a 14-line
+ * permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7
+ * AND this script reporting 33 — the count is invariant under the removal of the
+ * entire kill signal for API-27 through API-50, so the one number a reviewer might
+ * plausibly be tracking does not move.
+ *
+ * scripts/twi-route-structure.test.mjs closes that: it drives both modules
+ * directly, and its corpus is the mutant manifest's own exact-from-source
+ * find/replace pairs, so each entry's prose `premise` becomes an executed
+ * assertion. These two checks assert the suite is DECLARED and RUN — a test nobody
+ * runs is a comment, which is the same argument section 10 makes for this script.
+ */
+check(
+  'test:twi:structure is declared in package.json',
+  /"test:twi:structure":\s*"node --test scripts\/twi-route-structure\.test\.mjs"/.test(packageJson),
+);
+check(
+  'the runner lists test:twi:structure, so the gate analysis is itself tested',
+  /'test:twi:structure'/.test(suitesBlock) && fs.existsSync(path.join(root, 'scripts/twi-route-structure.test.mjs')),
 );
 
 const failed = checks.filter((c) => !c.ok);

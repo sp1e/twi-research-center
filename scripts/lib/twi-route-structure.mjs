@@ -28,23 +28,46 @@
  *
  *   1. There is exactly ONE call to `requireOwnerSession` in the file, it is
  *      awaited, and it is a statement — not a condition, not a floating promise.
+ *      The NAME is bound to the import: that identifier must be a named import of
+ *      `requireOwnerSession` from src/twi/server/auth, and the file must not
+ *      redeclare it. Round 2 checked the name and not the binding, so a
+ *      module-scope `const requireOwnerSession = async (…) => { if (path is
+ *      /health) return; await ownerSession(…); }` satisfied every assertion
+ *      truthfully while making a path public.
  *   2. Its only enclosing constructs, up to the `onRequest` body, are blocks and
- *      exactly one `try` that is a direct statement of that body. No `if`, no
- *      loop, no `switch`, no callback, no inner try. That is what UNCONDITIONAL
- *      means here, and it is what the positional lock never said.
+ *      exactly one `try` that is a direct statement of that body — and the gate
+ *      is a DIRECT statement of that try. No `if`, no loop, no `switch`, no
+ *      callback, no inner try, and no bare `{ }`. Round 2 allowed the bare block
+ *      and located the gate with `indexOf`, which then returned −1 and emptied
+ *      the pre-gate region: everything above the gate was silently reclassified
+ *      as gated, where `return json(…)` is admitted. That is the regression this
+ *      round exists to close, and the −1 case now fails CLOSED.
  *   3. That try's `catch` cannot fall through — it ends in `return` or `throw` —
- *      so a thrown 401 becomes a 401 response and never becomes "carry on".
+ *      so a thrown 401 becomes a 401 response and never becomes "carry on". And
+ *      what it returns is bounded: an error envelope, never a resource. The catch
+ *      runs on the gate's own 401, so a catch that serves data on a 401 is the
+ *      gate inverted.
  *   4. Above the gate there may be variable declarations and ONE structurally
- *      verified CORS preflight, and nothing else. Not "one `return` token": no
- *      other statement at all, so a `throw` answers nothing either and the
- *      preflight's condition cannot be widened by an `||`. Nothing up there may
- *      `await`, `throw`, or reach `env` — the last one because answering is not
- *      the only way to abuse an ungated path: `env` is D1, the bindings and every
- *      secret, and an unauthenticated write needs no `return`.
+ *      verified CORS preflight, and nothing else — and, stronger, the region as a
+ *      whole must equal a DECLARED preamble, statement for statement, compared as
+ *      canonical printed AST. That is a closed-set equality rather than a hunt
+ *      for known-bad forms: four rounds of enumerating privileged reaches
+ *      (`env`, `ctx.env`, `ctx['env']`, `const { env: box } = ctx`, `ctx[key]`)
+ *      did not converge, and equality does not have to. The offender rules are
+ *      KEPT underneath it as a second layer with better messages.
  *   5. Every `return` below the gate inside the try is `await …` or `json(…)`,
  *      at any nesting depth, parentheses unwrapped.
  *   6. `onRequest` is the only Pages handler export, by DECODED identifier, so a
- *      unicode escape declares the same name the assertion sees.
+ *      unicode escape declares the same name the assertion sees — and a
+ *      `export * from './x'` is refused as OPAQUE, because the star can carry an
+ *      `onRequestPost` this module cannot see.
+ *
+ * What is NOT asserted here: anything about which FILE Pages enters. That is a
+ * closed-set question over the filesystem and it lives in
+ * scripts/lib/functions-registry.mjs, because control-flow analysis of one file
+ * cannot see a sibling, an ancestor `_middleware`, a `_worker.js` takeover or a
+ * `_routes.json` exclusion. Nor anything about src/twi/server/auth.ts's own
+ * logic: this module pins WHICH function is called, not what it does.
  *
  * Purity: nothing here reads a file, spawns a process or touches a database.
  * Callers pass source text and a directory listing in and get facts out — the
@@ -53,6 +76,21 @@
  */
 
 import ts from 'typescript';
+
+import {
+  ancestorsUpTo,
+  canonicalStatement,
+  descendants,
+  exportedNames,
+  hasExportModifier,
+  importBindings,
+  lineOf,
+  localDeclarationsOf,
+  parseTypeScript,
+  syntaxErrorsOf,
+  unwrap,
+} from './ts-ast.mjs';
+import { preflightForm } from './twi-preflight.mjs';
 
 /**
  * Cloudflare Pages dispatches `onRequest` and the verb-specific
@@ -66,73 +104,69 @@ const PAGES_HANDLER_PREFIX = 'onRequest';
 
 const isPagesHandlerName = (name) => name.startsWith(PAGES_HANDLER_PREFIX);
 
-const parse = (source) =>
-  ts.createSourceFile('twi-route.ts', source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+const parse = (source) => parseTypeScript(source, 'twi-route.ts');
 
-/** `(x)` and `x` are the same expression. Every predicate below sees through parentheses. */
-const unwrap = (node) => (node && ts.isParenthesizedExpression(node) ? unwrap(node.expression) : node);
+/**
+ * The gate function and the module it must come from.
+ *
+ * The specifier is matched by SUFFIX so the relative depth of the route file can
+ * change without weakening the fact: what matters is that the name resolves to
+ * src/twi/server/auth and not to a local wrapper or a look-alike module.
+ */
+export const GATE_NAME = 'requireOwnerSession';
+export const GATE_MODULE_SUFFIX = 'src/twi/server/auth';
 
-const hasExportModifier = (node) =>
-  (node.modifiers ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+/**
+ * The region above the gate, DECLARED — every statement of it except the CORS
+ * preflight, which is verified by shape instead.
+ *
+ * This is the round-3 change of tactic, and the reason for it is the record: four
+ * rounds of enumerating ways to reach a privileged binding above the gate
+ * (`env`, `ctx.env`, `ctx['env']`, `const { env: box } = ctx`, `ctx[key]`,
+ * `await using`) did not converge, and each round's denylist was beaten by the
+ * next round's spelling. An EQUALITY does not have to converge: the region either
+ * is these statements or it is not, and anything added to it — a route, a throw, a
+ * D1 write, an alias, a form nobody has thought of yet — fails on the same line of
+ * code, before any reasoning about what the addition does.
+ *
+ * The cost is stated plainly and it is the point: changing the preamble is a
+ * two-file edit, the route file and this constant, and the failure message prints
+ * the canonical form to paste. That makes a change to the only region of this
+ * function that runs unauthenticated a reviewed change rather than a diff nobody
+ * had to look at twice.
+ *
+ * Compared as canonically printed AST, so reindentation, line breaks and comments
+ * do not fail it, and a unicode escape cannot smuggle a different name past it.
+ */
+export const EXPECTED_PREGATE_PREAMBLE = [
+  'const { request, env } = ctx;',
+  'const method = request.method.toUpperCase();',
+  "const segments = Array.isArray(ctx.params.route) ? ctx.params.route : ctx.params.route ? [ctx.params.route] : [];",
+  "const [resource = '', id = '', sub = ''] = segments;",
+];
 
-/** The node's first source line, trimmed — for a failure message that names the offender. */
-const lineOf = (sf, node) => {
-  const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
-  return (sf.text.split('\n')[line] ?? '').trim();
-};
-
-/** Every node in the subtree, optionally not descending into nested functions. */
-const descendants = (node, { intoFunctions = true } = {}) => {
-  const out = [];
-  const visit = (current) => {
-    current.forEachChild((child) => {
-      if (!intoFunctions && ts.isFunctionLike(child)) return;
-      out.push(child);
-      visit(child);
-    });
-  };
-  visit(node);
-  return out;
-};
-
-/** The chain of parents from `node` up to (not including) `stopAt`, or null if `stopAt` is not an ancestor. */
-const ancestorsUpTo = (node, stopAt) => {
-  const chain = [];
-  let current = node.parent;
-  while (current && current !== stopAt) {
-    chain.push(current);
-    current = current.parent;
-  }
-  return current === stopAt ? chain : null;
-};
-
-/** Names bound by an export, including destructured ones, with unicode escapes DECODED. */
-const exportedNames = (sf) => {
-  const names = [];
-  const fromBinding = (name) => {
-    if (ts.isIdentifier(name)) names.push(name.text);
-    else if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
-      for (const element of name.elements) if (ts.isBindingElement(element)) fromBinding(element.name);
-    }
-  };
-
-  for (const statement of sf.statements) {
-    if (ts.isVariableStatement(statement) && hasExportModifier(statement)) {
-      for (const declaration of statement.declarationList.declarations) fromBinding(declaration.name);
-    } else if (
-      (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) &&
-      hasExportModifier(statement) &&
-      statement.name
-    ) {
-      names.push(statement.name.text);
-    } else if (ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
-      for (const element of statement.exportClause.elements) names.push(element.name.text);
-    } else if (ts.isExportAssignment(statement)) {
-      names.push('default');
+/**
+ * The declared preamble against the measured one, as a list of differences.
+ *
+ * Reported per position so the message says which statement drifted rather than
+ * only that something did.
+ */
+export function comparePreamble(actual, expected = EXPECTED_PREGATE_PREAMBLE) {
+  const differences = [];
+  for (let index = 0; index < Math.max(actual.length, expected.length); index += 1) {
+    if (actual[index] === expected[index]) continue;
+    if (expected[index] === undefined) {
+      differences.push(`statement ${index + 1} above the gate is NOT DECLARED: ${actual[index]}`);
+    } else if (actual[index] === undefined) {
+      differences.push(`statement ${index + 1} above the gate is MISSING: expected ${expected[index]}`);
+    } else {
+      differences.push(
+        `statement ${index + 1} above the gate CHANGED: expected ${expected[index]} — found ${actual[index]}`,
+      );
     }
   }
-  return names;
-};
+  return differences;
+}
 
 /** The exported `onRequest`, however it is spelled: `export const`, `export async function`. */
 const findOnRequest = (sf) => {
@@ -150,63 +184,6 @@ const findOnRequest = (sf) => {
   }
   return null;
 };
-
-/**
- * The CORS preflight, verified as a shape rather than recognised as a string.
- *
- * `if (method === 'OPTIONS') return new Response(null, { status: 204, … });`
- * and nothing else. The condition must be that comparison ENTIRE — the previous
- * guard asked only whether the text appeared on the line, so
- * `method === 'OPTIONS' || segments[0] === 'debug'` kept the exemption and
- * answered for `debug` too. There is no `else`, the branch is one `return`, the
- * body argument is the `null` literal, and the status is the literal 204: a
- * preflight that carries no data cannot leak any.
- */
-const isMethodOptionsComparison = (expression) => {
-  const expr = unwrap(expression);
-  return (
-    !!expr &&
-    ts.isBinaryExpression(expr) &&
-    expr.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken &&
-    ts.isIdentifier(unwrap(expr.left)) &&
-    unwrap(expr.left).text === 'method' &&
-    ts.isStringLiteral(unwrap(expr.right)) &&
-    unwrap(expr.right).text === 'OPTIONS'
-  );
-};
-
-const soleStatement = (statement) => {
-  if (statement && ts.isBlock(statement)) return statement.statements.length === 1 ? statement.statements[0] : null;
-  return statement;
-};
-
-const isEmptyBodyPreflightResponse = (statement) => {
-  if (!statement || !ts.isReturnStatement(statement)) return false;
-  const created = unwrap(statement.expression);
-  if (!created || !ts.isNewExpression(created)) return false;
-  if (!ts.isIdentifier(created.expression) || created.expression.text !== 'Response') return false;
-
-  const args = created.arguments ?? [];
-  if (args.length !== 2) return false;
-  if (unwrap(args[0]).kind !== ts.SyntaxKind.NullKeyword) return false;
-
-  const options = unwrap(args[1]);
-  if (!options || !ts.isObjectLiteralExpression(options)) return false;
-  return options.properties.some(
-    (property) =>
-      ts.isPropertyAssignment(property) &&
-      ts.isIdentifier(property.name) &&
-      property.name.text === 'status' &&
-      ts.isNumericLiteral(unwrap(property.initializer)) &&
-      unwrap(property.initializer).text === '204',
-  );
-};
-
-const isPreflightGuard = (statement) =>
-  ts.isIfStatement(statement) &&
-  !statement.elseStatement &&
-  isMethodOptionsComparison(statement.expression) &&
-  isEmptyBodyPreflightResponse(soleStatement(statement.thenStatement));
 
 /**
  * Admitted return forms inside the gate: `return await …` and `return json(…)`.
@@ -246,20 +223,93 @@ const settlesInsideTry = (expression) => {
 };
 
 /**
+ * What the mapping `catch` may return: an error envelope, and nothing else.
+ *
+ * The catch runs on the gate's OWN 401, so a catch that answers with data is the
+ * gate inverted — and round 2 constrained it only to "bind, read, end in return
+ * or throw". `if (error.status === 401 && segments[0] === 'health') return
+ * json({ capabilities: … });` satisfied all three and served the resource to an
+ * unauthenticated caller with the whole suite green.
+ *
+ * Three rules, none of which needs control-flow analysis:
+ *
+ *   1. every `return` is `json(<object literal>, …)` whose property names are a
+ *      subset of the envelope's — so a resource payload has nowhere to go;
+ *   2. nothing in the catch is `await`ed, so no handler and no query runs here;
+ *   3. the only names it may borrow from this file's imports are the response
+ *      vocabulary (`json`, `HttpError`), and it may not touch `env` or the
+ *      context parameter — so it cannot reach a repository, a binding or a
+ *      secret even to put one in an envelope.
+ *
+ * The cost is stated plainly: an envelope field beyond these three (a
+ * `retryAfter`, say) is a one-line edit HERE as well as in the route file. That
+ * is deliberate — the catch is a security-relevant region and a change to what it
+ * discloses should be a reviewed change.
+ */
+export const CATCH_ENVELOPE_FIELDS = ['error', 'code', 'correlationId'];
+const CATCH_IMPORT_ALLOWLIST = ['json', 'HttpError'];
+
+const classifyCatchBlock = (sf, catchBlock, imports) => {
+  const offenders = [];
+  const importedLocals = new Set(imports.filter((entry) => !entry.typeOnly).map((entry) => entry.local));
+
+  for (const statement of [catchBlock, ...descendants(catchBlock)].filter(ts.isReturnStatement)) {
+    const returned = unwrap(statement.expression);
+    const isJsonCall =
+      returned && ts.isCallExpression(returned) && ts.isIdentifier(returned.expression) && returned.expression.text === 'json';
+    if (!isJsonCall) {
+      offenders.push(`the catch returns something other than json(…): ${lineOf(sf, statement)}`);
+      continue;
+    }
+    const payload = unwrap(returned.arguments[0]);
+    if (!payload || !ts.isObjectLiteralExpression(payload)) {
+      offenders.push(`the catch returns a json() payload that is not an object literal: ${lineOf(sf, statement)}`);
+      continue;
+    }
+    const fields = payload.properties.map((property) =>
+      property.name && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) ? property.name.text : '?',
+    );
+    const extra = fields.filter((field) => !CATCH_ENVELOPE_FIELDS.includes(field));
+    if (extra.length > 0) {
+      offenders.push(
+        `the catch answers with ${extra.join(', ')} rather than an error envelope (${CATCH_ENVELOPE_FIELDS.join('/')}): ${lineOf(sf, statement)}`,
+      );
+    }
+  }
+
+  for (const node of descendants(catchBlock)) {
+    if (ts.isAwaitExpression(node)) offenders.push(`the catch awaits something: ${lineOf(sf, node)}`);
+    if (!ts.isIdentifier(node)) continue;
+    if (importedLocals.has(node.text) && !CATCH_IMPORT_ALLOWLIST.includes(node.text)) {
+      offenders.push(`the catch reaches for the imported \`${node.text}\`: ${lineOf(sf, node)}`);
+    }
+    if (node.text === 'env' || node.text === 'ctx') {
+      const isPropertyName = ts.isPropertyAssignment(node.parent) && node.parent.name === node;
+      if (!isPropertyName) offenders.push(`the catch reaches \`${node.text}\`: ${lineOf(sf, node)}`);
+    }
+  }
+
+  return offenders;
+};
+
+/**
  * Facts about the route file, all derived from the AST.
  *
  * Every field is either a boolean fact or a list of human-readable offenders, so
  * the caller can assert without knowing anything about TypeScript's syntax
  * kinds. `reasons` is empty exactly when the structural gate holds.
  */
-export function analyseTwiRouteFile(source) {
+export function analyseTwiRouteFile(source, { httpSource = '' } = {}) {
   const sf = parse(source);
-  const syntaxErrors = (sf.parseDiagnostics ?? []).map((diagnostic) =>
-    ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
-  );
+  const syntaxErrors = syntaxErrorsOf(sf);
 
-  const handlerExports = exportedNames(sf).filter(isPagesHandlerName);
+  const exports_ = exportedNames(sf);
+  const handlerExports = exports_.names.filter(isPagesHandlerName);
   const extraHandlerExports = handlerExports.filter((name) => name !== 'onRequest');
+  const opaqueExports = exports_.opaque;
+
+  const imports = importBindings(sf);
+  const httpImports = imports.filter((entry) => entry.module.endsWith('src/twi/server/http'));
 
   const onRequest = findOnRequest(sf);
   const body = onRequest && onRequest.body && ts.isBlock(onRequest.body) ? onRequest.body : null;
@@ -268,22 +318,55 @@ export function analyseTwiRouteFile(source) {
     syntaxErrors,
     handlerExports,
     extraHandlerExports,
+    opaqueExports,
     hasOnRequest: Boolean(body),
     gateReasons: ['the exported onRequest handler was not found, or its body is not a block'],
     preGateOffenders: [],
+    preGateCanonical: [],
+    catchOffenders: [],
     unawaitedReturns: [],
     awaitedReturnCount: 0,
+    gatedReturnCount: 0,
+    preflightKind: null,
   };
   if (!body) return empty;
+
+  const gateReasons = [];
+  const catchOffenders = [];
+
+  // ── The NAME is the import, not just the spelling ──────────────────────────
+  // Round 2 asserted a call to an identifier called `requireOwnerSession` and
+  // separately grepped src/twi/server/auth.ts's contents. Nothing joined the two,
+  // so a module-scope wrapper of the same name — which exempted /api/twi/health
+  // and delegated everything else — satisfied every structural assertion
+  // truthfully, kept the unit suite green, and made a path public.
+  const gateImport = imports.find(
+    (entry) => entry.local === GATE_NAME && !entry.typeOnly && entry.module.endsWith(GATE_MODULE_SUFFIX),
+  );
+  if (!gateImport) {
+    gateReasons.push(
+      `${GATE_NAME} is not imported from ${GATE_MODULE_SUFFIX} under that name, so the call below is not the owner gate`,
+    );
+  } else if (gateImport.imported !== GATE_NAME) {
+    gateReasons.push(`${GATE_NAME} is aliased from ${gateImport.imported}, so the call below is not the owner gate`);
+  }
+
+  const redeclared = localDeclarationsOf(sf, GATE_NAME);
+  if (redeclared.length > 0) {
+    gateReasons.push(
+      `${GATE_NAME} is redeclared in this file (${redeclared
+        .map((node) => lineOf(sf, node))
+        .join(' | ')}), so the call in onRequest is not the import`,
+    );
+  }
 
   // ── The gate: exactly one call, awaited, as a statement ────────────────────
   const gateCalls = descendants(body)
     .filter((node) => ts.isCallExpression(node) && ts.isIdentifier(node.expression))
-    .filter((node) => node.expression.text === 'requireOwnerSession');
+    .filter((node) => node.expression.text === GATE_NAME);
 
-  const gateReasons = [];
   if (gateCalls.length !== 1) {
-    gateReasons.push(`expected exactly ONE requireOwnerSession call in onRequest, found ${gateCalls.length}`);
+    gateReasons.push(`expected exactly ONE ${GATE_NAME} call in onRequest, found ${gateCalls.length}`);
   }
 
   const gateCall = gateCalls[0] ?? null;
@@ -326,6 +409,21 @@ export function analyseTwiRouteFile(source) {
         // repository's message, which quotes SQL — whether it is awaited or not.
         // It is also outside every assertion below, which examine the try's block.
         gateReasons.push('code follows the gated try, so it answers outside the catch that maps failures');
+      } else if (gateStatement.parent !== tries[0].tryBlock) {
+        // THE ROUND-2 REGRESSION, closed. The regions above and below the gate were
+        // sliced with `tryBlock.statements.indexOf(gateStatement)`, which is −1 for a
+        // gate nested in a bare `{ }` — and −1 was converted to `slice(0, 0)`, an
+        // EMPTY pre-gate region. The statements it dropped were then re-classified as
+        // GATED, where `return json({ ok: true })` is an admitted form, so an ungated
+        // public answer above the gate was not merely missed, it was validated. Round
+        // 1's deleted `preGateReturns.length === 1` rule caught that case by name.
+        //
+        // Requiring the gate to be a DIRECT statement of the try removes the class
+        // instead of the instance: there is then exactly one index and it is never
+        // −1. Nesting BELOW the gate stays legal, which is what a route table needs.
+        gateReasons.push(
+          `the gate is nested inside ${ts.SyntaxKind[gateStatement.parent.kind]} within the try rather than being a direct statement of it, so the region above it cannot be determined: ${lineOf(sf, gateStatement)}`,
+        );
       } else {
         gateTry = tries[0];
       }
@@ -356,22 +454,44 @@ export function analyseTwiRouteFile(source) {
         gateReasons.push(`the catch binds \`${binding.text}\` and never reads it, so its mapping references something else`);
       }
     }
+    if (catchBlock) catchOffenders.push(...classifyCatchBlock(sf, catchBlock, imports));
   }
 
   // ── Above the gate: declarations and one verified preflight, nothing else ──
   const preGateOffenders = [];
+  const preGateCanonical = [];
   let preflightCount = 0;
+  let preflightKind = null;
 
   if (gateTry) {
     const gateIndex = gateTry.tryBlock.statements.indexOf(gateStatement);
-    const preGate = [
-      ...body.statements.slice(0, body.statements.indexOf(gateTry)),
-      ...gateTry.tryBlock.statements.slice(0, gateIndex === -1 ? 0 : gateIndex),
-    ];
+    if (gateIndex === -1) {
+      // Unreachable while the direct-statement reason above holds, and asserted
+      // anyway: this is the −1 that failed OPEN in round 2, and a future edit to
+      // the ancestor rules must not be able to reintroduce it silently.
+      gateReasons.push('the gate could not be located inside the gated try block');
+    }
+    const preGate =
+      gateIndex === -1
+        ? []
+        : [
+            ...body.statements.slice(0, body.statements.indexOf(gateTry)),
+            ...gateTry.tryBlock.statements.slice(0, gateIndex),
+          ];
 
     for (const statement of preGate) {
-      const isPreflight = isPreflightGuard(statement);
-      if (isPreflight) preflightCount += 1;
+      const preflight = preflightForm(statement, { httpSource, httpImports });
+      const isPreflight = preflight !== null;
+      if (isPreflight) {
+        preflightCount += 1;
+        preflightKind = preflight.kind;
+      } else {
+        // The preflight is verified by SHAPE, in either of its two admitted forms,
+        // so it is deliberately outside the preamble equality — otherwise factoring
+        // it out would have to edit the declared constant as well. Everything else
+        // above the gate is compared against that constant.
+        preGateCanonical.push(canonicalStatement(sf, statement));
+      }
 
       if (!isPreflight && !ts.isVariableStatement(statement)) {
         preGateOffenders.push(`${ts.SyntaxKind[statement.kind]} above the gate: ${lineOf(sf, statement)}`);
@@ -403,11 +523,27 @@ export function analyseTwiRouteFile(source) {
       if (privileged.length > 0) {
         preGateOffenders.push(`\`env\` is reachable above the gate: ${lineOf(sf, statement)}`);
       }
+
+      // `ctx['env']` is an ElementAccessExpression whose argument is a String-
+      // Literal, so the rule above — a rule about the IDENTIFIER `env` — never saw
+      // it, and neither would `ctx[key]` with the key computed anywhere. Computed
+      // member access above the gate is refused outright: it is the one form in
+      // which a privileged property name is not a name at all, the region has no
+      // legitimate use for it, and refusing it does not depend on how the string
+      // is spelled.
+      const computed = descendants(statement).filter(ts.isElementAccessExpression);
+      if (computed.length > 0) {
+        preGateOffenders.push(
+          `computed member access above the gate can name a privileged binding without spelling it (${computed
+            .map((node) => canonicalStatement(sf, node))
+            .join(', ')}): ${lineOf(sf, statement)}`,
+        );
+      }
     }
 
     if (preflightCount !== 1) {
       preGateOffenders.push(
-        `expected exactly ONE verified CORS preflight above the gate (if (method === 'OPTIONS') return new Response(null, { status: 204, … })), found ${preflightCount}`,
+        `expected exactly ONE verified CORS preflight above the gate (if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() }), or a zero-argument helper imported from src/twi/server/http with exactly that body), found ${preflightCount}`,
       );
     }
   }
@@ -415,15 +551,17 @@ export function analyseTwiRouteFile(source) {
   // ── Below the gate, inside the try: every return is awaited or json() ──────
   const unawaitedReturns = [];
   let awaitedReturnCount = 0;
+  let gatedReturnCount = 0;
 
   if (gateTry) {
     const gateIndex = gateTry.tryBlock.statements.indexOf(gateStatement);
-    const gated = gateTry.tryBlock.statements.slice(gateIndex + 1);
+    const gated = gateIndex === -1 ? [] : gateTry.tryBlock.statements.slice(gateIndex + 1);
     const returns = gated.flatMap((statement) => [
       ...(ts.isReturnStatement(statement) ? [statement] : []),
       ...descendants(statement, { intoFunctions: false }).filter(ts.isReturnStatement),
     ]);
 
+    gatedReturnCount = returns.length;
     for (const statement of returns) {
       if (isAwaitedReturn(statement)) {
         if (settlesInsideTry(statement.expression)) awaitedReturnCount += 1;
@@ -437,45 +575,35 @@ export function analyseTwiRouteFile(source) {
     syntaxErrors,
     handlerExports,
     extraHandlerExports,
+    opaqueExports,
     hasOnRequest: true,
     gateReasons,
     preGateOffenders,
+    preGateCanonical,
+    catchOffenders,
     unawaitedReturns,
     awaitedReturnCount,
+    // The vacuity guard. Round 2 used `awaitedReturnCount > 0`, which asks the
+    // region to contain an `await` — so a read-only sub-router whose gated returns
+    // are all `json(…)` would have failed the await assertion with a message
+    // listing no offenders. Counting the returns tests what the clause is for: that
+    // the region was read at all.
+    gatedReturnCount,
+    preflightKind,
   };
 }
 
 /**
- * Which files under functions/api/twi/ are allowed to exist, and why.
+ * Which FILE Pages enters is not a question about this file's structure.
  *
- * Cloudflare Pages routes by path specificity, so EVERY module in this directory
- * is an entry point: `functions/api/twi/health.ts` answers /api/twi/health
- * without the catch-all — and therefore without the gate — ever being entered.
- * That evasion needed no code trickery at all, and no script in this repo looked
- * at the directory.
+ * Round 2's `classifyRouteInventory` lived here and pinned one directory. It was
+ * beaten by three entry points outside that directory — an ancestor
+ * `_middleware.ts` (which already exists), a `functions/api/_middleware.ts`, and
+ * `functions/api/twi.js`, a parent-level sibling refused only at `.ts` — and it
+ * accepted a bare `TWI-PUBLIC-ROUTE:` marker with no reason, including on a
+ * `_middleware` whose blast radius is every path.
  *
- * The inventory is therefore pinned. A later task that legitimately needs a
- * public endpoint here has to turn TWO keys, both of them visible in review:
- * add the file name to `publicAllowlist` in the caller, AND write the marker
- * below into the file itself with a reason. Neither happens by accident, and a
- * reviewer reading the diff sees an allowlist entry rather than a new file.
+ * The replacement is a closed set over the whole `functions/` tree rather than a
+ * denylist over one directory, so it lives with the other filesystem facts:
+ * scripts/lib/functions-registry.mjs. Nothing in this module reads a path.
  */
-export const PUBLIC_ROUTE_MARKER = 'TWI-PUBLIC-ROUTE:';
-
-export function classifyRouteInventory({ files, gatedFile, publicAllowlist = {}, contentsOf }) {
-  const allowed = new Set([gatedFile, ...Object.keys(publicAllowlist)]);
-  const offenders = files
-    .filter((file) => !allowed.has(file))
-    .map(
-      (file) =>
-        `${file} can answer /api/twi/* WITHOUT the gate in ${gatedFile} — route it through onRequest there, or declare it in publicAllowlist and mark it ${PUBLIC_ROUTE_MARKER}`,
-    );
-
-  const unmarked = Object.keys(publicAllowlist)
-    .filter((file) => !(contentsOf(file) ?? '').includes(PUBLIC_ROUTE_MARKER))
-    .map((file) => `${file} is allowlisted as public but does not carry the ${PUBLIC_ROUTE_MARKER} marker`);
-
-  const missing = files.includes(gatedFile) ? [] : [`${gatedFile} is missing`];
-
-  return { offenders: [...missing, ...offenders, ...unmarked] };
-}
