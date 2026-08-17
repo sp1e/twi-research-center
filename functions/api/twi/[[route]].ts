@@ -15,6 +15,13 @@
  * edit cannot move a route silently, mirroring the `api.indexOf('Protected')`
  * assertions that guard the parent router in scripts/landing-layout-check.mjs.
  *
+ * That ordering assertion recognises one spelling of a route, so it is backed by
+ * a denylist that does not: above the gate there may be exactly ONE `return` in
+ * this file and it must be the CORS preflight, and `onRequest` must be the only
+ * Pages handler exported here. A new route therefore cannot answer without the
+ * gate whatever it is called, whichever variable it dispatches on, and whether
+ * it sits above the gate or beside it as an `onRequestGet`.
+ *
  * The file stays a route table. Validation, database access and response shaping
  * live in src/twi/server/*, which is unit-tested without a Workers runtime
  * (src/twi/server/route-dispatch.test.ts drives this table itself).
@@ -76,7 +83,9 @@ export const onRequest = async (ctx: TwiRouteContext): Promise<Response> => {
     // try block resolves AFTER the block is left, so a rejection would escape
     // this catch entirely and Pages would answer with its own 500 — carrying the
     // repository's message, which quotes SQL. The awaits are what keep every
-    // failure inside the mapping below.
+    // failure inside the mapping below, and the contract check asserts that every
+    // handler returned here is awaited, so a later `return listJobs(repo)` fails
+    // the suite instead of reopening the leak.
     if (resource === 'bootstrap' && !id && method === 'GET') return json({ capabilities: creationCoreCapabilities });
     if (resource === 'projects' && !id && method === 'GET') return await listProjects(repo);
     if (resource === 'projects' && !id && method === 'POST') return await createProject(request, repo);
