@@ -24,6 +24,11 @@ export interface GenerationSpecRecord {
   id: string;
   projectId: string;
   spec: Record<string, unknown>;
+  /**
+   * The stored fingerprint, derived by the repository from the canonical text it
+   * persisted — always `sha256` of the JSON in this row's `spec_json`. This is
+   * the value to replay on; see `SaveSpecInput.specJson`.
+   */
   specSha256: string;
   rightsAssertionVersion: string;
   createdAt: string;
@@ -92,8 +97,17 @@ export interface CreateProjectInput {
 export interface SaveSpecInput {
   id: string;
   projectId: string;
+  /**
+   * Caller JSON. It is canonicalised before storage, so what lands in
+   * `spec_json` is not byte-identical to what was passed in.
+   *
+   * There is deliberately no `specSha256` field: the digest is derived from the
+   * canonical text, inside the repository, and returned on
+   * `GenerationSpecRecord.specSha256`. A caller cannot supply, override or
+   * pre-empt it, which is what makes "the digest describes the row it sits in"
+   * a property of the code rather than of the caller's diligence.
+   */
   specJson: string;
-  specSha256: string;
   rightsAssertionVersion: string;
   /** ISO-8601 UTC timestamp, `YYYY-MM-DDTHH:MM:SS.sssZ`. Rejected otherwise. */
   createdAt: string;
@@ -102,6 +116,13 @@ export interface SaveSpecInput {
 export interface FindJobByIdempotencyKeyInput {
   projectId: string;
   idempotencyKey: string;
+  /**
+   * The stored spec fingerprint. A mismatch under a used `idempotencyKey` is
+   * treated as a different request and raises `TwiRepositoryCollisionError`, so
+   * this must be produced by `specSha256()` (or taken from a previous
+   * `saveSpec` result) and never hashed independently — a second hashing scheme
+   * would refuse to replay a caller's own paid submission.
+   */
   specSha256: string;
 }
 
