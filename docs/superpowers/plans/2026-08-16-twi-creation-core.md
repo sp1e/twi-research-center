@@ -463,11 +463,13 @@ export function compileLyriaPrompt(spec: GenerationSpec): string {
     spec.performance.timbre ? `Vocal timbre: ${spec.performance.timbre}.` : '',
     spec.performance.delivery ? `Vocal delivery: ${spec.performance.delivery}.` : '',
     spec.sound.exclusions.length ? `Avoid: ${spec.sound.exclusions.join(', ')}.` : '',
-    spec.composition.lyrics ? `Use these exact section-tagged lyrics:\n${spec.composition.lyrics}` : '',
+    spec.composition.lyrics ? `Use these exact section-tagged lyrics:\n---BEGIN LYRICS---\n${spec.composition.lyrics}\n---END LYRICS---` : '',
   ];
   return lines.filter(Boolean).join('\n');
 }
 ```
+
+The lyric block is wrapped in the two `---BEGIN LYRICS---` / `---END LYRICS---` marker lines rather than following the directive line bare, because lyrics are the one legitimately multi-line field and a bare block leaves every lyric line sitting in directive position: the earlier substitute for a fence — rejecting any lyric line that opens with one of the template's seventeen reserved directive prefixes — bought that safety by turning `Key: to my heart` into a 400, so the block is delimited instead and the only lyric text now refused is text that would close the fence itself.
 
 - [ ] **Step 5: Verify domain tests and typecheck**
 
