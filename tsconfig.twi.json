@@ -5,5 +5,16 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vitest/globals"]
   },
-  "include": ["src/twi/**/*.ts", "src/twi/**/*.tsx", "vite.twi.config.ts", "vitest.twi.config.ts"]
+  // functions/api/twi is listed explicitly even though src/twi/server/route-dispatch.test.ts
+  // imports it and would pull it into the program anyway. Relying on that would make the
+  // route file's type coverage a side effect of one test file continuing to exist: delete
+  // the test and the Pages Function silently leaves the typecheck with nothing failing.
+  // It is the site's only typechecked Pages Function, so the coverage is declared, not inferred.
+  "include": [
+    "src/twi/**/*.ts",
+    "src/twi/**/*.tsx",
+    "functions/api/twi/**/*.ts",
+    "vite.twi.config.ts",
+    "vitest.twi.config.ts"
+  ]
 }
