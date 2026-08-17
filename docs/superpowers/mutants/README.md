@@ -305,12 +305,14 @@ there is no count of theirs to record here and the floor lives only in the runne
 `composition` are the six `node --test` processes, which is a different thing and was being read as
 the same one.
 
-## Added in v1.6.0 — `API-51` to `API-73` (Task 6, image-reference ingestion)
+## Added in v1.6.0 — `API-51` to `API-74` (Task 6, image-reference ingestion)
 
 Task 6 is the first task to add a route since the gate settled into equalities, and the first to
-write bytes to R2. Twenty-three mutants were **applied and reverted**, not transcribed:
-**23/23 killed**, measured on `feat/twi-task6-asset-ingestion` (base `e602840`) after reproducing
-that tree's eight-suite baseline first.
+write bytes to R2. Twenty-four mutants were **applied and reverted**, not transcribed:
+**24/24 killed**, measured on `feat/twi-task6-asset-ingestion` (base `e602840`) after reproducing
+that tree's eight-suite baseline first. (This paragraph said twenty-three, and the heading said
+`API-73`, until v1.7.0 corrected both: `API-74` was added late in that round and the JSON's own
+`liveCount` and `measuredInTask6.score` always read 74 and 24/24.)
 
 Read three things about this set before using it.
 
@@ -352,8 +354,9 @@ to that suite: its corpus is this file's own `exact-from-source` route mutations
 entry whose `killedBy` names a structural check becomes an executed assertion automatically.
 
 `measuredInTask6` in the JSON holds this round's numbers. **Do not add it to `measuredInThisRound`
-or `measuredInFixRound2`.** And 23/23 is not a coverage claim about Task 6: it says these 23
-behaviours have a discriminating test, not that every behaviour does. The known limitation is in
+or `measuredInFixRound2`.** And 24/24 is not a coverage claim about Task 6: it says these 24
+behaviours have a discriminating test, not that every behaviour does — and v1.7.0 below is the
+list of what it did not cover. The known limitation is in
 `.superpowers/sdd/2026-08-16-twi-creation-core/task-6-report.md` — the upload endpoint does not cap
 how many image references a project may accumulate, because counting them needs a repository read and
 `src/twi/server/repository.ts` belongs to Task 7.
@@ -362,6 +365,54 @@ how many image references a project may accumulate, because counting them needs 
 round left `manifestVersion` at `1.4.0` and added no `revisions` entry. Rather than claim to be
 v1.5.0 or renumber another round's work, this one took `1.6.0` and recorded the gap in
 `revisions[].versionNote`. The missing 1.5.0 entry is an open item.
+
+## Added in v1.7.0 — `API-75` to `API-88` (Task 6 fix round 1, the classes gate 2 named)
+
+Task 6 passed both gates with 24/24 killed, and gate 2 then wrote down what those 24 could not see.
+This section is that list, closed. **14/14 killed**, applied and reverted at
+`fix/twi-task6-hardening` (base `e9280b6`), with backups kept OUTSIDE the repository — the mistake
+v1.6.0 recorded, where a `.mutbak` sidecar under `functions/` produced two spurious registry kills.
+
+The five gaps, and the entries that answer them:
+
+| Gap gate 2 named | Entries |
+|---|---|
+| Nothing exercises a real request stream | `API-75`, `API-76` |
+| No entry touches the malformed-multipart path | `API-77` |
+| No entry probes retry/duplication | `API-78`, `API-79`, `API-80`, `API-81`, `API-82` |
+| No entry on the degenerate-`size` guard | `API-83` |
+| Weakening rather than removing | `API-84` (`startsWith` → `includes`), `API-85` (`toLowerCase()` dropped), `API-86` (the raw boundary lowercased), `API-76`, `API-82` |
+
+Three things worth reading before using the set.
+
+- **Three of them are not hypothetical.** `API-75` (the body buffered in full before the refusal),
+  `API-77` (a malformed body answered 500) and `API-78`/`API-79` (a retry writing a second object and
+  a second row) *are* the code as shipped at `e9280b6`. Gate 2 measured that behaviour — 10,485,885
+  bytes pulled before a 413, and 500 `internal_error` for a missing boundary. So these entries record
+  a real defect reduced to one line each, which is stronger evidence than a hypothetical edit.
+- **The weakening class needed new ACCEPTANCE cases, not new rejections.** Deleting a guard breaks a
+  rejection and any rejection test catches it. `startsWith` → `includes` passes every rejection the
+  suite had, because none of them contained the string; dropping `toLowerCase()` breaks *acceptance*,
+  which no rejection test can see. Hence `application/json; note=multipart/form-data` → 415 and
+  `MULTIPART/FORM-DATA` → 201, both new.
+- **`API-88` is the one killed by the contract check, and it typechecks clean.** It inlines the
+  ingestion into the handler, keeping 97 of 99 tests green while losing the compensating delete. That
+  is gate 1's Minor 2 measured: before the assertion was added, the same bypass kept all 52 checks
+  green. `neither suite is sufficient` in this set's `testCommandWarning` now has a Task 6 example.
+
+**One existing entry was edited, and re-measured rather than re-pinned on paper.** `API-62`'s anchor
+was `return json({ asset, outcome }, outcome === 'inserted' ? 201 : 200);`. The fix moved that
+statement into a module-level `assetResponse` helper so the idempotency replay and the fresh insert
+mint their status in the same place — which is also what keeps the mutant killable, since the replay
+no longer reaches the handler's final line. The anchor lost its leading `return `, the mutation was
+applied at the new tree, and both kill signals were measured: 3 failed / 96 passed, and 1 of 52
+contract checks. `mutation.anchorRepinnedIn` records it.
+
+**Three anchors in this file were already stale at `e9280b6` and are NOT this round's doing:**
+`DOM-09` and `DOM-32R` against `src/twi/domain/schemas.ts`, and `API-21` against
+`scripts/run-tests.mjs`. The same uniqueness check run against the base commit's own blobs reports
+the same three. They are recorded in `revisions[1.7.0].alsoRecorded` rather than quietly fixed:
+repairing them means re-measuring against files this round does not own.
 
 ## No runner, deliberately
 

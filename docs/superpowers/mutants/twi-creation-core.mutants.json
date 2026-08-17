@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.6.0",
+  "manifestVersion": "1.7.0",
   "recordedAt": "2026-08-17",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -51,10 +51,19 @@
       "version": "1.6.0",
       "round": "task-6-asset-ingestion",
       "at": "feat/twi-task6-asset-ingestion, base e602840",
-      "what": "Added API-51 to API-74 (24 entries) for Task 6's image-reference ingestion. Total entries 138 -> 162. No existing entry was edited, renumbered or removed; the only non-additive edits are manifestVersion, sets[api].liveCount 50 -> 73, and a note appended to sets[api].liveCountNote. All 24 were APPLIED and reverted, not transcribed: 24/24 killed.",
+      "what": "Added API-51 to API-74 (24 entries) for Task 6's image-reference ingestion. Total entries 138 -> 162. No existing entry was edited, renumbered or removed; the only non-additive edits are manifestVersion, sets[api].liveCount 50 -> 74, and a note appended to sets[api].liveCountNote. All 24 were APPLIED and reverted, not transcribed: 24/24 killed. (Corrected in v1.7.0: this entry said 50 -> 73 and its scopeNote said 23/23, while liveCount and measuredInTask6.score both read 74 and 24/24. The count was right in the data and wrong in the prose about it.)",
       "why": "Task 6 is the first task to add a route since the gate settled into equalities, and the first to write bytes to R2. Both of its load-bearing properties are ORDERS rather than values \u2014 the size cap before the read, the declared-length refusal before the multipart parse \u2014 and an order is exactly the kind of fact a green suite cannot be assumed to see. Registering the mutants is what makes the next round able to check that it still does.",
       "versionNote": "1.6.0 rather than 1.5.0: the README already carries a 'Changed in v1.5.0' section for the round that made the baselines block executed, but that round left manifestVersion at 1.4.0 and added no `revisions` entry. Rather than claim to BE v1.5.0 or renumber someone else's round, this entry takes the next free number and records the gap. The missing 1.5.0 revision entry is an open item, not something this round fixed.",
-      "scopeNote": "23/23 is a measurement of THIS set at THIS tree. It must not be added to the api set's earlier scores (measuredInThisRound, measuredInFixRound2) or to any other set's \u2014 every one was measured on a different commit against a suite of a different size. And it is not a coverage claim about Task 6 as a whole: it says the 23 behaviours listed have a discriminating test, not that every behaviour does."
+      "scopeNote": "24/24 is a measurement of THIS set at THIS tree. It must not be added to the api set's earlier scores (measuredInThisRound, measuredInFixRound2) or to any other set's \u2014 every one was measured on a different commit against a suite of a different size. And it is not a coverage claim about Task 6 as a whole: it says the 24 behaviours listed have a discriminating test, not that every behaviour does \u2014 and gate 2 then named five classes that had none, which API-75 to API-88 answer."
+    },
+    {
+      "version": "1.7.0",
+      "round": "task-6-fix-round1",
+      "at": "fix/twi-task6-hardening, base e9280b6",
+      "what": "Added API-75 to API-88 (14 entries) for the classes gate 2 recorded as uncovered: a real request stream, the malformed-multipart path, retry/duplication, the degenerate-size guard, and WEAKENING rather than removal (startsWith -> includes, toLowerCase dropped, a bound widened rather than deleted). Total entries 162 -> 176; sets[api].liveCount 74 -> 88. One existing entry was edited: API-62's anchor was re-pinned because the statement it names moved into a helper, and it was re-measured at this tree rather than re-pinned on paper. Two prose corrections to the v1.6.0 revision entry (liveCount 50 -> 73 read 73 where the data says 74; scopeNote said 23/23 where the score says 24/24). No id was removed or renumbered.",
+      "why": "Gate 2 approved Task 6 and then named exactly what its 24 mutants could not see: nothing exercised a real request stream, so no entry could tell 'refused cheaply' from 'refused after buffering 10 MB'; no entry touched the malformed-multipart path, which answered 500 for a client mistake; nothing probed retry/duplication, because with a per-call UUID identity a retry really did duplicate; the degenerate-size guard had no test; and no entry WEAKENED a guard rather than deleting it, which is how a byte validator quietly stops being strict.",
+      "scopeNote": "14/14 killed, 0 survivors, 0 ambiguous anchors, measured at this tree. Do not add this score to measuredInTask6, measuredInThisRound or measuredInFixRound2. Three of the fourteen (API-75, API-77, API-78) are not hypothetical: the mutation IS the code as shipped at e9280b6, and gate 2 measured its behaviour. Twelve of the fourteen are invisible to test:twi:contracts and one (API-88) is killed by it \u2014 the same 'neither suite is sufficient' shape this set's testCommandWarning already records.",
+      "alsoRecorded": "Three anchors elsewhere in this file were ALREADY stale at e9280b6 and are not this round's doing: DOM-09 and DOM-32R against src/twi/domain/schemas.ts, and API-21 against scripts/run-tests.mjs. Verified by running the same uniqueness check against the base commit's own blobs, which reports the same three. Repairing them belongs to a round that owns those files."
     }
   ],
 
@@ -132,20 +141,20 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "e602840 (measured by npm test -- --update-baselines)",
+      "measuredAt": "the working tree on top of parent commit e9280b6, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (8/8), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 409, "files": 20 },
+        "test:twi": { "tests": 435, "files": 21 },
         "test:twi:schema": { "tests": 39 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
         "test:twi:contracts": { "checks": 52, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3. Zero check names have ever been removed." },
         "test:migrations": { "tests": 10 },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "795 tests plus 60 script checks",
+      "totals": "821 tests plus 60 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 138-entry set against 1da7968, or against any single commit. This block records the suite the mutants would be measured against, not a score."
@@ -1909,7 +1918,7 @@
       "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it. Fix round 2 widens this sharply: API-30 to API-50 are ALL text-only facts and only TWO of them (API-31, API-32) are visible to test:twi at all. API-30 \u2014 a resource-scoped gate exemption \u2014 is simultaneously green on test:twi, typecheck:twi AND fix round 1\u2019s 29-check contract check, which is precisely why the contract check must not delegate this class to the unit suite: those 401 tests enumerate the resources that EXIST.",
       "historicalNumbering": "M1-M21 from task-5-report.md, plus M22 published in the same section as \"Gap 3\". Gate 2 added one probe (its spot-check 4) and re-verified three of the 21. Fix round 1 added six. The API-* ids are this manifest\u2019s and are one-to-one with those labels via historicalLabels.",
       "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase.",
-      "liveCount": 74,
+      "liveCount": 88,
       "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response.",
       "retiredCount": 0,
       "provenanceRounds": [
@@ -5201,9 +5210,10 @@
           },
           "mutation": {
             "kind": "replace",
-            "find": "  return json({ asset, outcome }, outcome === 'inserted' ? 201 : 200);",
-            "replace": "  return json({ asset, outcome }, 201);",
-            "anchorUnique": true
+            "find": "  json({ asset, outcome }, outcome === 'inserted' ? 201 : 200);",
+            "replace": "  json({ asset, outcome }, 201);",
+            "anchorUnique": true,
+            "anchorRepinnedIn": "task-6-fix-round1 (fix/twi-task6-hardening, base e9280b6). The statement moved out of uploadImageReference into the module-level `assetResponse` helper, so the leading `return ` is gone from the anchor and the mutation was RE-MEASURED rather than re-pinned on paper: 3 failed / 96 passed (99) in the behaviour suites AND 1 of 52 contract checks failed. It is now killed by the replay path as well, because both answers \u2014 the idempotency replay and the fresh insert \u2014 are minted there."
           },
           "substantiation": "exact-from-source",
           "killedBy": [
@@ -5864,6 +5874,772 @@
             "dependsOn": "FormData.getAll, which is what distinguishes one `file` part from several",
             "claim": "form.get() returns the FIRST matching part, so a duplicate is invisible to any check written against it \u2014 including the unknown-field check, which deduplicates keys through a Set and therefore sees exactly one `file`.",
             "failureMode": "If the guard is ever rewritten against form.get() or the key set rather than getAll(), it stops being able to see the case at all and this mutant reverts to a survivor."
+          }
+        },
+        {
+          "id": "API-75",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M1",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an undeclared or understated body is buffered in full before it is refused",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "bound 2 \u2014 the bounded read of the request body"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const boundedBody = await readBoundedBody(request, MAX_MULTIPART_BODY_BYTES);",
+            "replace": "  const boundedBody = null;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > stops reading an undeclared oversize body at the bound instead of buffering all of it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > bounds a body whose Content-Length is not a number",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "2 failed / 97 passed (99). This mutation IS the behaviour at e9280b6, which gate 2 measured as 10,485,885 bytes pulled before the 413."
+          },
+          "premise": {
+            "dependsOn": "a test whose body is a real ReadableStream that COUNTS what was pulled out of it",
+            "claim": "The status is 413 either way \u2014 the payload cap still fires. Only the byte counter can tell 'refused cheaply' from 'refused after buffering the lot', which is why no mutant could see this before src/twi/server/asset-ingestion.test.ts existed.",
+            "failureMode": "If the streamed bodies in that file are ever replaced with a FormData or a stubbed formData() 'for simplicity', this reverts to a survivor with every assertion green."
+          }
+        },
+        {
+          "id": "API-76",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M2",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the byte bound is present but unreachable",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the limit bound 2 enforces"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "      if (seen > limit) {",
+            "replace": "      if (seen > Number.MAX_SAFE_INTEGER) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > stops reading an undeclared oversize body at the bound instead of buffering all of it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > bounds a body whose Content-Length is not a number",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "2 failed / 97 passed (99). The weakening rather than the removal: the loop, the cancel and the 413 all remain, and only the comparison stops firing."
+          }
+        },
+        {
+          "id": "API-77",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M3",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a malformed multipart body answers 500 with a correlation id for a CLIENT mistake",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the malformed-multipart guard around request.formData()"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  } catch {\n    // A missing or malformed boundary is a CALLER mistake, and without this it left",
+            "replace": "  } catch (parseError) {\n    throw parseError;\n    // A missing or malformed boundary is a CALLER mistake, and without this it left",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > answers 400 for a real malformed multipart body, not 500",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > answers 400 when the multipart content type declares no boundary at all",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > does not quote the parser\u2019s message back, which quotes the body",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "3 failed / 96 passed (99). Rethrowing the parser's TypeError is exactly the pre-fix code, and gate 2 measured its answer twice: 500 internal_error."
+          },
+          "premise": {
+            "dependsOn": "a REAL malformed body, not a stubbed formData()",
+            "claim": "Both pre-fix 'no Content-Length' tests stubbed formData(), so the parser was never exercised on bad input and the suite structurally could not see this. undici throws TypeError: Failed to parse body as FormData for a garbage body and for a missing boundary alike.",
+            "failureMode": "A test that stubs formData() to throw an HttpError instead of driving a real body would keep this dead while proving nothing about the parser."
+          }
+        },
+        {
+          "id": "API-78",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M4",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a retry writes a second R2 object and a second D1 row",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the idempotency replay lookup before the expensive path"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const prior = await deps.repo.findAssetById(assetId);",
+            "replace": "  const prior = null;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > RETRIES ARE NOT DUPLICATES: the same key twice is one row, one object, 200 second",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > answers a retry without reading the body at all",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "2 failed / 97 passed (99). Without the lookup a retry reaches registerAsset, which collides on the id (createdAt differs) and answers 409 \u2014 so the retry fails instead of replaying."
+          }
+        },
+        {
+          "id": "API-79",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M5",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the identity is minted per call again, so idempotency is gone while the header is still required",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the derived identity passed to createImageAsset"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const assetId = await deriveImageAssetId(projectId, idempotencyKey);",
+            "replace": "  const assetId = crypto.randomUUID();",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > RETRIES ARE NOT DUPLICATES: the same key twice is one row, one object, 200 second",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > answers a retry without reading the body at all",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > derives the id rather than accepting it: the key never appears in the key path",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > answers 201 with the asset record and the outcome",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > answers 200, not 201, when the registration was a replay rather than a write",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "5 failed / 94 passed (99). This is the defect gate 2 recorded as Important 2 \u2014 the endpoint as shipped at e9280b6 \u2014 reduced to one line."
+          }
+        },
+        {
+          "id": "API-80",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M6",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "one idempotency key means one asset across ALL projects",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the project scoping of the identity digest"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\\n${projectId}\\n${idempotencyKey}`),",
+            "replace": "    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\\n${idempotencyKey}`),",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > scopes the identity to the project, so one key in two projects is two assets",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "1 failed / 98 passed (99). The second project's upload replays the first project's asset \u2014 a cross-project read, not merely a duplicate."
+          }
+        },
+        {
+          "id": "API-81",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M7",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an upload with no idempotency key is accepted and duplicates on retry",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the Idempotency-Key requirement"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (key.length === 0) {\n    throw new HttpError(400, `${IDEMPOTENCY_KEY_HEADER} header is required`, 'idempotency_key_required');\n  }",
+            "replace": "  if (false) {\n    throw new HttpError(400, `${IDEMPOTENCY_KEY_HEADER} header is required`, 'idempotency_key_required');\n  }",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > requires an Idempotency-Key and names it in the code",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > refuses a whitespace-only key, which is a missing one padded",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/route-dispatch.test.ts",
+              "test": "/api/twi/* dispatch > POST /api/twi/projects/:projectId/assets > refuses an upload with no Idempotency-Key through the envelope, writing nothing",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "3 failed / 96 passed (99), and one of the three is the dispatch suite \u2014 so the requirement is pinned at the route as well as in the module."
+          }
+        },
+        {
+          "id": "API-82",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M8",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an unbounded header value is hashed",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the Idempotency-Key length bound"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (key.length > MAX_IDEMPOTENCY_KEY_LENGTH) {",
+            "replace": "  if (key.length > MAX_IDEMPOTENCY_KEY_LENGTH * 1024) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > refuses a key longer than 128 characters",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "1 failed / 98 passed (99). A widening, not a removal: the bound is still there and still 128 by name, and only the comparison is loosened."
+          }
+        },
+        {
+          "id": "API-83",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M9",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a NaN, negative or fractional size reaches the read with the wrong error code",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the degenerate-size guard in validateImageReference"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (!Number.isInteger(size) || size < 0) {",
+            "replace": "  if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > refuses a NaN size without reading a byte",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > refuses a negative size without reading a byte",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > refuses a Infinity size without reading a byte",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > refuses a fractional size without reading a byte",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "4 failed / 95 passed (99). Gate 2 flagged this guard as untested (its Minor 7): the guard was real and probe-verified, but the committed suite never drove it and no mutant targeted it."
+          },
+          "premise": {
+            "dependsOn": "the guard being partly self-healing, which is why it needs its own test",
+            "claim": "Deleting it does not make the upload succeed \u2014 the post-read length comparison catches some of it. The surviving behaviour is a 400 with the WRONG code, or a read that should never have been attempted, and neither is visible to a status-only assertion."
+          }
+        },
+        {
+          "id": "API-84",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M10",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a JSON body that merely names the multipart type is handed to the multipart parser",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the multipart media-type comparison (startsWith)"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (!contentType.startsWith(MULTIPART_CONTENT_TYPE)) {",
+            "replace": "  if (!contentType.includes(MULTIPART_CONTENT_TYPE)) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > refuses a media type that merely CONTAINS multipart/form-data",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "1 failed / 98 passed (99). The weakening class gate 2 named as missing from the set: every pre-fix rejection case (application/json, no header) is refused by `includes` too, so nothing saw it."
+          }
+        },
+        {
+          "id": "API-85",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M11",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a legitimate upload with an uppercase media type is refused 415",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the case folding of the request's media type"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const contentType = rawContentType.toLowerCase();",
+            "replace": "  const contentType = rawContentType;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > accepts an UPPERCASE media type, because the comparison is case-insensitive",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "1 failed / 98 passed (99). The other half of the weakening class: dropping toLowerCase() breaks acceptance rather than rejection, so only an uppercase ACCEPT case can see it."
+          }
+        },
+        {
+          "id": "API-86",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M12",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a valid upload whose boundary contains capitals is refused 400",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the RAW media type handed back to the multipart parser"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "            headers: { 'Content-Type': rawContentType },",
+            "replace": "            headers: { 'Content-Type': contentType },",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > preserves a MIXED-CASE multipart boundary through the bounded read",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "1 failed / 98 passed (99). A multipart boundary is case-sensitive, so handing the parser the lowercased header makes a correct body unparseable. Measured directly against undici before the code was written: the same bytes parse with the raw header and throw with the lowercased one."
+          },
+          "premise": {
+            "dependsOn": "a test that OWNS the boundary, rather than letting FormData mint one",
+            "claim": "FormData's own boundaries are lowercase hex, so a suite built only on FormData bodies cannot see this at all."
+          }
+        },
+        {
+          "id": "API-87",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M13",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a raced or reused key deletes the winner's R2 object, leaving a live row pointing at nothing",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the collision branch that skips the compensating delete"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    if (error instanceof TwiRepositoryCollisionError) {",
+            "replace": "    if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > answers 409 \u2014 and does NOT delete the winner\u2019s object \u2014 when the identity is taken",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "1 failed / 98 passed (99). Under the mutation the collision falls through to the compensating delete and the object under the shared key \u2014 the winner's \u2014 is removed, then a repository error surfaces as 500."
+          },
+          "premise": {
+            "dependsOn": "the identity being DERIVED, which is what makes a collision mean 'someone else holds this key'",
+            "claim": "Gate 2 recorded this path as unreachable while the key embedded a fresh UUID. Deriving the id from the client's key is what makes it reachable, so the branch and its test arrived in the same change as the derivation."
+          }
+        },
+        {
+          "id": "API-88",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round1",
+              "label": "F1-M14",
+              "publishedIn": "task-6-fix-round1-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the handler ingests inline, bypassing createImageAsset and its rollback",
+          "appliesAtCommit": "fix/twi-task6-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-74 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/asset-ingestion.test.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the chain uploadImageReference -> createImageAsset"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return assetResponse(await createImageAsset({ projectId, file: uploaded, assetId }, deps));",
+            "replace": "  const descriptor = await validateImageReference(uploaded);\n  const r2Key = imageReferenceR2Key(projectId, assetId, descriptor.extension);\n  const bytes = await uploaded.arrayBuffer();\n  await deps.bucket.put(r2Key, bytes, { httpMetadata: { contentType: descriptor.contentType } });\n  const registered = await deps.repo.registerAsset({ id: assetId, projectId, jobId: null, kind: 'image-reference', label: null, r2Key, contentType: descriptor.contentType, bytes: descriptor.bytes, durationSeconds: null, sha256: 'x'.repeat(64), provenanceKey: null, lifecycleState: 'active', createdAt: (deps.clock ?? systemIdentityClock).now(), deletedAt: null });\n  return assetResponse(registered);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the upload is dispatched to src/twi/server/assets, so the route file stays a route table",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > answers 409 \u2014 and does NOT delete the winner\u2019s object \u2014 when the identity is taken",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > still compensates for a NON-collision insert failure",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round1-report.md",
+            "section": "mutants added for the four Important findings",
+            "originalVerdict": "killed on first application. NOT a former survivor of a guard: these were written by the round that closed the findings, so what they measure is whether the tests shipped with the FIX can detect the fix being undone. Three of them (API-75, API-77, API-78) do describe a behaviour that was really wrong at e9280b6, which is a different and stronger claim: the pre-fix code IS the mutant, and gate 2 measured it.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task6-hardening, base e9280b6",
+            "byRound": "task-6-fix-round1",
+            "result": "killed",
+            "observed": "1 contract check failed (52 run), and 2 failed / 97 passed (99) in the behaviour suites. It TYPECHECKS CLEAN and keeps 97 of 99 tests green while losing the compensating delete entirely \u2014 which is gate 1's Minor 2 exactly: before the assertion was added, this bypass kept all 52 checks green."
+          },
+          "premise": {
+            "dependsOn": "the contract check reading a comment-free canonical rendering of uploadImageReference for `createImageAsset(`",
+            "claim": "The guard is the layer meant to survive a refactor. The two behaviour tests that also fail do so only because the inlined copy drops the rollback; a version that copied the rollback too would be invisible to them and visible to the check."
           }
         }
       ]

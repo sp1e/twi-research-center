@@ -19,6 +19,7 @@ import { generationSpecObject } from '../domain/schemas';
 import {
   assertImageReferenceSelection,
   createImageAsset,
+  deriveImageAssetId,
   imageReferenceR2Key,
   MAGIC_BYTE_PROBE_BYTES,
   MAX_IMAGE_REFERENCE_BYTES,
@@ -102,10 +103,17 @@ const unreadableFile = (size: number, name = 'huge.jpg', type = 'image/jpeg'): U
   },
 });
 
+/**
+ * A default idempotency key, so the ordinary upload request in these tests is a
+ * complete one. Two calls that pass the same key are the SAME upload by contract —
+ * which is what the replay test below relies on, and no longer needs a fixed clock for.
+ */
+const IDEMPOTENCY_KEY = 'upload-key-1';
+
 const multipart = (form: FormData, headers: Record<string, string> = {}) =>
   new Request(`https://sp1e.se/api/twi/projects/${PROJECT_ID}/assets`, {
     method: 'POST',
-    headers: { Origin: 'https://sp1e.se', ...headers },
+    headers: { Origin: 'https://sp1e.se', 'Idempotency-Key': IDEMPOTENCY_KEY, ...headers },
     body: form,
   });
 
@@ -296,7 +304,7 @@ describe('createImageAsset', () => {
 
   const create = (input: File | UploadedFileLike = file(JPEG_MAGIC, 'mood.jpg', 'image/jpeg')) =>
     createImageAsset(
-      { projectId: PROJECT_ID, file: input },
+      { projectId: PROJECT_ID, file: input, assetId: ASSET_ID },
       { bucket, repo, clock: clock(ASSET_ID, NOW) },
     );
 
@@ -340,7 +348,7 @@ describe('createImageAsset', () => {
 
   it('puts the validated content type on the object, not the caller’s claim', async () => {
     await createImageAsset(
-      { projectId: PROJECT_ID, file: file(PNG_MAGIC, 'liar.jpg', 'image/jpeg') },
+      { projectId: PROJECT_ID, file: file(PNG_MAGIC, 'liar.jpg', 'image/jpeg'), assetId: ASSET_ID },
       { bucket, repo, clock: clock(ASSET_ID, NOW) },
     );
     expect(bucket.objects.get(`twi/${PROJECT_ID}/assets/${ASSET_ID}/source.png`)?.contentType).toBe('image/png');
@@ -356,7 +364,7 @@ describe('createImageAsset', () => {
     } as unknown as D1TwiRepository;
 
     await expect(
-      createImageAsset({ projectId: PROJECT_ID, file: file(JPEG_MAGIC, 'mood.jpg', 'image/jpeg') }, {
+      createImageAsset({ projectId: PROJECT_ID, file: file(JPEG_MAGIC, 'mood.jpg', 'image/jpeg'), assetId: ASSET_ID }, {
         bucket,
         repo: failing,
         clock: clock(ASSET_ID, NOW),
@@ -380,7 +388,7 @@ describe('createImageAsset', () => {
     } as unknown as D1TwiRepository;
 
     await expect(
-      createImageAsset({ projectId: PROJECT_ID, file: file(JPEG_MAGIC, 'mood.jpg', 'image/jpeg') }, {
+      createImageAsset({ projectId: PROJECT_ID, file: file(JPEG_MAGIC, 'mood.jpg', 'image/jpeg'), assetId: ASSET_ID }, {
         bucket,
         repo: failing,
         clock: clock(ASSET_ID, NOW),
@@ -408,9 +416,20 @@ describe('createImageAsset', () => {
     expect(bucket.calls).toEqual([]);
   });
 
-  it('mints a distinct id and a JS ISO timestamp with the default clock', async () => {
-    await createImageAsset({ projectId: PROJECT_ID, file: file(JPEG_MAGIC, 'a.jpg', 'image/jpeg') }, { bucket, repo });
-    await createImageAsset({ projectId: PROJECT_ID, file: file(PNG_MAGIC, 'b.png', 'image/png') }, { bucket, repo });
+  it('stores two distinct identities as two rows, with a JS ISO timestamp, on the default clock', async () => {
+    // No injected clock: `createdAt` comes from `systemIdentityClock`, so this is also
+    // the test that the real timestamp satisfies `twi_assets_created_at_iso`.
+    const a = await deriveImageAssetId(PROJECT_ID, 'key-a');
+    const b = await deriveImageAssetId(PROJECT_ID, 'key-b');
+    expect(a).not.toBe(b);
+    await createImageAsset(
+      { projectId: PROJECT_ID, file: file(JPEG_MAGIC, 'a.jpg', 'image/jpeg'), assetId: a },
+      { bucket, repo },
+    );
+    await createImageAsset(
+      { projectId: PROJECT_ID, file: file(PNG_MAGIC, 'b.png', 'image/png'), assetId: b },
+      { bucket, repo },
+    );
 
     const ids = db.database.prepare('SELECT id FROM twi_assets').all() as Array<{ id: string }>;
     expect(new Set(ids.map((row) => row.id)).size).toBe(2);
@@ -439,8 +458,10 @@ describe('createImageAsset', () => {
 
   it('reports a replayed registration rather than presenting it as a fresh insert', async () => {
     await create();
-    // Same id and same key: registerAsset deduplicates on both, so the second
-    // call is a replay. `outcome` is the only thing that says so.
+    // The same identity twice — which is now what a client retry looks like, because
+    // the id is derived from its idempotency key rather than minted per call.
+    // registerAsset deduplicates on the id and the r2Key; `outcome` is the only thing
+    // that says the second call wrote nothing.
     const second = await create();
     expect(second.outcome).toBe('replayed');
     expect(db.value<number>('SELECT COUNT(*) FROM twi_assets')).toBe(1);
@@ -471,16 +492,19 @@ describe('uploadImageReference — the POST route handler', () => {
     const body = (await response.json()) as { asset: Record<string, unknown>; outcome: string };
     expect(body.outcome).toBe('inserted');
     expect(body.asset).toMatchObject({
-      id: ASSET_ID,
+      // The id is the one the request's `Idempotency-Key` names, not one this call
+      // invented: that is what makes a retry land on this row instead of a second one.
+      id: await deriveImageAssetId(PROJECT_ID, IDEMPOTENCY_KEY),
       projectId: PROJECT_ID,
       kind: 'image-reference',
       contentType: 'image/jpeg',
     });
   });
 
-  // The outcome has to change the ANSWER, or reading it is decoration. A fixed clock
-  // means the second upload mints the same asset id and the same key, which is what
-  // registerAsset deduplicates on.
+  // The outcome has to change the ANSWER, or reading it is decoration. Both requests
+  // carry the same `Idempotency-Key`, so the second one is the same upload by contract
+  // and is answered out of the row the first one wrote. Nothing here depends on the
+  // injected clock any more: this is what a real retry does.
   it('answers 200, not 201, when the registration was a replay rather than a write', async () => {
     const first = await upload(multipart(withFile(file(JPEG_MAGIC, 'mood.jpg', 'image/jpeg'))));
     expect(first.status).toBe(201);
@@ -549,7 +573,10 @@ describe('uploadImageReference — the POST route handler', () => {
   });
 
   it('415s a spoofed upload and leaves R2 and D1 untouched', async () => {
-    const spoofed = file([...Buffer.from('MZ ')], 'mood.png', 'image/png');
+    // The bytes of a PE/DOS header, written as numbers rather than as a string with a
+    // literal NUL in it: the NUL made ripgrep and GNU grep report this whole file as
+    // binary and suppress every match, which is the same shape as route-dispatch.test.ts.
+    const spoofed = file([0x4d, 0x5a, 0x90, 0x00], 'mood.png', 'image/png');
     await expect(upload(multipart(withFile(spoofed)))).rejects.toMatchObject({ status: 415 });
     expect(bucket.calls).toEqual([]);
     expect(db.value<number>('SELECT COUNT(*) FROM twi_assets')).toBe(0);
@@ -564,6 +591,7 @@ describe('uploadImageReference — the POST route handler', () => {
       headers: new Headers({
         'Content-Type': 'multipart/form-data; boundary=x',
         'Content-Length': String(100 * 1024 * 1024),
+        'Idempotency-Key': IDEMPOTENCY_KEY,
       }),
       formData: async () => {
         formDataCalls += 1;
@@ -591,7 +619,7 @@ describe('uploadImageReference — the POST route handler', () => {
     form.set('file', oversize);
     const request = {
       method: 'POST',
-      headers: new Headers({ 'Content-Type': 'multipart/form-data; boundary=x' }),
+      headers: new Headers({ 'Content-Type': 'multipart/form-data; boundary=x', 'Idempotency-Key': IDEMPOTENCY_KEY }),
       formData: async () => form,
     } as unknown as Request;
 
