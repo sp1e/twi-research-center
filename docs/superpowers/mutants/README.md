@@ -144,9 +144,10 @@ extending it would have put two rounds' numbering in one sequence over overlappi
 shape of the `M29` collision above. `API-01`–`API-22` are pinned one-to-one to the round's own
 `M1`–`M22` labels; new ids start at `API-23` and only increase.
 
-`baselineCommit`, `baselines` and `verifiedByThisRound` in the JSON still describe the v1.0.0 round
-at `ac034a4` and do **not** include this set. Its numbers live in `sets[api].measuredInThisRound`.
-Do not add the two together.
+`baselineCommit` and `verifiedByThisRound` in the JSON describe the v1.0.0 round at `ac034a4` and do
+**not** include this set. Its numbers live in `sets[api].measuredInThisRound`. Do not add the two
+together. (`baselines` also described only v1.0.0 until v1.4.0 added `baselines.currentAtHead`
+beside it — see that section below.)
 
 One correction to this section as it was first written: it said "Every entry carries `measured: true`."
 No entry has a top-level `measured` field — the flag is on each item inside `killedBy`, where all
@@ -232,9 +233,41 @@ runs is strictly stronger than a manifest entry that does not, and this file's o
 constructions are documented in `.superpowers/sdd/2026-08-16-twi-creation-core/task-5-fix-round3-report.md`
 with their before/after measurements; if a runner is ever built, they can be lifted into ids then.
 
+## Changed in v1.4.0 — the `baselines` block stopped being true, and now says so
+
+Data only. **No mutant entry was touched**: 138 entries, 138 unique ids, and `sets`,
+`verifiedByThisRound`, `uncertainty`, `futureRunner` and `headlineMutationScores` are byte-identical
+to v1.3.0.
+
+`baselines` carried the v1.0.0 round's suite numbers — `ALL SUITES PASSED (6/6)`, `test:twi` 262 over
+13 files — and three revisions went past it without either refreshing or labelling them. By `1da7968`
+there were **eight** suites and `test:twi` was **353 over 19 files**, and the two script-check suites
+(`test:twi:contracts`, `test:twi:structure`) did not appear in the block at all. Read at face value it
+was a tracked document asserting figures that had stopped being true — the failure this manifest was
+created to stop.
+
+The v1.0.0 numbers are **kept**, for the same reason a retired mutant is kept: they are what a
+mutant measured by that round was measured against. What changed:
+
+- `baselines.readThisFirst` states in the file that `measuredAt` / `npmTest` / `suites` are history.
+- `baselines.currentAtHead` records the suite **measured at `1da7968`** on a clean tree, per suite,
+  read off one `npm test` run: legacy 128, sp1epacker 149/8, twi 353/19, schema 39,
+  **structure 58 (new)**, contracts **38 checks**, migrations 10, bundle 8 checks — 8/8 green,
+  737 tests plus 46 script checks, with both typechecks and the build green and
+  `git status --porcelain` empty afterwards.
+- `baselineCommitNote` says `baselineCommit` is an **anchor** fact that does not move, not a claim
+  about the current suite. Those two had been read as one thing.
+
+`currentAtHead` is the suite, **not a score**. No round has applied the combined 138-entry set
+against `1da7968` or against any other single commit; `uncertainty` still governs that.
+
 ## No runner, deliberately
 
-The owner chose a manifest, not an executable suite. The format is shaped so a runner can consume
+The owner chose a manifest, not an executable suite. One qualification since v1.3.0:
+`scripts/twi-route-structure.test.mjs` (`npm run test:twi:structure`) does apply this file's own
+`exact-from-source` payloads for the gate entries, so those entries' `premise` prose is an executed
+assertion. That is a corpus, not a runner — it asserts the analysis still reacts to each payload; it
+does not score the set. The format is shaped so a runner can consume
 it later without a rewrite; `futureRunner` in the JSON lists what one would need — chiefly a syntax
 gate (a mutated file that no longer parses must be `INVALID`, not `KILLED`; group-e reported a false
 79/79 for exactly that reason), an anchor-uniqueness precheck, a green-baseline gate, and per-mutant
