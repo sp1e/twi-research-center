@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.4.0",
+  "manifestVersion": "1.6.0",
   "recordedAt": "2026-08-17",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -46,6 +46,15 @@
       "what": "Data-only. No mutant entry touched — 138 entries, 138 unique ids, every `sets` member byte-identical. Added `baselines.currentAtHead` with the eight-suite state MEASURED at 1da7968, labelled the v1.0.0 numbers beside it as history, and noted that `baselineCommit` is an anchor fact rather than a suite fact.",
       "why": "The `baselines` block asserted 6 suites and test:twi 262/13 files inside a tracked file at a tip where there are 8 suites and test:twi is 353/19. Three revisions had gone past it. A published figure that reads as current and is not is the same failure class the api set exists to record, so it was corrected rather than filed as an open item again.",
       "scopeNote": "The numbers in `currentAtHead` are the SUITE, not a score. No round has measured the combined 138-entry set against any single commit; `uncertainty` still governs that."
+    },
+    {
+      "version": "1.6.0",
+      "round": "task-6-asset-ingestion",
+      "at": "feat/twi-task6-asset-ingestion, base e602840",
+      "what": "Added API-51 to API-74 (24 entries) for Task 6's image-reference ingestion. Total entries 138 -> 162. No existing entry was edited, renumbered or removed; the only non-additive edits are manifestVersion, sets[api].liveCount 50 -> 73, and a note appended to sets[api].liveCountNote. All 24 were APPLIED and reverted, not transcribed: 24/24 killed.",
+      "why": "Task 6 is the first task to add a route since the gate settled into equalities, and the first to write bytes to R2. Both of its load-bearing properties are ORDERS rather than values \u2014 the size cap before the read, the declared-length refusal before the multipart parse \u2014 and an order is exactly the kind of fact a green suite cannot be assumed to see. Registering the mutants is what makes the next round able to check that it still does.",
+      "versionNote": "1.6.0 rather than 1.5.0: the README already carries a 'Changed in v1.5.0' section for the round that made the baselines block executed, but that round left manifestVersion at 1.4.0 and added no `revisions` entry. Rather than claim to BE v1.5.0 or renumber someone else's round, this entry takes the next free number and records the gap. The missing 1.5.0 revision entry is an open item, not something this round fixed.",
+      "scopeNote": "23/23 is a measurement of THIS set at THIS tree. It must not be added to the api set's earlier scores (measuredInThisRound, measuredInFixRound2) or to any other set's \u2014 every one was measured on a different commit against a suite of a different size. And it is not a coverage claim about Task 6 as a whole: it says the 23 behaviours listed have a discriminating test, not that every behaviour does."
     }
   ],
 
@@ -123,20 +132,20 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "2b6c95c (fix/twi-test-integrity). The figures are unchanged from the 1da7968 measurement; what changed is that they are now re-measured on every run rather than asserted.",
-      "measuredBy": "scripts/run-tests.mjs — parsed per suite out of the suites' own output, on every `npm test`. Not a hand measurement any more.",
+      "measuredAt": "e602840 (measured by npm test -- --update-baselines)",
+      "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (8/8), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 353, "files": 19 },
+        "test:twi": { "tests": 409, "files": 20 },
         "test:twi:schema": { "tests": 39 },
-        "test:twi:structure": { "tests": 58, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
-        "test:twi:contracts": { "checks": 38, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3. Zero check names have ever been removed." },
+        "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
+        "test:twi:contracts": { "checks": 52, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3. Zero check names have ever been removed." },
         "test:migrations": { "tests": 10 },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "737 tests plus 46 script checks",
+      "totals": "795 tests plus 60 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 138-entry set against 1da7968, or against any single commit. This block records the suite the mutants would be measured against, not a score."
@@ -1900,8 +1909,8 @@
       "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it. Fix round 2 widens this sharply: API-30 to API-50 are ALL text-only facts and only TWO of them (API-31, API-32) are visible to test:twi at all. API-30 \u2014 a resource-scoped gate exemption \u2014 is simultaneously green on test:twi, typecheck:twi AND fix round 1\u2019s 29-check contract check, which is precisely why the contract check must not delegate this class to the unit suite: those 401 tests enumerate the resources that EXIST.",
       "historicalNumbering": "M1-M21 from task-5-report.md, plus M22 published in the same section as \"Gap 3\". Gate 2 added one probe (its spot-check 4) and re-verified three of the 21. Fix round 1 added six. The API-* ids are this manifest\u2019s and are one-to-one with those labels via historicalLabels.",
       "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase.",
-      "liveCount": 50,
-      "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together.",
+      "liveCount": 74,
+      "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response.",
       "retiredCount": 0,
       "provenanceRounds": [
         "task-5-report.md (M1-M21 plus M22 as Gap 3; M10 and M11 recorded there as survivors it closed)",
@@ -1912,6 +1921,18 @@
         "task-5-fix-round2-report.md (API-40 to API-50, invented while attacking round 2\u2019s own guard; closed API-30 to API-39)"
       ],
       "methodNote": "ALL 29 were applied for real in fix round 1, one at a time, and reverted \u2014 not transcribed. Anchor uniqueness was checked mechanically before each application (the driver aborts the mutant rather than half-applying it), and every target file was verified byte-identical to an in-memory pristine copy afterwards. Anchors were chosen to sit in CODE, never in a comment, so the two comment edits fix round 1 made to the route file cannot invalidate them.",
+      "measuredInTask6": {
+        "round": "task-6-asset-ingestion",
+        "at": "feat/twi-task6-asset-ingestion, base e602840",
+        "scope": "API-51 to API-74 only. Do not add this score to `measuredInThisRound` (fix round 1, API-01 to API-29) or `measuredInFixRound2` (API-30 to API-50).",
+        "baselineFirst": "npm ci plain, exit 0. npm test reproduced the handover's eight-suite baseline BEFORE any Task 6 code was written: legacy 128 [35, 6, 1, 78, 4, 4] + 199 script checks, sp1epacker 149/8, twi 353/19, schema 39, structure 58, contracts 38, migrations 10, bundle 8.",
+        "suitesRun": "test:twi restricted to src/twi/server/assets.test.ts + src/twi/server/route-dispatch.test.ts (72 tests) for the behavioural entries; test:twi:contracts for API-70 and API-72; typecheck:twi for API-73. The two ORDER entries (API-54, API-56) and eight others were additionally forced through test:twi:contracts to measure whether the source-shape assertions discriminate on their own.",
+        "score": "24/24 killed, 0 survivors, 0 ambiguous anchors. API-74 was added after the first 23, when a self-review found that two `file` parts would be resolved by using the first. Every anchor verified present and unique before application, and every target restored and diffed afterwards.",
+        "contractCheckAlone": "Measured separately for ten entries. KILLED by the contract check on its own: API-52, API-54, API-55, API-56, API-60, API-61, API-62, API-63. SURVIVED it: API-51 (the signature lookup keeps its shape) and API-69 (the digest call keeps its shape). So the source-shape assertions carry the two ORDER facts independently, and the behavioural suite is the only thing standing behind the other two.",
+        "gapFoundByMutation": "API-62. Discarding registerAsset's outcome and answering 201 unconditionally left the whole suite green: the outcome field was still correct, and no test drove a replay THROUGH the route. A test was added (\"answers 200, not 201, when the registration was a replay rather than a write\") and the mutant then died. Reading an outcome is not using it.",
+        "measurementCorrection": "The first harness kept its backup as a .mutbak sidecar beside the file it mutated. For the two route-file entries that put an undeclared file under functions/, which FUNCTIONS_REGISTRY refuses by design \u2014 so two registry checks appeared in their kill lists with no causal relation to the mutation. Both were re-measured with the backup outside the repository and the spurious checks are not recorded. See API-70's notKilledBy.note.",
+        "notCommitted": "The harness lived in a session scratchpad, like all four before it. What is committed is this record and the tests."
+      },
       "measuredInFixRound2": {
         "round": "task-5-fix-round2",
         "at": "fix/twi-gate-lock-structural, base df9af7a",
@@ -4538,6 +4559,1311 @@
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. This mutant was NOT a survivor of the 29-check lexical version (commit d441679): renaming the catch binding sent catchIndex to -1, so the await check failed closed for the wrong reason \u2014 see provenance.originalVerdict and notKilledBy.blindSuites, which record the same fact. Round 2's value here is that the kill became a STATED assertion instead of a side effect.",
             "crossCheck": "Measured both ways in fix round 2: exit 1 against the 29-check lexical version AND exit 1 against the 33-check structural version. The first exit 1 was incidental \u2014 a broken text anchor rather than an assertion about this construct \u2014 and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
             "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
+          }
+        },
+        {
+          "id": "API-51",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M1",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "arbitrary upload accepted as an image reference",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the magic-byte signature lookup in validateImageReference"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const signature = IMAGE_SIGNATURES.find((candidate) => matchesSignature(head, candidate));",
+            "replace": "const signature = IMAGE_SIGNATURES[0];",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > accepts JPEG magic bytes and reports the extension and type from the BYTES",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > accepts WebP magic bytes (RIFF\u2026.WEBP)",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > rejects extension-only spoofing: a .jpg named text/PHP file is not an image",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > rejects a declared image/png whose bytes are not any accepted image",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > rejects a truncated WebP header: RIFF alone is not WEBP",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > validates before touching R2 \u2014 a spoofed file writes nothing at all",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > 415s a spoofed upload and leaves R2 and D1 untouched",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/route-dispatch.test.ts",
+              "test": "/api/twi/* dispatch > POST /api/twi/projects/:projectId/assets > maps a rejected upload through the error envelope rather than Pages own 500",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "13 failed / 59 passed. Every rejection case AND every acceptance case, because the mutation makes the format independent of the bytes in both directions."
+          }
+        },
+        {
+          "id": "API-52",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M2",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "caller-declared content type trusted \u2014 stored and served as the attacker chose",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the descriptor returned by validateImageReference"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "return { extension: signature.extension, contentType: signature.contentType, bytes: size };",
+            "replace": "return { extension: signature.extension, contentType: file.type, bytes: size };",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > trusts NEITHER the extension nor the declared content type \u2014 PNG bytes named .jpg are png",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > puts the validated content type on the object, not the caller\u2019s claim",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "2 failed / 70 passed. Note the discriminating test is a POSITIVE one \u2014 PNG bytes announced as image/jpeg must come back as image/png. A suite that only tested rejection would let this through, because a spoofed file is refused either way."
+          }
+        },
+        {
+          "id": "API-53",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M3",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "no upload size limit at all",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the 10 MiB payload cap in validateImageReference"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (size > MAX_IMAGE_REFERENCE_BYTES) {\n    throw new HttpError(413, `image reference must be at most ${MAX_IMAGE_REFERENCE_BYTES} bytes`);\n  }",
+            "replace": "  // cap removed",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > rejects a file one byte over 10 MiB",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > refuses a 100 MB upload WITHOUT reading a byte of it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > refuses an oversize upload without reading it or touching R2",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > still applies the payload cap when no Content-Length is declared",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "4 failed / 68 passed."
+          }
+        },
+        {
+          "id": "API-54",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M4",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the cap becomes a memory amplifier: it fires after the isolate has materialised the upload",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the ORDER of the payload cap and the magic-byte read"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (size > MAX_IMAGE_REFERENCE_BYTES) {\n    throw new HttpError(413, `image reference must be at most ${MAX_IMAGE_REFERENCE_BYTES} bytes`);\n  }\n\n  const head = new Uint8Array(await file.slice(0, MAGIC_BYTE_PROBE_BYTES).arrayBuffer());",
+            "replace": "  const head = new Uint8Array(await file.slice(0, MAGIC_BYTE_PROBE_BYTES).arrayBuffer());\n  if (size > MAX_IMAGE_REFERENCE_BYTES) {\n    throw new HttpError(413, `image reference must be at most ${MAX_IMAGE_REFERENCE_BYTES} bytes`);\n  }",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > rejects a file one byte over 10 MiB",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > refuses a 100 MB upload WITHOUT reading a byte of it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > refuses an oversize upload without reading it or touching R2",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "3 failed / 69 passed, each failing with `materialised the upload` rather than a status mismatch \u2014 which is the point: the refusal still happens, it just costs the memory first. Separately measured against scripts/twi-contract-check.mjs: KILLED by \"the size cap is applied BEFORE any byte of the upload is read\"."
+          },
+          "premise": {
+            "dependsOn": "a test double that REFUSES to produce the expensive thing. src/twi/server/assets.test.ts supplies `unreadableFile`, whose slice() and arrayBuffer() both throw, and a Request double whose formData() counts its calls and throws.",
+            "claim": "the 10 MiB cap preceding the byte read is an ORDER, not a value. A suite that only asserts the status code cannot tell \"refused cheaply\" from \"refused after paying\", so both readings pass and the mutation survives. The kill signal is the double: with the order inverted the test fails with the double's own message instead of the status assertion.",
+            "crossCheck": "Also killed independently by scripts/twi-contract-check.mjs, which compares the two positions in a COMMENT-FREE canonical AST rendering of the function \u2014 measured separately by forcing the contract check as the kill suite for this mutant.",
+            "failureMode": "If the doubles are ever replaced with real Files \"for realism\", the order facts stop being observable and both order mutants revert to survivors with every status assertion still green."
+          }
+        },
+        {
+          "id": "API-55",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M5",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the format probe reads the whole upload instead of 16 bytes",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the bounded probe window"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const head = new Uint8Array(await file.slice(0, MAGIC_BYTE_PROBE_BYTES).arrayBuffer());",
+            "replace": "  const head = new Uint8Array(await file.arrayBuffer());",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > reads at most the probe window, never the whole accepted file",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. ONE test discriminates, and it is the one that records which byte range was requested \u2014 every status assertion in the file stays green, because reading too much changes no answer."
+          },
+          "premise": {
+            "dependsOn": "a test double that REFUSES to produce the expensive thing. src/twi/server/assets.test.ts supplies `unreadableFile`, whose slice() and arrayBuffer() both throw, and a Request double whose formData() counts its calls and throws.",
+            "claim": "the probe reading only the first 16 bytes is an ORDER, not a value. A suite that only asserts the status code cannot tell \"refused cheaply\" from \"refused after paying\", so both readings pass and the mutation survives. The kill signal is the double: with the order inverted the test fails with the double's own message instead of the status assertion.",
+            "crossCheck": "Also killed independently by scripts/twi-contract-check.mjs, which compares the two positions in a COMMENT-FREE canonical AST rendering of the function \u2014 measured separately by forcing the contract check as the kill suite for this mutant.",
+            "failureMode": "If the doubles are ever replaced with real Files \"for realism\", the order facts stop being observable and both order mutants revert to survivors with every status assertion still green."
+          }
+        },
+        {
+          "id": "API-56",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M6",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a 100 MB multipart body is fully parsed before being refused",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the ORDER of the declared-length gate and request.formData()"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const declaredLength = Number(request.headers.get('Content-Length'));\n  if (Number.isFinite(declaredLength) && declaredLength > MAX_MULTIPART_BODY_BYTES) {\n    throw new HttpError(413, 'request body too large');\n  }",
+            "replace": "  // moved below the form parse",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > refuses an oversize declared body WITHOUT parsing the multipart form",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Applied as a two-part edit (remove above, re-insert below) so the refusal is preserved and only its POSITION changes. The manifest records the first half only, because mutation.find/replace is a single pair; the corpus in scripts/twi-route-structure.test.mjs does not consume this entry (its target is not the route file), so nothing is silently skipped. The removal alone is also killed, by the same test."
+          },
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. The mutation as applied removes the gate from above formData(); the harness re-inserted it below, so the 413 still happens and only the call counter on the Request double can tell. Separately measured against scripts/twi-contract-check.mjs: KILLED by \"the upload route refuses an oversize declared body BEFORE parsing the multipart form\"."
+          },
+          "premise": {
+            "dependsOn": "a test double that REFUSES to produce the expensive thing. src/twi/server/assets.test.ts supplies `unreadableFile`, whose slice() and arrayBuffer() both throw, and a Request double whose formData() counts its calls and throws.",
+            "claim": "the declared-length refusal preceding the multipart parse is an ORDER, not a value. A suite that only asserts the status code cannot tell \"refused cheaply\" from \"refused after paying\", so both readings pass and the mutation survives. The kill signal is the double: with the order inverted the test fails with the double's own message instead of the status assertion.",
+            "crossCheck": "Also killed independently by scripts/twi-contract-check.mjs, which compares the two positions in a COMMENT-FREE canonical AST rendering of the function \u2014 measured separately by forcing the contract check as the kill suite for this mutant.",
+            "failureMode": "If the doubles are ever replaced with real Files \"for realism\", the order facts stop being observable and both order mutants revert to survivors with every status assertion still green."
+          }
+        },
+        {
+          "id": "API-57",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M7",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a zero-byte asset row and R2 object created",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the empty-upload rejection"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (size === 0) throw new HttpError(400, 'upload is empty', 'empty_upload');",
+            "replace": "  // empty upload accepted",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > rejects an empty upload",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed."
+          }
+        },
+        {
+          "id": "API-58",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M8",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "WAV and AVI accepted as WebP images",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the WebP signature's second part \u2014 the WEBP form type at offset 8"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    parts: [\n      { at: 0, bytes: [0x52, 0x49, 0x46, 0x46] },\n      { at: 8, bytes: [0x57, 0x45, 0x42, 0x50] },\n    ],",
+            "replace": "    parts: [{ at: 0, bytes: [0x52, 0x49, 0x46, 0x46] }],",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "validateImageReference > rejects a truncated WebP header: RIFF alone is not WEBP",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. RIFF is a container, not a format: without the second part every WAV and AVI is an image reference. The accepting WebP test stays green, so only the truncated-header case sees it."
+          }
+        },
+        {
+          "id": "API-59",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M9",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "eleven image references per specification, which the spec schema then rejects at submit",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the per-specification reference bound"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (imageAssetIds.length > MAX_IMAGE_REFERENCES_PER_SPEC) {",
+            "replace": "if (imageAssetIds.length > MAX_IMAGE_REFERENCES_PER_SPEC + 1) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "assertImageReferenceSelection \u2014 ten references per specification > rejects eleven",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "assertImageReferenceSelection \u2014 ten references per specification > rejects eleven with 400 and a specific code",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "2 failed / 70 passed. An off-by-one rather than a removal, because a removal is the easier mutation to catch."
+          }
+        },
+        {
+          "id": "API-60",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M10",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an orphaned R2 object every time the metadata insert fails",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the compensating delete in createImageAsset"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    try {\n      await bucket.delete(r2Key);\n    } catch (cleanupError) {",
+            "replace": "    try {\n      // delete removed\n    } catch (cleanupError) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > DELETES the just-written object when the metadata insert fails, then rethrows",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. Only a recording bucket can see this: the call still rejects with the same error either way, so the failure is invisible to any assertion about what the caller receives."
+          }
+        },
+        {
+          "id": "API-61",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M11",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a row pointing at an object that was never written",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the ORDER of bucket.put and repo.registerAsset"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  await bucket.put(r2Key, body, { httpMetadata: { contentType: descriptor.contentType } });\n\n  try {",
+            "replace": "  try {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > DELETES the just-written object when the metadata insert fails, then rethrows",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > does not insert a row when the R2 put fails",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Two-part edit, first half recorded \u2014 same reason as API-56. Not consumed by the route-structure corpus: the target is not the route file."
+          },
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "2 failed / 70 passed. Applied as a two-part edit: the put removed from above the try and re-inserted after the insert. The recorded pair is the removal, which is killed by the same two tests."
+          }
+        },
+        {
+          "id": "API-62",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M12",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "registerAsset's outcome discarded \u2014 a replay reported to the client as a creation",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the status derived from the registration outcome"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return json({ asset, outcome }, outcome === 'inserted' ? 201 : 200);",
+            "replace": "  return json({ asset, outcome }, 201);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > answers 200, not 201, when the registration was a replay rather than a write",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed \u2014 and the test that kills it did not exist until this mutant was run. Before it, reading the outcome was decoration: nothing observable changed when it was ignored. This is the one behaviour in the round that had NO discriminating test until mutation testing found the gap."
+          },
+          "premise": {
+            "dependsOn": "a replay being reachable through the ROUTE, not only through createImageAsset",
+            "claim": "The kill needs a test that uploads twice with a fixed clock, so the second call mints the same asset id and key and registerAsset replays. Asserting the outcome field alone is not enough \u2014 the field is still correct under the mutation; only the STATUS changes.",
+            "failureMode": "If the replay test is ever simplified to assert the body and not the status, this reverts to a survivor."
+          }
+        },
+        {
+          "id": "API-63",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M13",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "TWI objects written to the shared bucket root, where the Stem Lab also writes",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the twi/ object-key prefix"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "export const R2_TWI_PREFIX = 'twi/';",
+            "replace": "export const R2_TWI_PREFIX = '';",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "imageReferenceR2Key > writes under the twi/ prefix at the mandated path",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "imageReferenceR2Key > the prefix constant is twi/",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > writes the R2 object BEFORE inserting the row, and inserts once",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > puts the validated content type on the object, not the caller\u2019s claim",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > DELETES the just-written object when the metadata insert fails, then rethrows",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/route-dispatch.test.ts",
+              "test": "/api/twi/* dispatch > POST /api/twi/projects/:projectId/assets > stores an image reference and answers 201 with the record",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "6 failed / 66 passed. The bucket is shared with the Stem Lab (wrangler.toml: bucket_name = \"sp1e-files\"), so the prefix is what keeps the two apart."
+          }
+        },
+        {
+          "id": "API-64",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M14",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an object key can escape its project prefix",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the object-key segment restriction"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const SAFE_KEY_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;",
+            "replace": "const SAFE_KEY_SEGMENT = /[\\s\\S]*/;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "imageReferenceR2Key > refuses an identifier that could escape the project prefix",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. Widened to match anything rather than deleted, so the mutation keeps the call site intact."
+          }
+        },
+        {
+          "id": "API-65",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M15",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an upload against a nonexistent project writes to R2, then fails on the foreign key as internal_error",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the project-existence check in uploadImageReference"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const project = projectId.trim().length === 0 ? null : await deps.repo.getProject(projectId);\n  if (!project) throw new HttpError(404, 'project not found');",
+            "replace": "  // project existence unchecked",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > 404s for a project that does not exist, without writing to R2",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed."
+          }
+        },
+        {
+          "id": "API-66",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M16",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "unknown multipart fields silently ignored",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the unknown-field rejection"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const unknownFields = [...new Set(form.keys())].filter((field) => field !== UPLOAD_FILE_FIELD);\n  if (unknownFields.length > 0) {\n    throw new HttpError(400, `unknown field: ${unknownFields.join(', ')}`, 'unknown_field');\n  }",
+            "replace": "  // unknown fields accepted",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > 400s when the form carries a field other than file",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. Same rule parseProjectName applies to JSON bodies: a field the API ignores is data the owner cannot see was dropped."
+          }
+        },
+        {
+          "id": "API-67",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M17",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a non-multipart body reaches formData(), whose TypeError becomes internal_error",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the multipart content-type requirement"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (!contentType.startsWith(MULTIPART_CONTENT_TYPE)) {\n    throw new HttpError(415, `upload must be sent as ${MULTIPART_CONTENT_TYPE}`);\n  }",
+            "replace": "  // any content type accepted",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > 415s a body that is not multipart/form-data",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed."
+          }
+        },
+        {
+          "id": "API-68",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M18",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an understated size walks past the payload cap",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the agreement between the reported size and the bytes handed over"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (body.byteLength !== descriptor.bytes) {",
+            "replace": "  if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > refuses a file whose reported size disagrees with the bytes it hands over",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. The cap trusts `size`; this is what makes trusting it safe, and it is the reason the cap can be applied before the read at all."
+          }
+        },
+        {
+          "id": "API-69",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M19",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the recorded digest does not describe the stored bytes",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the SHA-256 over the stored object"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const sha256 = await sha256Hex(body);",
+            "replace": "  const sha256 = await sha256Hex(new TextEncoder().encode(r2Key).buffer as ArrayBuffer);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "createImageAsset > records the SHA-256 of the stored bytes, computed with Web Crypto",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. Same failure shape the spec_sha256 seam had (see the domain set): a digest stored beside content it does not describe. SURVIVES scripts/twi-contract-check.mjs, measured \u2014 the source shape is unchanged, so only the behavioural suite sees it."
+          }
+        },
+        {
+          "id": "API-70",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M20",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the upload endpoint made PUBLIC on a private studio",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "an ungated duplicate of the upload branch inserted above the owner gate"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n",
+            "replace": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n  if (resource === 'projects' && id && sub === 'assets' && method === 'POST') return await uploadImageReference(request, id, { bucket: env.FILES, repo });\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every TWI resource branch sits BELOW the requireOwnerSession gate",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "same-origin mutation validation runs before the route table",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the asset upload route is POST /projects/:id/assets and sits BELOW the owner gate",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the asset API returns no binding, bucket name or credential \u2014 FILES is an argument, never a payload",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "MEASUREMENT CORRECTION, recorded because it is the interesting part. The first harness kept its backup as a `.mutbak` sidecar NEXT TO the file it mutated, i.e. under functions/. FUNCTIONS_REGISTRY is a set equality over that tree, so the sidecar itself failed two further checks (\"functions/api/twi/ holds only the gated catch-all\", \"every file under functions/ is declared in FUNCTIONS_REGISTRY\") and those appeared in this mutant's kill list having nothing to do with the mutation. Re-measured with the backup held outside the repository; the two checks are NOT recorded. The registry behaved correctly \u2014 an undeclared file under functions/ is exactly what it exists to refuse \u2014 but attributing its verdict to this mutation would have overstated the guard, which is working-agreement rule 9 in the other direction."
+          },
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "5 contract checks failed, naming the offender: \"statement 5 above the gate is NOT DECLARED: if (resource === 'projects' && id && sub === 'assets' && method === 'POST') return await uploadImageReference(...)\". Also fails test:twi:structure (\"the committed route file analyses clean\", \"the declared preamble is the region above the gate\"). Shares its anchor with API-27/34/35/37/44/45/46 \u2014 do not apply together."
+          }
+        },
+        {
+          "id": "API-71",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M21",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a fourth path segment silently aliases the upload route",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the segment-count guard on the upload branch"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    if (resource === 'projects' && id && sub === 'assets' && segments.length === 3 && method === 'POST') {",
+            "replace": "    if (resource === 'projects' && id && sub === 'assets' && method === 'POST') {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/route-dispatch.test.ts",
+              "test": "/api/twi/* dispatch > POST /api/twi/projects/:projectId/assets > does not claim a fourth segment",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 71 passed. SURVIVES the contract check, which asserts the branch exists and sits below the gate but not what it refuses."
+          }
+        },
+        {
+          "id": "API-72",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M22",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a rejection escapes the mapping catch and Pages answers its own 500, carrying the repository's message",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the awaited return of the upload handler"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "      return await uploadImageReference(request, id, { bucket: env.FILES, repo });",
+            "replace": "      return uploadImageReference(request, id, { bucket: env.FILES, repo });",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the upload is dispatched to src/twi/server/assets, so the route file stays a route table",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Re-measured with the backup outside the repository for the reason recorded on API-70; the two registry checks the first harness reported are NOT this mutant's kill signal and are not recorded."
+          },
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "2 contract checks failed, naming it: \"UNAWAITED: return uploadImageReference(request, id, { bucket: env.FILES, repo })\". Also fails test:twi:structure. This is API-05's failure mode reproduced on Task 6's branch \u2014 the same `return somePromise` leak, on the first new route added since the assertion was written."
+          }
+        },
+        {
+          "id": "API-73",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M23",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the R2 binding undeclared while the route reads it",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. That is a first for this manifest \u2014 every earlier set was added by a later round. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/env.ts",
+            "construct": "the FILES member of TwiEnv"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  FILES: R2BucketLike;\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "typecheck:twi",
+              "file": "tsconfig.twi.json",
+              "test": "functions/api/twi/[[route]].ts \u2014 TS2339: Property 'FILES' does not exist on type 'TwiEnv'",
+              "measured": true
+            },
+            {
+              "suite": "typecheck:twi",
+              "file": "tsconfig.twi.json",
+              "test": "src/twi/server/route-dispatch.test.ts \u2014 TS2353: 'FILES' does not exist in type 'TwiEnv'",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. NOT a former survivor of anything: this round wrote the code and its tests together, so every entry here is a check that the tests it shipped with can detect the behaviour being wrong \u2014 not a record of a guard being beaten.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "tsc exit 1 with both errors. Recorded because the binding declaration is the thing env.ts previously argued AGAINST having: its comment said an unused binding \"reads as a promise that the function already handles assets, and it does not\". Task 6 made that false, so the comment was rewritten in the same commit. This mutant is what keeps the declaration from being reverted as tidying."
+          },
+          "premise": {
+            "dependsOn": "typecheck:twi covering BOTH functions/api/twi/**/*.ts and src/twi/**/*.ts",
+            "claim": "The kill is a compile error, not a test failure. `npm test` excludes both typechecks, so this mutant is INVISIBLE to npm test and green under it.",
+            "failureMode": "If tsconfig.twi.json ever stops naming the Pages Function directory \u2014 the hazard the contract check already pins \u2014 the route-file half of this kill disappears."
+          }
+        },
+        {
+          "id": "API-74",
+          "historicalLabels": [
+            {
+              "round": "task-6-asset-ingestion",
+              "label": "T6-M24",
+              "publishedIn": "task-6-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a second `file` part silently discarded",
+          "appliesAtCommit": "feat/twi-task6-asset-ingestion",
+          "appliesAtCommitNote": "A branch name rather than a sha, deliberately: these entries ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that introduces src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the duplicate-`file`-part rejection in uploadImageReference"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (parts.length > 1) {",
+            "replace": "  if (parts.length > 2) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/assets.test.ts",
+              "test": "uploadImageReference \u2014 the POST route handler > 400s when the file field is sent twice, rather than silently using the first",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-report.md",
+            "section": "mutation testing",
+            "originalVerdict": "killed on first application. Added late in the round: the guard itself did not exist until a self-review noticed that two `file` parts would be resolved by using the first, which is the same silent-discard defect the unknown-field rejection exists to prevent.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task6-asset-ingestion, base e602840",
+            "byRound": "task-6-asset-ingestion",
+            "result": "killed",
+            "observed": "1 failed / 48 passed. An off-by-one rather than a removal, so the guard keeps its shape and only its bound moves."
+          },
+          "premise": {
+            "dependsOn": "FormData.getAll, which is what distinguishes one `file` part from several",
+            "claim": "form.get() returns the FIRST matching part, so a duplicate is invisible to any check written against it \u2014 including the unknown-field check, which deduplicates keys through a Set and therefore sees exactly one `file`.",
+            "failureMode": "If the guard is ever rewritten against form.get() or the key set rather than getAll(), it stops being able to see the case at all and this mutant reverts to a survivor."
           }
         }
       ]
