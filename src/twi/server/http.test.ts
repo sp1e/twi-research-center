@@ -72,6 +72,37 @@ describe('getCookie', () => {
     expect(getCookie(withCookie('ff_session=fredagsfett-token'), 'session')).toBeNull();
   });
 
+  it('does not treat a cookie whose name merely BEGINS with the wanted name as a match', () => {
+    // The other half of the same confusion, and the half the suite used to miss:
+    // `.startsWith(name)` survived every test in this project. Nothing on this
+    // site sets `sessionfoo`, but any subdomain that can write cookies on the
+    // parent domain can, and under a prefix match it would SHADOW the real
+    // session — the browser sends both, the loop returns the first hit, and the
+    // owner is logged out of the studio until the shadow expires.
+    expect(getCookie(withCookie('sessionfoo=x'), 'session')).toBeNull();
+    expect(getCookie(withCookie('sessionfoo=x; session=abc123'), 'session')).toBe('abc123');
+  });
+
+  it('returns the EMPTY STRING for a valueless cookie, not null', () => {
+    // Recorded because it is load-bearing rather than because it is pretty: the
+    // gate tests `!token`, so '' short-circuits to 401 with no database read, the
+    // same as no cookie at all (src/twi/server/auth.test.ts pins that). A caller
+    // that switched to `=== null` would send '' to D1 instead.
+    expect(getCookie(withCookie('session='), 'session')).toBe('');
+    expect(getCookie(withCookie('theme=dark; session=; other=1'), 'session')).toBe('');
+  });
+
+  it('resolves a duplicated cookie name first-match-wins, like the site router it copies', () => {
+    // A duplicate can arrive legitimately (same name written for both `.sp1e.se`
+    // and `sp1e.se`), so this is not a hypothetical. First-match-wins is the
+    // parent router's behaviour and the deliberate choice here; the consequence
+    // worth knowing is that an EMPTY first copy shadows a valid second one and
+    // reads as logged out, which fails closed rather than open.
+    expect(getCookie(withCookie('session=first; session=second'), 'session')).toBe('first');
+    expect(getCookie(withCookie('session=; session=valid'), 'session')).toBe('');
+    expect(getCookie(withCookie('session=valid; session='), 'session')).toBe('valid');
+  });
+
   it('keeps a value containing "=" intact', () => {
     expect(getCookie(withCookie('session=a=b=c'), 'session')).toBe('a=b=c');
   });

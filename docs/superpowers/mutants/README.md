@@ -14,7 +14,7 @@ money path. Those findings are the reason the manifest is worth maintaining.
 
 | Field | Meaning |
 |---|---|
-| `id` | Stable, namespaced, never reused: `DOM-*` domain, `SCH-*` schema, `REPO-*` repository, `APP-*` app shell, `MIG-*` migration tooling. |
+| `id` | Stable, namespaced, never reused: `DOM-*` domain, `SCH-*` schema, `REPO-*` repository, `APP-*` app shell, `MIG-*` migration tooling, `API-*` the authenticated API surface. |
 | `historicalLabels` | What each round called it (`M1`, `M06`, `spot-check A`, …). Kept because the reports are the evidence and they use these labels. |
 | `target` | The file and the construct. |
 | `mutation` | A literal `find` / `replace` pair, or `sites[]` for one logical change at several places, or a `mechanicalRule` for line deletions. |
@@ -114,6 +114,39 @@ unmodified `raw-bounds.test.ts` passes against the `b69678b` schema — independ
 assertion was weakened there. `DOM-37R` and `DOM-39R` are anchor-verified but not applied.
 Everything else is transcribed from the reports with provenance attached: the manifest is a
 faithful, applicable index of those claims, not a re-measurement of them.
+
+## Added in v1.1.0 — the `api` set (29 entries, Task 5's boundary)
+
+Task 5 built the authenticated API and ran 21 mutants against it, and **none of them were in this
+file**: the manifest did not exist at Task 5's base, so that round could not have registered them.
+Two independent gates then found the same hole in its route-placement lock, and one of them found a
+surviving mutant. The gate-hardening round added the set and, unlike the transcription that makes up
+most of this manifest, **applied all 29 for real**:
+
+- **29/29 killed**, measured at `fix/twi-task5-gate-hardening` (base `f24cc24`), after reproducing
+  that tree's own baseline first (`npm test` 7/7, `test:twi` 349, contract check 26).
+- **`killedBy` in this set is measured, not transcribed.** Every entry carries `measured: true`.
+  Four lists came out broader than the introducing report implied — the same correction spot-checking
+  `DOM-03` produced. They are measured *at that tree*, which includes four kill signals the
+  introducing round did not have.
+- **Seven entries are recorded as former survivors, deliberately.** `API-23` (published by gate 2),
+  `API-24`, `API-25`, `API-26` survived Task 5's tests; `API-27` (in seven of its eight spellings),
+  `API-28` and `API-29` survived Task 5's contract check. Reading any of them as "always killed"
+  would misstate the coverage history of the auth boundary, so each says so in
+  `provenance.originalVerdict`, and the placement ones carry `notKilledBy` and a `premise` naming
+  the assertion their kill now depends on.
+- **Two kill suites, and neither is sufficient.** Nine entries are text-only facts no runtime suite
+  can see; `API-15` is invisible to the contract check; and `API-21` orphans the very suite that
+  kills it, so `npm test` goes green under it. See the set's `testCommandWarning`.
+
+Why a new namespace rather than more `REPO-*`: that set already targets `src/twi/server/`, so
+extending it would have put two rounds' numbering in one sequence over overlapping paths — the exact
+shape of the `M29` collision above. `API-01`–`API-22` are pinned one-to-one to the round's own
+`M1`–`M22` labels; new ids start at `API-23` and only increase.
+
+`baselineCommit`, `baselines` and `verifiedByThisRound` in the JSON still describe the v1.0.0 round
+at `ac034a4` and do **not** include this set. Its numbers live in `sets[api].measuredInThisRound`.
+Do not add the two together.
 
 ## No runner, deliberately
 

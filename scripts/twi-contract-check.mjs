@@ -49,6 +49,24 @@ const runner = read('scripts/run-tests.mjs');
 const checks = [];
 const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
 
+/**
+ * The lines of `source` that are code, as an array. Lines that are ENTIRELY
+ * comment are dropped; nothing else is.
+ *
+ * The asymmetry is deliberate and is what makes the two gate assertions below
+ * safe to write as text scans. Prose on a whole-line comment is invisible to
+ * them, and prose in a TRAILING comment can only make them FAIL, never pass —
+ * so no comment can turn a real finding into a green check. Section 9 below
+ * carries the opposite lesson from experience: there, a comment mentioning
+ * `/twi/*` was enough to flip a PASSING check to failing, and the repair was to
+ * parse the file into rules rather than grep it.
+ */
+const statementLines = (source) =>
+  source.split('\n').filter((line) => {
+    const trimmed = line.trim();
+    return trimmed !== '' && !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('/*');
+  });
+
 // ── 1. The route exists at the nested path Pages resolves for /api/twi/* ──────
 check('nested TWI route exists', fs.existsSync(path.join(root, 'functions/api/twi/[[route]].ts')));
 
@@ -70,6 +88,89 @@ const resourceBranches = [...route.matchAll(/resource === '[a-z-]+'/g)].map((mat
 check(
   'every TWI resource branch sits BELOW the requireOwnerSession gate',
   gateIndex > 0 && resourceBranches.length >= 2 && resourceBranches.every((index) => index > gateIndex),
+);
+
+/**
+ * The same fact again, as a DENYLIST — and this is the one that has to hold.
+ *
+ * The check above enumerates branches by today's idiom, so it sees only
+ * `resource === '<lowercase-or-hyphen>'` in SINGLE quotes. A route added above
+ * the gate as `'jobsV2'`, `'jobs2'`, `'job_queue'`, `"jobs"`, or
+ * `segments[0] === 'debug'` matches nothing and is invisible to it; and because
+ * `length >= 2` is already satisfied by the branches that exist, a FIFTH and
+ * PUBLIC route above the gate passed every check in this file. Measured, not
+ * theorised: eight spellings of that route, and a verb-specific Pages handler,
+ * all scored exit 0 before this assertion existed.
+ *
+ * So instead of enumerating what a route may look like, assert what the region
+ * above the gate may CONTAIN: exactly one `return`, and it is the CORS
+ * preflight. A new route cannot answer up there without a `return`, whatever it
+ * is named and whichever variable it dispatches on. The ordering check above is
+ * kept as a secondary signal — it names the offending branch more precisely
+ * when the idiom does match.
+ */
+const isPreflightReturn = (line) =>
+  (line.match(/\breturn\b/g) ?? []).length === 1 &&
+  /method === 'OPTIONS'/.test(line) &&
+  /new Response\(null, \{ status: 204/.test(line);
+
+const preGateReturns = statementLines(route.slice(0, gateIndex)).filter((line) => /\breturn\b/.test(line));
+const preGateOffenders = preGateReturns.filter((line) => !isPreflightReturn(line));
+
+check(
+  `nothing above the owner gate answers except the CORS preflight${
+    preGateOffenders.length
+      ? ` — PUBLIC, UNAUTHENTICATED route above the gate: ${preGateOffenders.map((line) => line.trim()).join(' | ')}`
+      : ''
+  }`,
+  gateIndex > 0 && preGateReturns.length === 1 && preGateOffenders.length === 0,
+);
+
+/**
+ * Cloudflare Pages dispatches verb-specific exports (`onRequestGet`,
+ * `onRequestPost`, …) as well as `onRequest`. One of those added to this file
+ * would sit BESIDE the gate rather than above or below it, so the positional
+ * model — and the assertion above — cannot see it at all. Which export Pages
+ * prefers when both exist is not something this repo can prove without a
+ * deploy, so the guard refuses the ambiguity: this function has exactly one
+ * entry point, and every route reachable through it passes the gate.
+ */
+check(
+  'onRequest is the only Pages handler in the TWI function, so no verb export can answer beside the gate',
+  /export const onRequest =/.test(route) &&
+    !/\bonRequest(?:Get|Post|Put|Patch|Delete|Head|Options)\b/.test(statementLines(route).join('\n')),
+);
+
+/**
+ * `return await` in the route table is load-bearing, not noise: `return
+ * somePromise` inside a `try` settles after the block is left, so the `catch`
+ * below never sees the rejection and Pages answers with its own 500 carrying
+ * the repository's message — which quotes SQL. That was proven by mutation
+ * (Task 5 M5 / API-05), and nothing asserted it. A new branch written
+ * `return listJobs(repo)` would reopen the leak with every test green.
+ *
+ * `return json(...)` is synchronous and correctly unawaited, so it is the one
+ * other admitted form. The `some(...)` clause keeps the check from passing
+ * vacuously if the region is ever mis-sliced to nothing.
+ *
+ * Two admitted forms and no others is the point, so this also rejects
+ * `return new Response(…)` inside the gate — deliberately. A task that needs to
+ * stream a body (an asset download, say) writes the handler in
+ * src/twi/server/* like every other one and `return await`s it, which is where
+ * the response shaping belongs and what keeps this file a route table.
+ */
+const catchIndex = route.indexOf('} catch (error) {');
+const gatedTry = statementLines(route.slice(gateIndex, catchIndex));
+const unawaitedReturns = gatedTry.filter((line) => /\breturn\b(?!\s+await\b|\s+json\()/.test(line));
+
+check(
+  `every handler returned inside the gate is awaited, so no rejection escapes the catch${
+    unawaitedReturns.length ? ` — UNAWAITED: ${unawaitedReturns.map((line) => line.trim()).join(' | ')}` : ''
+  }`,
+  gateIndex > 0 &&
+    catchIndex > gateIndex &&
+    gatedTry.some((line) => /\breturn await \w/.test(line)) &&
+    unawaitedReturns.length === 0,
 );
 
 // The CORS preflight is the one thing that may precede the gate, and it must:

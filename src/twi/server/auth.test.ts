@@ -76,6 +76,19 @@ describe('requireOwnerSession statement shape', () => {
     expect(db.statements).toEqual([]);
   });
 
+  it('never touches the database for a valueless session cookie either', async () => {
+    // `Cookie: session=` yields '' rather than null, so a gate written
+    // `token === null` would hand the empty string to D1 and pay a round trip per
+    // request for it — the anonymous-flood hazard the short-circuit exists to
+    // stop, reopened by a cookie any client can send. `!token` covers both.
+    const db = new ScriptedD1();
+
+    await expect(requireOwnerSession(request('session='), { DB: db })).rejects.toThrowError(
+      expect.objectContaining({ status: 401, message: 'Unauthorized' }),
+    );
+    expect(db.statements).toEqual([]);
+  });
+
   it('looks the token up by binding it, never by interpolating it into SQL', async () => {
     const db = new ScriptedD1();
     db.firstResults.push({ token: 'live-token' });
