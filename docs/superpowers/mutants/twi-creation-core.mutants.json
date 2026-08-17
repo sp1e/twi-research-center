@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.2.0",
+  "manifestVersion": "1.3.0",
   "recordedAt": "2026-08-17",
   "baselineCommit": "ac034a4",
   "plan": "docs/superpowers/plans/2026-08-16-twi-creation-core.md",
@@ -3119,7 +3119,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3192,7 +3192,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3265,7 +3265,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3333,7 +3333,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3394,7 +3394,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3455,7 +3455,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3516,7 +3516,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3577,7 +3577,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3638,7 +3638,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3701,7 +3701,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3778,9 +3778,9 @@
           },
           "premise": {
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
-            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
-            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. This mutant was NOT a survivor of the 29-check lexical version (commit d441679): dropping `await` broke both the gate regex and the gateIndex anchor, so five checks collapsed for a structural reason \u2014 see provenance.originalVerdict and notKilledBy.blindSuites, which record the same fact. Round 2's value here is that the kill became a STATED assertion instead of a side effect.",
+            "crossCheck": "Measured both ways in fix round 2: exit 1 against the 29-check lexical version AND exit 1 against the 33-check structural version. The first exit 1 was incidental \u2014 a broken text anchor rather than an assertion about this construct \u2014 and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3851,9 +3851,9 @@
           },
           "premise": {
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
-            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
-            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. This mutant was NOT a survivor of the 29-check lexical version (commit d441679): the `||` form broke the gateIndex anchor, so the checks that depended on it failed closed \u2014 see provenance.originalVerdict and notKilledBy.blindSuites, which record the same fact. Round 2's value here is that the kill became a STATED assertion instead of a side effect.",
+            "crossCheck": "Measured both ways in fix round 2: exit 1 against the 29-check lexical version AND exit 1 against the 33-check structural version. The first exit 1 was incidental \u2014 a broken text anchor rather than an assertion about this construct \u2014 and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -3916,7 +3916,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -4001,9 +4001,9 @@
           },
           "premise": {
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
-            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
-            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. This mutant was NOT a survivor of the 29-check lexical version (commit d441679): the alias meant `await requireSession(...)` was not the anchored text, so gateIndex went to -1 and the checks that used it failed closed \u2014 see provenance.originalVerdict and notKilledBy.blindSuites, which record the same fact. Round 2's value here is that the kill became a STATED assertion instead of a side effect.",
+            "crossCheck": "Measured both ways in fix round 2: exit 1 against the 29-check lexical version AND exit 1 against the 33-check structural version. The first exit 1 was incidental \u2014 a broken text anchor rather than an assertion about this construct \u2014 and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -4062,9 +4062,9 @@
           },
           "premise": {
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
-            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
-            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. This mutant was NOT a survivor of the 29-check lexical version (commit d441679): the switch form still matched the pre-gate return scan, so the old denylist fired \u2014 see provenance.originalVerdict and notKilledBy.blindSuites, which record the same fact. Round 2's value here is that the kill became a STATED assertion instead of a side effect.",
+            "crossCheck": "Measured both ways in fix round 2: exit 1 against the 29-check lexical version AND exit 1 against the 33-check structural version. The first exit 1 was NOT incidental: the old pre-gate denylist saw this construction on its own terms. The entry is recorded because round 2 re-derives the same kill structurally, not because the prior guard was blind to it.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -4124,9 +4124,9 @@
           },
           "premise": {
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
-            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR. One caveat, measured in fix round 3: this payload produces TWO offenders, and only the `env` one is recorded below. The trailing `void purge;` is an independent kill as a bare ExpressionStatement above the gate \u2014 strip it and spell `env` as ctx['env'] and the round-2 guard scored it 33/33 green, because the `env` rule was a rule about one IDENTIFIER. Round 3 closes both halves: computed member access above the gate is refused, and the whole region must equal the declared preamble.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -4187,7 +4187,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -4268,7 +4268,7 @@
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
             "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
             "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -4348,9 +4348,9 @@
           },
           "premise": {
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
-            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
-            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version (commit d441679) this mutant is MIXED, not a clean survivor: one spelling survived and the other was caught incidentally \u2014 see provenance.originalVerdict, which records the same fact.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version for one spelling and exit 1 for the other, exit 1 against the 33-check structural version for both.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -4409,9 +4409,9 @@
           },
           "premise": {
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
-            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
-            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. This mutant was NOT a survivor of the 29-check lexical version (commit d441679): the `as` cast left `return` on the line, which the old await scan already refused \u2014 see provenance.originalVerdict and notKilledBy.blindSuites, which record the same fact. Round 2's value here is that the kill became a STATED assertion instead of a side effect.",
+            "crossCheck": "Measured both ways in fix round 2: exit 1 against the 29-check lexical version AND exit 1 against the 33-check structural version. The first exit 1 was NOT incidental: the old pre-gate denylist saw this construction on its own terms. The entry is recorded because round 2 re-derives the same kill structurally, not because the prior guard was blind to it.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         },
         {
@@ -4482,9 +4482,9 @@
           },
           "premise": {
             "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
-            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
-            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
-            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. This mutant was NOT a survivor of the 29-check lexical version (commit d441679): renaming the catch binding sent catchIndex to -1, so the await check failed closed for the wrong reason \u2014 see provenance.originalVerdict and notKilledBy.blindSuites, which record the same fact. Round 2's value here is that the kill became a STATED assertion instead of a side effect.",
+            "crossCheck": "Measured both ways in fix round 2: exit 1 against the 29-check lexical version AND exit 1 against the 33-check structural version. The first exit 1 was incidental \u2014 a broken text anchor rather than an assertion about this construct \u2014 and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor. Until fix round 3 that happened with every unit test green: a 14-line permissive stub of scripts/lib/twi-route-structure.mjs kept `npm test` at 7/7 and the contract check reporting the same number of checks, measured. scripts/twi-route-structure.test.mjs now drives the analysis directly, with THIS manifest's exact-from-source find/replace pairs as its corpus, and is wired into `npm test` as test:twi:structure \u2014 so the swap fails there, naming the mutant id. Measured in fix round 3: against the permissive stub the contract check still passes while that suite fails 41 of 58 tests."
           }
         }
       ]

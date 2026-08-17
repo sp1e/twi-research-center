@@ -16,34 +16,64 @@
  * router in scripts/landing-layout-check.mjs.
  *
  * Exactly what it pins, so this comment does not have to be trusted. It PARSES
- * this file (scripts/lib/twi-route-structure.mjs) rather than scanning it, and
- * asserts:
+ * this file (scripts/lib/twi-route-structure.mjs) rather than scanning it, and it
+ * compares the functions/ tree against a declared registry
+ * (scripts/lib/functions-registry.mjs). It asserts:
  *
- *   - the gate is ONE awaited statement whose only enclosing constructs are
- *     blocks and this handler's single `try`. No `if`, no loop, no `switch`, no
- *     callback, no inner try — so it cannot be made conditional on a method or a
- *     resource while still reading as present and early;
- *   - that try is the LAST statement here and its `catch` ends in a return, so
- *     every path that answers passes the gate and every rejection is mapped
- *     below rather than escaping to Pages;
- *   - above the gate there may be variable declarations and ONE structurally
- *     verified CORS preflight, and no other statement of any kind. So nothing up
- *     there answers by `return` OR by `throw`, the preflight's condition cannot
- *     be widened by an `||`, and `env` — D1, the bindings, every secret — is not
- *     reachable at all;
+ *   - the gate is ONE awaited statement, a DIRECT statement of this handler's
+ *     single `try`, and its only enclosing constructs are that try and this body.
+ *     No `if`, no loop, no `switch`, no callback, no inner try, and no bare
+ *     `{ }` — so it cannot be made conditional while still reading as present and
+ *     early, and the region above it cannot be made to look empty;
+ *   - the identifier called IS the named import of `requireOwnerSession` from
+ *     src/twi/server/auth, and that name is not redeclared anywhere in this file —
+ *     so a module-scope wrapper of the same name is not mistaken for the gate;
+ *   - that try is the LAST statement here, its `catch` ends in a return, and what
+ *     the catch may answer with is an error envelope only: it awaits nothing and
+ *     may borrow only `json` and `HttpError` from this file's imports. The catch
+ *     runs on the gate's own 401, so a catch that serves data is the gate
+ *     inverted;
+ *   - the region above the gate EQUALS a declared preamble, statement for
+ *     statement, compared as canonically printed AST — plus ONE structurally
+ *     verified CORS preflight whose body is `null`, whose status is 204 and whose
+ *     headers are exactly `cors()`. Adding anything up there fails, whatever it
+ *     does and however it is spelled; four rounds of enumerating privileged
+ *     reaches (`env`, `ctx.env`, `ctx['env']`, `ctx[key]`, a renamed
+ *     destructuring) did not converge, and an equality does not have to;
+ *   - every `return` below the gate inside the try is `await …` or `json(…)`, at
+ *     any nesting depth;
  *   - `onRequest` is the only Pages handler exported here, compared as a DECODED
- *     identifier, so a unicode escape spells the same name the check sees;
- *   - functions/api/twi/ contains only this file, because Pages routes by path
- *     specificity: a sibling module would answer /api/twi/* without this file
- *     ever being entered, and the gate cannot defend a file it is not in;
- *   - no _redirects rule matches an /api/ path.
+ *     identifier, and `export * from` is refused as opaque because the star can
+ *     carry a handler the check cannot see;
+ *   - EVERY file under functions/ is declared in that registry and the tree and
+ *     the registry agree exactly — so a sibling at any depth, a parent-level
+ *     `twi.*` of any extension, and a `_middleware.*` at any level all fail until
+ *     declared. `functions/_middleware.ts` and the /api/* catch-all, which do run
+ *     for these paths, are pinned to mention no TWI path at all;
+ *   - no `_worker.js` at the build output root, no `_routes.json` exclusion and no
+ *     _redirects rule matching an /api/ path — three ways to answer this URL
+ *     without this Function running.
  *
- * What it does NOT guarantee, because nothing in this repo can settle it: how
- * Cloudflare dispatches. Which export Pages prefers when several exist, and
- * whether a _redirects rule outranks a Function, are deploy-time facts. The
- * guard refuses both ambiguities instead of resolving them. And a file named in
- * the check's `publicAllowlist` is public BY DECISION — the check makes that
- * decision visible, it does not prevent it.
+ * And the analysis behind all of that is itself tested: `npm run
+ * test:twi:structure` drives both modules against the mutant manifest's own
+ * payloads, because a permissive rewrite of the analysis previously left the whole
+ * suite green with the check count unchanged.
+ *
+ * What it does NOT guarantee, stated so this comment does not become the next
+ * overclaim:
+ *
+ *   - how Cloudflare dispatches. Which export Pages prefers when several exist,
+ *     whether a re-exported handler answers, and whether a _redirects rule or a
+ *     _routes.json entry outranks a Function are deploy-time facts. The guard
+ *     refuses those ambiguities instead of resolving them;
+ *   - what `requireOwnerSession` and `assertSameOriginMutation` DO. The guard pins
+ *     which function is called and where; their bodies are pinned only by regexes
+ *     over src/twi/server/auth.ts and http.ts, which is weaker than everything
+ *     above and is the next thing to harden;
+ *   - anything about a file a deploy adds that is not in this repository;
+ *   - a file declared `twi: 'public'` in the registry is public BY DECISION. The
+ *     check forces that decision to be written down twice, in two files, with a
+ *     reason. It does not prevent it.
  *
  * The file stays a route table. Validation, database access and response shaping
  * live in src/twi/server/*, which is unit-tested without a Workers runtime
