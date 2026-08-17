@@ -8,19 +8,42 @@
  * gate for this file is the `requireOwnerSession` call below, and it is the only
  * thing making these routes private.
  *
- * ROUTE PLACEMENT IS THE SECURITY MODEL. Everything textually below the gate
- * requires the owner's site session; anything above it is public. A branch that
- * drifts above the gate becomes a public endpoint and NOTHING FAILS — it simply
- * answers. scripts/twi-contract-check.mjs asserts the index ordering so a later
- * edit cannot move a route silently, mirroring the `api.indexOf('Protected')`
- * assertions that guard the parent router in scripts/landing-layout-check.mjs.
+ * REACHING THE GATE IS THE SECURITY MODEL. Everything that answers below the
+ * gate requires the owner's site session; anything that answers without reaching
+ * it is public. A branch that drifts above the gate becomes a public endpoint and
+ * NOTHING FAILS — it simply answers. scripts/twi-contract-check.mjs pins that,
+ * mirroring the `api.indexOf('Protected')` assertions that guard the parent
+ * router in scripts/landing-layout-check.mjs.
  *
- * That ordering assertion recognises one spelling of a route, so it is backed by
- * a denylist that does not: above the gate there may be exactly ONE `return` in
- * this file and it must be the CORS preflight, and `onRequest` must be the only
- * Pages handler exported here. A new route therefore cannot answer without the
- * gate whatever it is called, whichever variable it dispatches on, and whether
- * it sits above the gate or beside it as an `onRequestGet`.
+ * Exactly what it pins, so this comment does not have to be trusted. It PARSES
+ * this file (scripts/lib/twi-route-structure.mjs) rather than scanning it, and
+ * asserts:
+ *
+ *   - the gate is ONE awaited statement whose only enclosing constructs are
+ *     blocks and this handler's single `try`. No `if`, no loop, no `switch`, no
+ *     callback, no inner try — so it cannot be made conditional on a method or a
+ *     resource while still reading as present and early;
+ *   - that try is the LAST statement here and its `catch` ends in a return, so
+ *     every path that answers passes the gate and every rejection is mapped
+ *     below rather than escaping to Pages;
+ *   - above the gate there may be variable declarations and ONE structurally
+ *     verified CORS preflight, and no other statement of any kind. So nothing up
+ *     there answers by `return` OR by `throw`, the preflight's condition cannot
+ *     be widened by an `||`, and `env` — D1, the bindings, every secret — is not
+ *     reachable at all;
+ *   - `onRequest` is the only Pages handler exported here, compared as a DECODED
+ *     identifier, so a unicode escape spells the same name the check sees;
+ *   - functions/api/twi/ contains only this file, because Pages routes by path
+ *     specificity: a sibling module would answer /api/twi/* without this file
+ *     ever being entered, and the gate cannot defend a file it is not in;
+ *   - no _redirects rule matches an /api/ path.
+ *
+ * What it does NOT guarantee, because nothing in this repo can settle it: how
+ * Cloudflare dispatches. Which export Pages prefers when several exist, and
+ * whether a _redirects rule outranks a Function, are deploy-time facts. The
+ * guard refuses both ambiguities instead of resolving them. And a file named in
+ * the check's `publicAllowlist` is public BY DECISION — the check makes that
+ * decision visible, it does not prevent it.
  *
  * The file stays a route table. Validation, database access and response shaping
  * live in src/twi/server/*, which is unit-tested without a Workers runtime

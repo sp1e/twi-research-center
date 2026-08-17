@@ -3,12 +3,16 @@
  *
  * Three classes of fact live here, and none of them can be proven by a unit test:
  *
- *   1. ROUTE PLACEMENT. functions/api/twi/[[route]].ts gates every route with one
- *      positional `await requireOwnerSession(request, env)`. A branch that drifts
- *      ABOVE that line becomes a publicly reachable endpoint on a private studio,
- *      and nothing fails: the handler simply answers. The same hazard in the
- *      sibling /api/[[route]].ts is pinned the same way — see the
+ *   1. ROUTE REACHABILITY WITHOUT THE GATE. functions/api/twi/[[route]].ts gates
+ *      every route with one `await requireOwnerSession(request, env)`. A branch
+ *      that answers without reaching it becomes a publicly reachable endpoint on
+ *      a private studio, and nothing fails: the handler simply answers. The same
+ *      hazard in the sibling /api/[[route]].ts is pinned the same way — see the
  *      `api.indexOf('Protected')` assertions in scripts/landing-layout-check.mjs.
+ *      Section 4 asserts this on a PARSED AST (scripts/lib/twi-route-structure.mjs)
+ *      and over the DIRECTORY LISTING, because three review rounds showed the two
+ *      things a line scan cannot see: a gate that is present and early but
+ *      CONDITIONAL, and a sibling file Pages prefers by path specificity.
  *
  *   2. DEPLOY REACHABILITY. Cloudflare Pages builds this project with NO build
  *      command (wrangler.toml sets pages_build_output_dir = "."), and no Pages
@@ -31,6 +35,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { analyseTwiRouteFile, classifyRouteInventory } from './lib/twi-route-structure.mjs';
+
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => {
   const full = path.join(root, relative);
@@ -48,24 +54,6 @@ const runner = read('scripts/run-tests.mjs');
 
 const checks = [];
 const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
-
-/**
- * The lines of `source` that are code, as an array. Lines that are ENTIRELY
- * comment are dropped; nothing else is.
- *
- * The asymmetry is deliberate and is what makes the two gate assertions below
- * safe to write as text scans. Prose on a whole-line comment is invisible to
- * them, and prose in a TRAILING comment can only make them FAIL, never pass —
- * so no comment can turn a real finding into a green check. Section 9 below
- * carries the opposite lesson from experience: there, a comment mentioning
- * `/twi/*` was enough to flip a PASSING check to failing, and the repair was to
- * parse the file into rules rather than grep it.
- */
-const statementLines = (source) =>
-  source.split('\n').filter((line) => {
-    const trimmed = line.trim();
-    return trimmed !== '' && !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('/*');
-  });
 
 // ── 1. The route exists at the nested path Pages resolves for /api/twi/* ──────
 check('nested TWI route exists', fs.existsSync(path.join(root, 'functions/api/twi/[[route]].ts')));
@@ -91,54 +79,84 @@ check(
 );
 
 /**
- * The same fact again, as a DENYLIST — and this is the one that has to hold.
+ * ── 4b. The same fact as STRUCTURE, which is the one that has to hold ─────────
  *
- * The check above enumerates branches by today's idiom, so it sees only
- * `resource === '<lowercase-or-hyphen>'` in SINGLE quotes. A route added above
- * the gate as `'jobsV2'`, `'jobs2'`, `'job_queue'`, `"jobs"`, or
- * `segments[0] === 'debug'` matches nothing and is invisible to it; and because
- * `length >= 2` is already satisfied by the branches that exist, a FIFTH and
- * PUBLIC route above the gate passed every check in this file. Measured, not
- * theorised: eight spellings of that route, and a verb-specific Pages handler,
- * all scored exit 0 before this assertion existed.
+ * Everything above this point reasons about WHERE text appears, and three review
+ * rounds proved that is the wrong shape for the fact. The ordering check sees
+ * only `resource === '<lowercase-or-hyphen>'` in single quotes, so `'jobsV2'` or
+ * `segments[0] === 'debug'` is invisible to it. Its two successors were line
+ * scans, and they lost to: a leading block comment on the offending line; a
+ * decoy `await requireOwnerSession(request, env);` inside a comment, which moved
+ * the `indexOf` anchor and shrank the scanned region to the part already clean;
+ * a nested `} catch (error) {`, which truncated it; `onRequestGet`; a
+ * `throw` that answers without the token `return`; a preflight exemption widened
+ * by one `||`; and — needing no trickery whatever —
+ * `if (segments[0] !== 'health') await requireOwnerSession(request, env);`,
+ * a gate that is present, early, byte-identical to the anchor, and CONDITIONAL.
  *
- * So instead of enumerating what a route may look like, assert what the region
- * above the gate may CONTAIN: exactly one `return`, and it is the CORS
- * preflight. A new route cannot answer up there without a `return`, whatever it
- * is named and whichever variable it dispatches on. The ordering check above is
- * kept as a secondary signal — it names the offending branch more precisely
- * when the idiom does match.
+ * So the facts below are read off a parsed AST instead
+ * (scripts/lib/twi-route-structure.mjs), and the region above the gate is pinned
+ * by what it may CONTAIN — declarations and one structurally verified preflight,
+ * no other statement of any kind — rather than by counting `return` tokens. The
+ * two text checks above are KEPT as secondary signals: they name the offending
+ * branch precisely when the idiom does match, and they cost nothing.
+ *
+ * Comments are not part of the AST, so no comment can flip any of these, in
+ * either direction. That also retires two false positives the line scans had:
+ * a trailing comment containing the word "return", and `return (await h(…));`,
+ * which is the admitted form with parentheses.
  */
-const isPreflightReturn = (line) =>
-  (line.match(/\breturn\b/g) ?? []).length === 1 &&
-  /method === 'OPTIONS'/.test(line) &&
-  /new Response\(null, \{ status: 204/.test(line);
+const structure = analyseTwiRouteFile(route);
 
-const preGateReturns = statementLines(route.slice(0, gateIndex)).filter((line) => /\breturn\b/.test(line));
-const preGateOffenders = preGateReturns.filter((line) => !isPreflightReturn(line));
+check(
+  `the TWI route file parses as TypeScript, so the structural assertions below mean something${
+    structure.syntaxErrors.length ? ` — ${structure.syntaxErrors.join(' | ')}` : ''
+  }`,
+  route.length > 0 && structure.syntaxErrors.length === 0,
+);
+
+/**
+ * UNCONDITIONAL, not merely early. The gate must be one awaited call, reached on
+ * every path that can answer: no enclosing `if`, loop, `switch` or callback, and
+ * no inner `try` whose `catch` could turn its 401 into "carry on". The catch that
+ * DOES enclose it must be the route table's own, a direct statement of the
+ * handler body, and it must end in `return` or `throw` so a rejected gate always
+ * becomes a response.
+ */
+check(
+  `the owner gate is UNCONDITIONAL and reached on every path that can answer${
+    structure.gateReasons.length ? ` — ${structure.gateReasons.join(' | ')}` : ''
+  }`,
+  structure.hasOnRequest && structure.gateReasons.length === 0,
+);
 
 check(
   `nothing above the owner gate answers except the CORS preflight${
-    preGateOffenders.length
-      ? ` — PUBLIC, UNAUTHENTICATED route above the gate: ${preGateOffenders.map((line) => line.trim()).join(' | ')}`
+    structure.preGateOffenders.length
+      ? ` — PUBLIC, UNAUTHENTICATED code above the gate: ${structure.preGateOffenders.join(' | ')}`
       : ''
   }`,
-  gateIndex > 0 && preGateReturns.length === 1 && preGateOffenders.length === 0,
+  structure.hasOnRequest && structure.gateReasons.length === 0 && structure.preGateOffenders.length === 0,
 );
 
 /**
  * Cloudflare Pages dispatches verb-specific exports (`onRequestGet`,
  * `onRequestPost`, …) as well as `onRequest`. One of those added to this file
- * would sit BESIDE the gate rather than above or below it, so the positional
- * model — and the assertion above — cannot see it at all. Which export Pages
- * prefers when both exist is not something this repo can prove without a
- * deploy, so the guard refuses the ambiguity: this function has exactly one
- * entry point, and every route reachable through it passes the gate.
+ * would sit BESIDE the gate rather than above or below it, so positional
+ * reasoning cannot see it at all. Which export Pages prefers when both exist is
+ * not something this repo can prove without a deploy, so the guard refuses the
+ * ambiguity: this function has exactly one entry point, and every route
+ * reachable through it passes the gate.
+ *
+ * Compared as DECODED identifiers, so `onRequestGet` — which declares
+ * `onRequestGet` and matched no regex — is the same name to this check as
+ * `onRequestGet`.
  */
 check(
-  'onRequest is the only Pages handler in the TWI function, so no verb export can answer beside the gate',
-  /export const onRequest =/.test(route) &&
-    !/\bonRequest(?:Get|Post|Put|Patch|Delete|Head|Options)\b/.test(statementLines(route).join('\n')),
+  `onRequest is the only Pages handler in the TWI function, so no verb export can answer beside the gate${
+    structure.extraHandlerExports.length ? ` — exports ${structure.extraHandlerExports.join(', ')}` : ''
+  }`,
+  structure.handlerExports.includes('onRequest') && structure.extraHandlerExports.length === 0,
 );
 
 /**
@@ -150,27 +168,76 @@ check(
  * `return listJobs(repo)` would reopen the leak with every test green.
  *
  * `return json(...)` is synchronous and correctly unawaited, so it is the one
- * other admitted form. The `some(...)` clause keeps the check from passing
- * vacuously if the region is ever mis-sliced to nothing.
+ * other admitted form. The count clause keeps the check from passing vacuously
+ * if the region is ever read as empty.
  *
  * Two admitted forms and no others is the point, so this also rejects
  * `return new Response(…)` inside the gate — deliberately. A task that needs to
  * stream a body (an asset download, say) writes the handler in
  * src/twi/server/* like every other one and `return await`s it, which is where
- * the response shaping belongs and what keeps this file a route table.
+ * the response shaping belongs and what keeps this file a route table. A
+ * `ReadableStream` body survives that unchanged: awaiting the async factory
+ * settles the Response object, not the stream.
+ *
+ * Every return below the gate is examined at every nesting depth, so a nested
+ * block, `switch` or inner `try` hides nothing.
  */
-const catchIndex = route.indexOf('} catch (error) {');
-const gatedTry = statementLines(route.slice(gateIndex, catchIndex));
-const unawaitedReturns = gatedTry.filter((line) => /\breturn\b(?!\s+await\b|\s+json\()/.test(line));
-
 check(
   `every handler returned inside the gate is awaited, so no rejection escapes the catch${
-    unawaitedReturns.length ? ` — UNAWAITED: ${unawaitedReturns.map((line) => line.trim()).join(' | ')}` : ''
+    structure.unawaitedReturns.length ? ` — UNAWAITED: ${structure.unawaitedReturns.join(' | ')}` : ''
   }`,
-  gateIndex > 0 &&
-    catchIndex > gateIndex &&
-    gatedTry.some((line) => /\breturn await \w/.test(line)) &&
-    unawaitedReturns.length === 0,
+  structure.hasOnRequest &&
+    structure.gateReasons.length === 0 &&
+    structure.awaitedReturnCount > 0 &&
+    structure.unawaitedReturns.length === 0,
+);
+
+/**
+ * ── 4c. The directory, because Pages routes by path specificity ──────────────
+ *
+ * Every module under functions/ is an entry point. `functions/api/twi/health.ts`
+ * answers /api/twi/health without [[route]].ts — and therefore without the gate —
+ * ever being entered, and it beat all 29 of the previous checks plus the whole
+ * test suite, because nothing in scripts/ enumerated any directory under
+ * functions/. The gate cannot defend a file it is not in, so the inventory is
+ * pinned instead.
+ *
+ * `publicAllowlist` is empty and should stay empty. A later task that genuinely
+ * needs a public TWI endpoint turns two visible keys — a name here and the
+ * `TWI-PUBLIC-ROUTE:` marker with a reason in the file itself — so making a
+ * route public is a reviewable decision rather than a side effect of adding a
+ * file. `functions/api/twi.ts` is refused for the same reason one directory up:
+ * it would answer the exact path /api/twi.
+ */
+const twiFunctionDir = 'functions/api/twi';
+const listFunctionFiles = (relativeDir) => {
+  const full = path.join(root, relativeDir);
+  if (!fs.existsSync(full)) return [];
+  return fs.readdirSync(full, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory()
+      ? listFunctionFiles(path.posix.join(relativeDir, entry.name)).map((nested) => path.posix.join(entry.name, nested))
+      : [entry.name],
+  );
+};
+
+const inventory = classifyRouteInventory({
+  files: listFunctionFiles(twiFunctionDir),
+  gatedFile: '[[route]].ts',
+  publicAllowlist: {},
+  contentsOf: (file) => read(path.posix.join(twiFunctionDir, file)),
+});
+
+const siblingAtParent = fs.existsSync(path.join(root, 'functions/api/twi.ts'))
+  ? ['functions/api/twi.ts answers /api/twi without entering the gated catch-all']
+  : [];
+
+const inventoryOffenders = [...inventory.offenders, ...siblingAtParent];
+
+check(
+  `functions/api/twi/ holds only the gated catch-all, so no sibling file can answer beside it${
+    inventoryOffenders.length ? ` — ${inventoryOffenders.join(' | ')}` : ''
+  }`,
+  inventoryOffenders.length === 0,
 );
 
 // The CORS preflight is the one thing that may precede the gate, and it must:
@@ -334,6 +401,28 @@ const resolveRedirect = (requestPath) => {
   }
   return null;
 };
+
+/**
+ * No _redirects rule may match an /api/ path — the third way a route answers
+ * without the gate, found while probing section 4c.
+ *
+ * `/api/twi/health  /twi/index.html  200` is a rewrite, and it needs no new file
+ * and no edit to the route table. Which layer wins when a rule and a Function
+ * both match the same path is NOT something this repo can settle without a
+ * deploy, so the assertion is written so the answer does not matter: if the
+ * rewrite wins, an /api/twi/* path serves a static asset to anyone; if the
+ * Function wins, the rule is dead configuration that tells the next reader the
+ * opposite of what happens. Both are defects, so neither is allowed.
+ */
+check(
+  'no _redirects rule matches an /api/ path, so nothing can answer an API route without its Function',
+  (() => {
+    const apiRules = redirectRules.filter((rule) =>
+      rule.from.startsWith('/api/') || rule.from === '/api' || rule.from === '/*',
+    );
+    return apiRules.length === 0;
+  })(),
+);
 
 check(
   'a hashed /twi/assets/ bundle request still resolves to itself, not to index.html',
