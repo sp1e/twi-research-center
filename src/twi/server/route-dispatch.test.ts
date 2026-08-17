@@ -31,6 +31,12 @@ interface CallOptions {
   cookie?: string;
   origin?: string | null;
   body?: string | FormData;
+  /**
+   * `undefined` mints one per call, the way `mosquito.html`'s `api()` wrapper does for
+   * every non-GET request on this site. `null` omits it deliberately, which is what a
+   * client that has not been told about the contract looks like.
+   */
+  idempotencyKey?: string | null;
   db?: D1DatabaseLike;
 }
 
@@ -73,10 +79,16 @@ describe('/api/twi/* dispatch', () => {
   });
 
   const call = (route: string[], options: CallOptions = {}): Promise<Response> => {
-    const { method = 'GET', cookie, origin, body, db: database } = options;
+    const { method = 'GET', cookie, origin, body, idempotencyKey, db: database } = options;
     const headers = new Headers();
     if (cookie) headers.set('Cookie', cookie);
     if (origin) headers.set('Origin', origin);
+    // A mutation carries an idempotency key here for the same reason the browser
+    // wrapper attaches one to every non-GET call: the asset upload requires it, and a
+    // test client that skips it is not the client the site ships.
+    if (method !== 'GET' && idempotencyKey !== null) {
+      headers.set('Idempotency-Key', idempotencyKey ?? crypto.randomUUID());
+    }
     // FormData sets its own multipart Content-Type, boundary included; overriding it
     // would make the body unparseable.
     if (typeof body === 'string') headers.set('Content-Type', 'application/json');
@@ -302,6 +314,26 @@ describe('/api/twi/* dispatch', () => {
 
       expect(response.status).toBe(403);
       expect(await response.json()).toEqual({ error: 'origin mismatch', code: 'forbidden' });
+      expect(files.calls).toEqual([]);
+      expect(assetCount()).toBe(0);
+    });
+
+    it('refuses an upload with no Idempotency-Key through the envelope, writing nothing', async () => {
+      const projectId = await owningProject();
+
+      const response = await call(['projects', projectId, 'assets'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        idempotencyKey: null,
+        body: imageForm(),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: 'Idempotency-Key header is required',
+        code: 'idempotency_key_required',
+      });
       expect(files.calls).toEqual([]);
       expect(assetCount()).toBe(0);
     });

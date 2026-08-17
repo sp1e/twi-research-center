@@ -215,6 +215,11 @@ export class D1TwiRepository implements TwiRepository {
     return mapJob(row);
   }
 
+  async findAssetById(assetId: string): Promise<AssetRecord | null> {
+    assertNonBlank('assetId', assetId);
+    return findAssetById(this.env.DB, assetId);
+  }
+
   async createEstimatedJob(input: CreateEstimatedJobInput): Promise<CreateEstimatedJobResult> {
     const startedAt = Date.now();
     const validated = validateCreateEstimatedJobInput(input);

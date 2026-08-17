@@ -1,5 +1,6 @@
 import { HttpError, json } from './http';
 import { creationCoreCapabilities } from './capabilities';
+import { TwiRepositoryCollisionError } from './errors';
 import { systemIdentityClock, type ProjectIdentityClock } from './projects';
 import type { R2BucketLike } from './r2-types';
 import type { TwiRepository } from './repository';
@@ -9,30 +10,52 @@ import type { AssetRecord, RegisterAssetOutcome } from './repository-types';
  * Image-reference ingestion for `/api/twi/*`.
  *
  * Phase 1 accepts up to ten image references per specification because Lyria 3 Pro
- * supports them. This module is the whole ingestion path: validate the BYTES, write
- * the object, record the row, and undo the object if the row cannot be written.
+ * supports them. This module is the whole ingestion path: decide the upload's
+ * identity, validate the BYTES, write the object, record the row, and undo the
+ * object if the row cannot be written.
  *
- * Three properties are load-bearing, and each one is an ORDER rather than a value —
- * which is why `assets.test.ts` witnesses the order with a recording double instead
- * of asserting a comment:
+ * Four properties are load-bearing, and three of them are ORDERS rather than values
+ * — which is why `assets.test.ts` and `asset-ingestion.test.ts` witness the order
+ * with a recording double and a real request stream instead of asserting a comment:
  *
- *   1. THE SIZE CAP FIRES BEFORE ANY BYTE IS READ. A cap applied after the upload
+ *   1. NOTHING EXPENSIVE HAPPENS BEFORE ITS BOUND. A cap applied after the upload
  *      has been materialised is not a guard, it is an amplifier: the isolate has
- *      already paid for the memory it is about to refuse. So `validateImageReference`
- *      measures `size` first and reads only the 16-byte probe window afterwards, and
- *      `uploadImageReference` refuses an oversize declared `Content-Length` BEFORE
- *      `request.formData()` parses anything. Two independent bounds, because a
- *      streamed body carries no `Content-Length` — the same hole `parseJson`
- *      documents for JSON.
+ *      already paid for the memory it is about to refuse. THREE bounds, and each one
+ *      states honestly what it does and does not cost:
+ *        · the declared `Content-Length` is refused before `request.formData()`
+ *          parses anything and before a byte leaves the socket — free;
+ *        · the body stream is then read under a HARD bound of
+ *          {@link MAX_MULTIPART_BODY_BYTES} and the parser is handed those bytes
+ *          rather than the socket, so a body that declares no length, declares a
+ *          non-numeric one or understates it can still only cost that bound. This
+ *          bound exists because measurement showed the earlier claim was false:
+ *          `formData()` buffers an undeclared body IN FULL first, and the only
+ *          ceiling on it was Cloudflare's own request limit;
+ *        · `validateImageReference` measures `file.size` before reading a byte of
+ *          content and then reads only the 16-byte probe window.
+ *      The third is the verdict on the image; the first two bound what the isolate
+ *      pays to reach it.
  *   2. NEITHER THE FILENAME NOR THE DECLARED CONTENT TYPE IS EVIDENCE. Both are
  *      caller-supplied strings. The extension and the stored content type are
  *      derived from the magic bytes, so `evil.php` renamed `mood.jpg` is refused and
- *      PNG bytes announced as `image/jpeg` are stored — correctly — as PNG.
+ *      PNG bytes announced as `image/jpeg` are stored — correctly — as PNG. The
+ *      request's own `Content-Type` is consulted for one thing only: to select the
+ *      multipart parser, compared in lower case while the RAW header is what is
+ *      handed back to the parser, because a multipart boundary is case-SENSITIVE.
  *   3. R2 IS WRITTEN BEFORE D1, AND ROLLED BACK IF D1 REFUSES. There is no
  *      transaction spanning the two. The order is chosen so the failure mode is a
  *      brief orphan object rather than a row pointing at nothing: a row whose object
  *      is absent is a broken reference the wizard cannot render, while an object
  *      whose row is absent is invisible and is deleted here anyway.
+ *   4. THE UPLOAD'S IDENTITY COMES FROM THE CLIENT, NOT FROM A FRESH UUID. A 10 MiB
+ *      upload is the request most likely to be retried after a timeout, and an
+ *      identity minted per call makes every retry a second object and a second row
+ *      for bytes that are already stored — which is what this endpoint used to do.
+ *      `Idempotency-Key` is required, exactly as it is on every other mutation this
+ *      site serves, and the asset id is DERIVED from it (see
+ *      {@link deriveImageAssetId}). Deriving the identity from the CONTENT instead
+ *      would mean buffering the whole upload before the deduplication decision could
+ *      be taken — the cost property 1 exists to refuse.
  *
  * The public shape is `AssetRecord`. The binding never leaves this module — it
  * arrives as a parameter, is used, and is not put in any response.
@@ -83,6 +106,33 @@ export const UPLOAD_FILE_FIELD = 'file';
 
 const MULTIPART_CONTENT_TYPE = 'multipart/form-data';
 
+/**
+ * The header that decides an upload's identity.
+ *
+ * Not a new convention: every mutating endpoint on this site already reads it
+ * (`functions/api/[[route]].ts` refuses a purchase or a casino action without one),
+ * `mosquito.html`'s `api()` wrapper mints one for every non-GET request, and
+ * `twi_jobs.idempotency_key` carries the same idea into this schema.
+ */
+const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
+
+/**
+ * Longest `Idempotency-Key` accepted, the same bound the casino routes apply.
+ *
+ * A bound at all, rather than none, because the value is hashed below: an unbounded
+ * header would be an unbounded read before any other guard has run.
+ */
+export const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
+
+/**
+ * Domain separator for the identity digest.
+ *
+ * Prefixed so the same key can never derive the same value in a different context —
+ * a bare `sha256(projectId + key)` would collide with any other feature that hashes
+ * the same two strings.
+ */
+const ASSET_IDENTITY_DOMAIN = 'twi/image-reference/identity/v1';
+
 export type ImageExtension = 'jpg' | 'png' | 'webp';
 
 /**
@@ -117,6 +167,15 @@ export interface ImageAssetDeps {
 export interface CreateImageAssetInput {
   projectId: string;
   file: UploadedFileLike;
+  /**
+   * The asset's identity, decided by the caller.
+   *
+   * Passed in rather than minted here, and required rather than optional: a fresh id
+   * per call is precisely what made a retry write a second object and a second row,
+   * and an optional parameter would have left that behaviour one forgotten argument
+   * away. `uploadImageReference` derives it from the client's idempotency key.
+   */
+  assetId: string;
 }
 
 export interface CreateImageAssetResult {
@@ -173,6 +232,118 @@ const matchesSignature = (head: Uint8Array, signature: ImageSignature): boolean 
  */
 const SAFE_KEY_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
+/**
+ * Reads the request's idempotency key, or refuses the request.
+ *
+ * Required, not optional. An optional key leaves the duplicate write exactly where it
+ * was for the client that forgets to send one — which is the client that needs it —
+ * and every other mutation on this site already refuses without it.
+ */
+const readIdempotencyKey = (request: Request): string => {
+  const key = (request.headers.get(IDEMPOTENCY_KEY_HEADER) ?? '').trim();
+  if (key.length === 0) {
+    throw new HttpError(400, `${IDEMPOTENCY_KEY_HEADER} header is required`, 'idempotency_key_required');
+  }
+  if (key.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
+    throw new HttpError(
+      400,
+      `${IDEMPOTENCY_KEY_HEADER} must be at most ${MAX_IDEMPOTENCY_KEY_LENGTH} characters`,
+      'idempotency_key_too_long',
+    );
+  }
+  return key;
+};
+
+/** Version and variant nibbles, so the value cannot pass itself off as random. */
+const uuidNibble = (byte: number, index: number): number => {
+  // Version 8 is RFC 9562's "custom" version: derived by this application, not drawn
+  // from an entropy source. Claiming version 4 would be a lie about where it came from.
+  if (index === 6) return (byte & 0x0f) | 0x80;
+  if (index === 8) return (byte & 0x3f) | 0x80;
+  return byte;
+};
+
+/**
+ * The asset id an `Idempotency-Key` names — derived, never accepted.
+ *
+ * Derived rather than used directly for three reasons. The client cannot choose a
+ * row's primary key or a path inside the shared bucket; the key may be any string the
+ * bound above allows, without a UUID format rule bolted onto the header; and the value
+ * is scoped to the project, so the same key in two projects is two different assets
+ * instead of a cross-project collision.
+ *
+ * It is a digest of a short string, so it costs nothing and — unlike a digest of the
+ * upload itself — it is available BEFORE the body is read. That is the whole point:
+ * the deduplication decision is taken while the request is still cheap.
+ */
+export async function deriveImageAssetId(projectId: string, idempotencyKey: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\n${projectId}\n${idempotencyKey}`),
+  );
+  const hex = [...new Uint8Array(digest).slice(0, 16)]
+    .map(uuidNibble)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * Reads the request body under a hard byte bound, or reports that there is no stream.
+ *
+ * `null` means the request exposes no body to read — a test double, or a runtime that
+ * hands the parser the socket directly; the caller then falls back to
+ * `request.formData()`, which is what happened for every body before this existed.
+ *
+ * The bound is enforced as the bytes arrive and the stream is CANCELLED at the first
+ * chunk that crosses it, so an oversize body costs the bound and not its own size.
+ * That is the honest version of a claim this module used to make: `formData()` on a
+ * body with no `Content-Length` buffers all of it before anyone can measure it, which
+ * was measured at 10,485,885 bytes pulled for a body the endpoint then refused.
+ */
+const readBoundedBody = async (request: Request, limit: number): Promise<ArrayBuffer | null> => {
+  const stream = request.body;
+  if (!stream) return null;
+
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let seen = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      seen += value.byteLength;
+      if (seen > limit) {
+        await reader.cancel();
+        throw new HttpError(413, `request body exceeded ${limit} bytes while it was being read`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(seen);
+  chunks.reduce((at, chunk) => {
+    body.set(chunk, at);
+    return at + chunk.byteLength;
+  }, 0);
+  return body.buffer;
+};
+
+/**
+ * The one response shape for an accepted upload, and the one place the status is
+ * decided.
+ *
+ * Both answers come through here — the replay the idempotency lookup found and the
+ * asset this call created — so the outcome cannot be reported correctly in the body
+ * while the status says something else. That divergence is what mutation API-62
+ * exposed when the status was hard-coded, and it stays observable only while every
+ * answer is minted here.
+ */
+const assetResponse = ({ asset, outcome }: CreateImageAssetResult): Response =>
+  json({ asset, outcome }, outcome === 'inserted' ? 201 : 200);
+
 const sha256Hex = async (bytes: ArrayBuffer): Promise<string> => {
   // Web Crypto is present in Workers, browsers and Node 18+, and it is the same
   // primitive src/twi/server/spec-digest.ts uses for the spec fingerprint.
@@ -185,7 +356,13 @@ const sha256Hex = async (bytes: ArrayBuffer): Promise<string> => {
  *
  * The statement order in here is the guarantee described at the top of the file: the
  * three cheap rejections come first and the read comes last, bounded to
- * {@link MAGIC_BYTE_PROBE_BYTES}. A 100 MB upload is refused having read none of it.
+ * {@link MAGIC_BYTE_PROBE_BYTES}. A 100 MB `File` is refused without a byte of its
+ * CONTENT being read by this function.
+ *
+ * What that does NOT claim, because it would not be true: that nothing has been paid
+ * for the upload by the time this runs. A `File` handed over by a multipart parser is
+ * already in the isolate. Bounding what the parser was given is `uploadImageReference`'s
+ * job, not this one's, and it is the second bound described at the top of the file.
  */
 export async function validateImageReference(file: UploadedFileLike): Promise<ImageReferenceDescriptor> {
   const { size } = file;
@@ -252,6 +429,10 @@ export function imageReferenceR2Key(projectId: string, assetId: string, extensio
  * discarded: a resolved promise does not mean anything was written. It is surfaced to
  * the caller so `uploadImageReference` can answer 201 for a real insert and 200 for a
  * replay, instead of reporting a creation that did not happen.
+ *
+ * `input.assetId` is the identity the caller decided, which makes `registerAsset`'s
+ * deduplication reachable for the first time — and makes one failure mode reachable
+ * with it, handled in the catch below: a second writer holding the same identity.
  */
 export async function createImageAsset(
   input: CreateImageAssetInput,
@@ -260,7 +441,7 @@ export async function createImageAsset(
   const { bucket, repo, clock = systemIdentityClock } = deps;
   const descriptor = await validateImageReference(input.file);
 
-  const assetId = clock.newId();
+  const assetId = input.assetId;
   const r2Key = imageReferenceR2Key(input.projectId, assetId, descriptor.extension);
 
   // Bounded above by the cap `validateImageReference` has already applied, so this
@@ -297,6 +478,20 @@ export async function createImageAsset(
     });
     return { asset, outcome };
   } catch (error) {
+    // A collision means a row ALREADY holds this identity. With the id derived from
+    // the project and the client's key, that can only be another writer of the same
+    // key — so the object under this key is THAT row's, and the compensating delete
+    // below would destroy a live asset's bytes while leaving its row behind. That is
+    // the exact failure the put-before-insert order exists to avoid, so the delete is
+    // skipped and the caller is told the key is taken. A retry then finds the winner's
+    // row in the lookup above and is answered 200 without writing anything.
+    if (error instanceof TwiRepositoryCollisionError) {
+      throw new HttpError(
+        409,
+        `${IDEMPOTENCY_KEY_HEADER} is already held by another upload of this project`,
+        'idempotency_key_in_flight',
+      );
+    }
     // Compensate, then rethrow the ORIGINAL failure. A delete that also fails must
     // not replace the diagnosis with its own: the caller needs to know why the row
     // was refused, and the orphan is a storage cost, not a correctness one.
@@ -316,16 +511,21 @@ export async function createImageAsset(
  * `POST /api/twi/projects/:projectId/assets` — one multipart `file` field.
  *
  * The dispatcher never consumes the request body, so this is the only place it is
- * read, and the two guards above the read are the ones that matter: a non-multipart
- * body and an oversize declared length are both refused before `formData()` parses a
- * byte.
+ * read. Everything above that read is a header-only or single-row decision — the
+ * multipart requirement, the declared-length bound, the idempotency key, the project's
+ * existence and the replay lookup — so a retry, a wrong media type, an oversize
+ * declared body and an upload against a missing project all cost nothing.
  */
 export async function uploadImageReference(
   request: Request,
   projectId: string,
   deps: ImageAssetDeps,
 ): Promise<Response> {
-  const contentType = (request.headers.get('Content-Type') ?? '').toLowerCase();
+  // The RAW header is kept: `contentType` decides which parser to use and is compared
+  // in lower case, but a multipart BOUNDARY is case-sensitive, so the raw value is
+  // what the parser must be given back below.
+  const rawContentType = request.headers.get('Content-Type') ?? '';
+  const contentType = rawContentType.toLowerCase();
   if (!contentType.startsWith(MULTIPART_CONTENT_TYPE)) {
     throw new HttpError(415, `upload must be sent as ${MULTIPART_CONTENT_TYPE}`);
   }
@@ -339,13 +539,46 @@ export async function uploadImageReference(
     throw new HttpError(413, 'request body too large');
   }
 
+  const idempotencyKey = readIdempotencyKey(request);
+
   // Checked before the body is touched and before anything is written: an upload
   // against a project that does not exist would otherwise leave an object in R2 and
   // surface the foreign-key refusal as internal_error.
   const project = projectId.trim().length === 0 ? null : await deps.repo.getProject(projectId);
   if (!project) throw new HttpError(404, 'project not found');
 
-  const form = await request.formData();
+  // The replay decision, taken here rather than after the upload has been parsed and
+  // hashed: one indexed row lookup on a value derived from headers alone. A retry of a
+  // 10 MiB upload therefore costs one read and writes NOTHING — no second object, no
+  // second row. `registerAsset`'s own deduplication remains the backstop for the race
+  // this lookup cannot see, and its collision is answered 409 above.
+  const assetId = await deriveImageAssetId(projectId, idempotencyKey);
+  const prior = await deps.repo.findAssetById(assetId);
+  if (prior) return assetResponse({ asset: prior, outcome: 'replayed' });
+
+  // Bound 2. Read under a hard limit and hand the parser BYTES, so a body that
+  // declares no length — or lies about it — cannot make `formData()` buffer more than
+  // this. `null` means there is no stream to bound and the parser gets the request.
+  const boundedBody = await readBoundedBody(request, MAX_MULTIPART_BODY_BYTES);
+
+  let form: FormData;
+  try {
+    form =
+      boundedBody === null
+        ? await request.formData()
+        : await new Request(request.url, {
+            method: 'POST',
+            headers: { 'Content-Type': rawContentType },
+            body: boundedBody,
+          }).formData();
+  } catch {
+    // A missing or malformed boundary is a CALLER mistake, and without this it left
+    // the parser's `TypeError` to the route's catch — which answers 500 with a
+    // correlation id for a request the owner could have fixed. The parser's message
+    // quotes the body back, so it is withheld, exactly as `parseJson` withholds
+    // JSON.parse's.
+    throw new HttpError(400, 'request body is not valid multipart/form-data', 'invalid_multipart');
+  }
   const unknownFields = [...new Set(form.keys())].filter((field) => field !== UPLOAD_FILE_FIELD);
   if (unknownFields.length > 0) {
     throw new HttpError(400, `unknown field: ${unknownFields.join(', ')}`, 'unknown_field');
@@ -367,9 +600,9 @@ export async function uploadImageReference(
     throw new HttpError(400, `multipart field \`${UPLOAD_FILE_FIELD}\` must be a file`, 'invalid_upload');
   }
 
-  const { asset, outcome } = await createImageAsset({ projectId, file: uploaded }, deps);
   // 201 only for a write this call performed. A replayed or reconciled registration
   // is an existing asset being reported, not a creation, and saying 201 there would
-  // make the outcome field the only honest part of the answer.
-  return json({ asset, outcome }, outcome === 'inserted' ? 201 : 200);
+  // make the outcome field the only honest part of the answer. `assetResponse` is the
+  // single place that decision is made, for both this answer and the replay above.
+  return assetResponse(await createImageAsset({ projectId, file: uploaded, assetId }, deps));
 }

@@ -304,6 +304,16 @@ export interface TwiRepository {
   saveSpec(input: SaveSpecInput): Promise<GenerationSpecRecord>;
   findJobByIdempotencyKey(input: FindJobByIdempotencyKeyInput): Promise<JobRecord | null>;
   /**
+   * Reads one asset by id, or `null`.
+   *
+   * The read half of `registerAsset`'s idempotency, and it exists for the same reason
+   * `findJobByIdempotencyKey` does: a caller whose asset id is DERIVED from a client
+   * idempotency key can then decide "already stored" before doing the expensive work,
+   * instead of discovering it from a write that has already put an object in R2.
+   * `src/twi/server/assets.ts` is that caller.
+   */
+  findAssetById(assetId: string): Promise<AssetRecord | null>;
+  /**
    * Inserts the job, its `estimated` event and its estimate cost row atomically.
    * A concurrent submission of the same `idempotencyKey` is reconciled rather
    * than surfacing the UNIQUE-constraint failure to the caller.

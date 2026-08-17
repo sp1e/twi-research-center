@@ -686,7 +686,9 @@ check(
 check(
   'the upload is dispatched to src/twi/server/assets, so the route file stays a route table',
   /import \{ uploadImageReference \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/assets'/.test(route) &&
-    /return await uploadImageReference\(request, id, \{ bucket: env\.FILES, repo \}\)/.test(route),
+    /return await uploadImageReference\(request, id, \{ bucket: env\.FILES, repo \}\)/.test(route) &&
+    // The chain's middle link: without it a handler that reached bucket.put itself kept all 52 green.
+    /createImageAsset\(/.test(assetFunction('uploadImageReference')),
 );
 
 check(
