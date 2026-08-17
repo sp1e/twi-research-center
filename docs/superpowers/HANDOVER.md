@@ -1,6 +1,6 @@
 # TWI Creation Core — handover
 
-Working state of the TWI Research Center Creation Core build. Written 2026-08-17, at tip `ab490d0`.
+Working state of the TWI Research Center Creation Core build. Written 2026-08-17, at tip `1da7968`.
 
 This file is **in the repository on purpose**. Every controller ledger and gate report for this
 project lives in `.superpowers/`, which is gitignored — none of it ships. When an earlier session's
@@ -13,44 +13,65 @@ reviewed. If a fact matters to the next session, it belongs here. See [Process l
 
 ---
 
-## 1. Resume here — Task 5 is NOT closed
+## 1. Resume here — Task 5 is CLOSED. Task 6 is next
 
-Task 5 (the authenticated TWI Projects + Bootstrap API) is **built and merged**, and it is **not
-closed**. State, precisely:
+**Task 5 (the authenticated TWI Projects + Bootstrap API) is closed at `1da7968`.** Read §6 before
+writing Task 6 or 7, and §2 to verify the tree you inherit.
 
-- Task 5's implementation is `615e2a5`, merged at `3e4b6fc`.
-- Both gates ran. Gate 1 (specification) **PASS**, 0 Critical / 0 Important / 4 Minor. Gate 2
+Its history, because how it closed is the useful part:
+
+| Step | Commit | Merged | What |
+|---|---|---|---|
+| Implementation | `615e2a5` | `3e4b6fc` | Nested Pages Function, `src/twi/server/*`, new `test:twi:contracts` suite |
+| Fix round 1 | `d441679` | `df9af7a` | Both gates' Importants; the route guard made lexical-but-hardened |
+| Fix round 2 | `b7f1084` | `ab490d0` | Line scan replaced by a TypeScript-compiler parse |
+| Fix round 3 | `b0abceb` | `1da7968` | The claim NARROWED to equalities, and the guard given its own test suite |
+
+- **Both gates ran.** Gate 1 (specification) **PASS**, 0 Critical / 0 Important / 4 Minor. Gate 2
   (code quality) returned 0 Critical / **3 Important** / 7 Minor. The gate-2 reviewer labelled its
   own verdict APPROVED; the controller **overrode** it, because Important blocks (§4) and all three
   Importants endangered Tasks 6/7, which add handlers to the same files.
-- **Fix round 1** — `d441679`, merged `df9af7a`. A scoped re-review of it left **one finding open**:
-  of 15 hand-built evasions of the route guard, **eleven still beat it** and eight of those were
-  green on the contract check, `test:twi` and `typecheck:twi` at once. The two worst needed no
-  trickery: a gate that is present and early but **conditional**
-  (`if (segments[0] !== 'health') await requireOwnerSession(…)`), and a **sibling Pages Function
-  file** under `functions/api/twi/` that Cloudflare prefers by path specificity, which no script in
-  the repo enumerated.
-- **Fix round 2** — `b7f1084`, merged `ab490d0`. It replaces the lexical line scan with a parse
-  through the TypeScript compiler API (`scripts/lib/twi-route-structure.mjs`), asserts the gate is
-  **unconditional** rather than merely early, and **enumerates** `functions/api/twi/` so a sibling
-  ungated file fails loudly.
-- **A final adversarial re-review of that route guard was IN FLIGHT when this was written. Its
-  outcome is not known to this document. Do not record an outcome you have not measured.**
-  Its report, when it exists, is
-  `.superpowers/sdd/2026-08-16-twi-creation-core/task-5-rereview-round2.md` (gitignored — read it,
-  do not cite it as shipped evidence).
+- **Then two adversarial re-reviews, and both found the fix insufficient.** Re-review 1, over fix
+  round 1: of 15 hand-built evasions of the route guard, **eleven still beat it**, eight of those
+  green on the contract check, `test:twi` and `typecheck:twi` at once. Re-review 2, over fix round 2:
+  **F1 NOT ADDRESSED** — of 23 constructions, **16 beat the guard** and 10 of the 16 kept the whole
+  suite green (3 Critical / 5 Important / 6 Minor).
+- **Re-review 2 found a MEASURED REGRESSION, and it is the lesson worth carrying.** Round 2's AST
+  rewrite was *weaker than round 1* for the simplest attack. `indexOf(gateStatement)` returns −1 when
+  the gate sits inside a bare `{ }`, and the code turned that into `slice(0, 0)` — an empty pre-gate
+  region. The statements above the gate were then re-classified as **gated**, where `return json(…)`
+  is an admitted form, so an ungated public answer was not merely missed, it was **validated**. Round
+  1 had a `preGateReturns.length === 1` rule that caught this by name; the rewrite deleted it.
+  Rewrites lose invariants nobody wrote down as invariants.
+- **Fix round 3 closed all of it.** 52 constructions measured, not transcribed (48 attacks + 4
+  legitimate patterns): 21 attacks had beaten the round-2 guard (15 from the re-review plus 6 new),
+  **0 beat round 3**, and round 1's 15 are all still caught with **zero regressions**. Check names
+  went 33 → 38 with **zero removed** (extracted and diffed mechanically); three changed in substance,
+  each stated in the round's report.
 
-**What closing Task 5 requires:**
+### The two things Task 5 did NOT close — file these, do not lose them
 
-1. That re-review returns with **no Critical and no Important**. Landing the branch is not closure —
-   fix round 1 landed and its re-review still left a finding open, which is why round 2 exists.
-2. A full gate re-run on a **verified-clean** tree at whatever the tip then is: `npm ci`,
-   `npm ls --all`, `npm test` (7/7), both typechecks, `npm run build`, `git status --porcelain`
-   empty afterwards.
-3. Then: move this pointer to Task 6, and write round 2's actual verdict into §3.
+1. **`src/twi/server/auth.ts` is still pinned by REGEXES, not structurally, and it is now the weakest
+   link in the auth story.** The guard proves *which* function the gate calls — bound to the named
+   import from `src/twi/server/auth`, with the name unshadowed anywhere in the route file. Nothing
+   proves *what that function does*. `/getCookie\(request, 'session'\)/`
+   (`scripts/twi-contract-check.mjs:397`) would still match if the surrounding logic inverted its
+   result. This is a **different layer**, not a reopened hole in the route file — the first time in
+   four adversarial passes that the next weakest link is not a bypass of the thing under review.
+   **Its home is Task 15** (harden headers, integration contracts, browser E2E, runbooks).
+2. **Four Cloudflare dispatch facts remain unprovable in-repo, and the guard deliberately REFUSES
+   them rather than asserting either way.** One throwaway Pages preview deploy settles all four —
+   the cheapest high-value action on this list:
+   - advanced-mode **`./_worker.js` precedence**, which bypasses `functions/` *entirely* and needs no
+     change to the route file at all;
+   - **`./_routes.json` exclusion**, which makes the path a static asset so the Function never runs;
+   - **`_middleware` ordering** relative to a route function, and which export Pages prefers when
+     several exist;
+   - the **`/twi/assets/*` redirect passthrough** — whether a `_redirects` rule outranks a Function.
 
-If the re-review comes back with findings, fix round 3 goes on a new branch off the current tip —
-new commit, never an amend (§4).
+   The first two were invented in round 3 (`X9`, `X11`) and beat the round-2 guard 33/33 because
+   every prior round looked *inside* `functions/`. They are now refused by assertion, but the
+   underlying edge behaviour is still documented-only, and two of round 3's own findings rest on it.
 
 ---
 
@@ -59,12 +80,12 @@ new commit, never an amend (§4).
 | | |
 |---|---|
 | Working branch | `codex/twi-research-center-design` |
-| Tip | `ab490d0` (merge of `fix/twi-gate-lock-structural`) |
-| Remote | `origin/codex/twi-research-center-design` = `ab490d0`. Private repo, backup only — **no PR opened** |
+| Tip | `1da7968` (merge of `fix/twi-gate-lock-round3`) |
+| Remote | `origin/codex/twi-research-center-design` = `1da7968`. Private repo, backup only — **no PR opened** |
 | Branch point vs `main` | `18a70fb` |
 | `main` | `18a70fb`, untouched |
 
-`18a70fb..ab490d0` is **50 commits, 21 of them merges** (§11).
+`18a70fb..1da7968` is **54 commits, 23 of them merges** (§11).
 
 A fresh git worktree has no `node_modules` — worktrees do not share it — so `npm ci` first or the
 legacy suite dies in `scripts/sp1epacker-bundle-check.mjs` on a missing esbuild binary.
@@ -72,7 +93,7 @@ legacy suite dies in `scripts/sp1epacker-bundle-check.mjs` on a missing esbuild 
 ```bash
 npm ci                        # exit 0. 199 packages. 10 vulnerabilities (4 moderate, 5 high, 1 critical) — known, deferred
 npm ls --all                  # exit 0. UNMET OPTIONAL entries are per-OS binaries; normal on Windows
-npm test                      # SEVEN suites via scripts/run-tests.mjs; prints ALL SUITES PASSED (7/7)
+npm test                      # EIGHT suites via scripts/run-tests.mjs; prints ALL SUITES PASSED (8/8)
 npm run typecheck:twi         # exit 0
 npm run typecheck:sp1epacker  # exit 0 — runs both sp1epacker projects
 npm run build                 # exit 0
@@ -84,24 +105,33 @@ Never `npm ci --legacy-peer-deps`. The plain form is what catches a lockfile dri
 
 There is **no bare `npm run typecheck`** and no bare `npm run test`-for-one-suite. The real script
 names are `typecheck:twi`, `typecheck:sp1epacker`, `test:legacy`, `test:sp1epacker`, `test:twi`,
-`test:twi:schema`, `test:twi:contracts`, `test:migrations`, `test:twi:bundle`, `build`, `build:twi`,
-`build:sp1epacker`, `db:migrate:local`, `db:migrate:remote`, `db:migrate:dry`.
+`test:twi:schema`, `test:twi:structure`, `test:twi:contracts`, `test:migrations`, `test:twi:bundle`,
+`build`, `build:twi`, `build:sp1epacker`, `db:migrate:local`, `db:migrate:remote`, `db:migrate:dry`.
 
-### Measured at `ab490d0`
+### Measured at `1da7968` — MEASURE these again, do not transcribe them
+
+Every published count in this project has been wrong at least once, and never from sloppiness: each
+was true when written and stale within hours. Read them off a run.
 
 | Suite | Result |
 |---|---|
-| `test:legacy` | 128 tests / 0 fail (`node:test` totals 35 + 6 + 1 + 78 + 4 + 4), plus the contract-check scripts it chains |
+| `test:legacy` | 128 tests / 0 fail (`node:test` totals 35 + 6 + 1 + 78 + 4 + 4), plus the six contract-check scripts it chains |
 | `test:sp1epacker` | 149 tests, 8 files |
 | `test:twi` | **353 tests, 19 files** |
 | `test:twi:schema` | 39 tests / 0 fail |
-| `test:twi:contracts` | **33 checks** |
+| `test:twi:structure` | **58 tests / 0 fail** — NEW in fix round 3 |
+| `test:twi:contracts` | **38 checks** (26 at Task 5 → 29 → 33 → 38) |
 | `test:migrations` | 10 tests / 0 fail |
 | `test:twi:bundle` | **8 checks**; committed hash `index-D77bP6e0.js` reproduces exactly |
 
-679 tests plus 41 script checks. `npm run build` output: `twi/index.html` 0.41 kB,
+**737 tests plus 46 script checks.** `npm run build` output: `twi/index.html` 0.41 kB,
 `twi/assets/index-CnBvLnyW.css` 0.73 kB, `twi/assets/index-D77bP6e0.js` 191.15 kB. No sourcemap
 (§10). Tracked `/twi/` is 192 299 bytes total, measured from git.
+
+**`test:twi:structure` runs immediately BEFORE `test:twi:contracts`, on purpose.** It exists because
+a permissive rewrite of the analysis modules kept the contract check green *at the same check count*
+— so the count is not a kill signal. Do not reorder it, and do not read a passing contract check as
+evidence that the analysis behind it still means anything. §8 has the mechanism.
 
 ### What that baseline used to be, honestly
 
@@ -135,13 +165,15 @@ because Cloudflare Pages runs no build command (`wrangler.toml` sets
 | 2 | `545ed46..2980d33` | Generation spec + prompt compiler. **Closed.** Retro spec PASS 0C/2I, retro quality BLOCKED 3C/7I → all closed |
 | 3 | `2980d33..d22e6e2` | D1 schema + migration plumbing. **Closed.** Retro spec PASS 0C/3I, retro quality BLOCKED 0C/5I → all closed |
 | 4 | `d22e6e2..c51f279` | Job state + D1 repository. **Closed.** Spec FAIL 0C/2I, quality BLOCKED 0C/6I → fixed in `c51f279`, re-reviewed clean |
-| 5 | `615e2a5` + `d441679` + `b7f1084` | Authenticated Projects + Bootstrap API. Merged at `3e4b6fc`, `df9af7a`, `ab490d0`. **NOT closed — see §1** |
+| 5 | `615e2a5` + `d441679` + `b7f1084` + `b0abceb` | Authenticated Projects + Bootstrap API. Merged at `3e4b6fc`, `df9af7a`, `ab490d0`, `1da7968`. **Closed.** Spec gate PASS 0C/0I/4Minor; quality gate 0C/3I/7Minor with its own APPROVED label overridden; then two adversarial re-reviews (11 of 15, then 16 of 23 constructions beat the guard) → three fix rounds → 0 of 52 beat round 3. See §1 |
 | 6–15 | — | Not built. The plan is their specification; read §6 first |
 
 Task 5 ships `GET /api/twi/bootstrap`, `GET` + `POST /api/twi/projects`, and
-`GET /api/twi/projects/:id`, in a **nested** Pages Function `functions/api/twi/[[route]].ts`. The
-11k-line parent router at `functions/api/[[route]].ts` is byte-identical to what it was and has
-**zero** `'twi'` resource branches.
+`GET /api/twi/projects/:id`, in a **nested** Pages Function `functions/api/twi/[[route]].ts` (164
+lines, of which the first 86 are the header comment §7 refers to). The **11 505-line** parent router
+at `functions/api/[[route]].ts` is byte-identical to what it was and has **zero** `'twi'` resource
+branches. It is registered `twi: 'must-not-reference'` and content-pinned — enough for the TWI URL
+space — but **nobody has ever attacked its own routes** (§12).
 
 ### Tasks 1–3 were retro-verified after being handed over as complete
 
@@ -218,6 +250,21 @@ original session's self-assessment did not. Keep it.
 11. **A seam review over the combination.** Six independently-correct branches produced a money-path
     defect at the boundary between two of them (`spec_sha256`, §6) that none of their own suites
     could have caught. Review the merged delta, not only the branches.
+12. **A rewrite loses invariants nobody wrote down as invariants.** Fix round 2 replaced a line scan
+    with a compiler parse — a genuine and large improvement — and was measurably **weaker than its
+    predecessor for the simplest attack**, because it dropped a `preGateReturns.length === 1` rule
+    that had caught that case by name (§1). When you replace a check, extract the old one's rules
+    first and assert each still holds; "the new one is more sophisticated" is not a proof.
+13. **A guard nothing tests is a comment, and its check COUNT is not a kill signal.** A 14-line
+    permissive stub of this project's route parser kept `npm test` green with the contract check
+    printing its usual number of checks (§8). The fix pattern already existed in-repo
+    (`scripts/lib/migration-sql.mjs` ← `migration-safety.test.mjs` ← `test:migrations`) and took one
+    round to notice. Any analysis module that only its own consumer imports needs a suite in
+    `npm test`.
+14. **Prefer a smaller sound guarantee to a larger false one.** Four rounds of enumerating evasions
+    did not converge; two closed-set equalities did (§7). When an assertion of the form "nothing bad
+    appears here" has been falsified three times, the shape is the problem, not the diligence. State
+    the cost of the narrowing rather than hiding it.
 
 ---
 
@@ -236,10 +283,17 @@ earned that status by repeatedly finding suites that were **100 % green and prov
   live project would be served from any sub-path.
 
 **The manifest is tracked:** `docs/superpowers/mutants/twi-creation-core.mutants.json`, with
-`docs/superpowers/mutants/README.md` as the human index. Measured at `ab490d0`: **138 entries**,
-138 unique ids, six namespaces — `DOM-*` domain (40), `SCH-*` schema (35), `REPO-*` repository (7),
-`APP-*` app shell (4), `MIG-*` migration tooling (2), `API-*` authenticated API surface (50). The
-only entry not expected to be killed is `DOM-14`, deliberately **retired**.
+`docs/superpowers/mutants/README.md` as the human index. Measured at `1da7968`: **v1.4.0, 138
+entries**, 138 unique ids, six namespaces — `DOM-*` domain (40), `SCH-*` schema (35), `REPO-*`
+repository (7), `APP-*` app shell (4), `MIG-*` migration tooling (2), `API-*` authenticated API
+surface (50). The only entry not expected to be killed is `DOM-14`, deliberately **retired**.
+
+Since fix round 3 the manifest is also **executed, in part**: `scripts/twi-route-structure.test.mjs`
+(`npm run test:twi:structure`, 58 tests) takes the gate entries' own `exact-from-source` find/replace
+pairs as its corpus and asserts the analysis still reacts to each one. That turns those entries'
+prose `premise` into a running assertion. It is a corpus, not a runner — it does not score the set.
+A missing anchor fails with an instruction to update the manifest, because a silently skipped mutant
+is exactly the erosion it exists to stop.
 
 **Read the README before using it.** It carries the schema for each field and three rules that
 matter: never delete a retired mutant (a real coverage loss then looks like tidy housekeeping);
@@ -250,9 +304,18 @@ different size.
 Two caveats to carry forward:
 
 - **No round has ever measured the combined set against a single commit.** There is no honest "all
-  138 killed" number, and the manifest says so itself.
-- The manifest's own `baselines` block still describes **v1.0.0 at `ac034a4`** (6 suites,
-  `test:twi` 262). It is history, not the current baseline. Use §2's table.
+  138 killed" number, and the manifest says so itself. `baselines.currentAtHead` records the *suite*,
+  not a score.
+- **8 of the 138 entries are `described-group` aggregates** — group counts the introducing round never
+  enumerated, all in the schema set. They are not individually applicable. Four further entries carry
+  no applicable mutation at all. So "138 entries" is not "138 runnable mutants"; the README's *What
+  the record cannot tell you* section is the honest inventory.
+
+The `baselines` block used to be a caveat here: it described **v1.0.0 at `ac034a4`** (6 suites,
+`test:twi` 262) inside a tracked file, and three revisions had gone past it. **Fixed in v1.4.0** —
+`baselines.currentAtHead` now carries the eight-suite state measured at `1da7968`, the v1.0.0 numbers
+are kept beside it and explicitly labelled history, and `baselineCommit` is annotated as an *anchor*
+fact that does not move rather than a claim about the current suite.
 
 ---
 
@@ -303,20 +366,50 @@ Repo-specific hazards a newcomer hits otherwise. Each fails quietly.
 
 ### The TWI API surface
 
-- **The public-route escape hatch needs TWO visible keys.** `scripts/twi-contract-check.mjs` fails
-  any file under `functions/api/twi/` other than the gated catch-all — unless it is named in
-  `publicAllowlist` **and** the file itself carries a `TWI-PUBLIC-ROUTE:` marker with a reason
-  (`PUBLIC_ROUTE_MARKER`, `scripts/lib/twi-route-structure.mjs`). An allowlist entry without the
-  marker fails the check. `publicAllowlist` is empty today and should stay empty; the mechanism
-  exists so that making a TWI route public is a **visible decision**, not a silent one. The check
-  makes it visible; it does not prevent it.
 - **Reaching the `requireOwnerSession` gate IS the security model.** Anything that answers without
-  reaching it is public, and nothing fails — it simply answers. The contract check *parses* the
-  route file and asserts the gate is one awaited statement with no `if`/loop/`switch`/callback
-  around it, that its `try` is the last statement, that only variable declarations and one
-  structurally verified CORS preflight sit above it, that `onRequest` is the only Pages handler
-  export (compared as a **decoded** identifier, so a unicode escape cannot smuggle
-  `onRequestGet` past it), and that `functions/api/twi/` holds nothing else.
+  reaching it is public, and nothing fails — it simply answers.
+- **The guard asserts EQUALITIES, not an absence of known evasions.** This is the shape it settled
+  into after four rounds of enumerating evasions failed to converge, and it is what to keep in mind
+  when changing anything it touches. Two closed sets:
+  1. **Every file under `functions/` must EQUAL `FUNCTIONS_REGISTRY`**
+     (`scripts/lib/functions-registry.mjs`), in **both directions**, over a recursive,
+     **extension-blind and depth-blind** listing. Five files are declared today, each with a `twi`
+     disposition: `'gated'` (exactly one — the catch-all), `'must-not-reference'`
+     (`functions/_middleware.ts` and the `/api/*` catch-all, both of which *can* run for a TWI path,
+     so their source is content-pinned to mention no TWI path at all), `'unreachable'` (asserted, so
+     mislabelling a reachable file fails), and `'public'` (**by decision** — see below; there are
+     none). A file of any name, extension or depth fails until it is declared.
+  2. **The pre-gate region must EQUAL `EXPECTED_PREGATE_PREAMBLE`** — four statements, compared as
+     canonically printed AST (comments removed, whitespace normalised, unicode escapes decoded).
+     Anything added above the gate fails before any reasoning about what it *does*. The CORS
+     preflight sits deliberately outside the equality and is verified by shape instead: body `null`,
+     status exactly 204, headers exactly `cors()` — so factoring it out does not require editing the
+     constant, and a secret smuggled into the 204 headers fails structurally.
+- **Control-flow checks are a SECOND LAYER over that smaller surface, not the primary defence.** They
+  still assert: the gate is one awaited statement that is a **direct statement** of the handler's
+  single `try` (no `if`, loop, `switch`, callback, inner try, *or bare `{ }`* — that last one is the
+  regression fix, §1); the identifier called **is the named import** of `requireOwnerSession` from
+  `src/twi/server/auth`, and that name is not redeclared anywhere in the file; the `try` is the last
+  statement; the `catch` may answer only with an error envelope (`json(<object literal>)` whose keys
+  are a subset of `error`/`code`/`correlationId`, awaiting nothing, borrowing only `json` and
+  `HttpError`) — because the catch runs on the gate's own 401, so a catch that serves data is the gate
+  inverted; every `return` below the gate is `await …` or `json(…)` at any depth; `onRequest` is the
+  only Pages handler export, compared as a **decoded** identifier so a unicode escape cannot smuggle
+  `onRequestGet` past it, and `export * from` is refused outright as opaque.
+- **The route file's own header states what is proven AND carries a "does NOT guarantee" list.** Read
+  it first — `functions/api/twi/[[route]].ts`, lines 1–86. The four things it names as unproven are
+  Cloudflare dispatch precedence, what `requireOwnerSession` and `assertSameOriginMutation` actually
+  *do*, files a deploy adds that are not in the repository, and that a `twi: 'public'` entry is public
+  by decision. Keep that section honest; it exists because overclaiming is how the previous rounds
+  went wrong.
+- **The public-route escape hatch needs TWO visible keys, in TWO files.** A registry entry of
+  `twi: 'public'` with a non-empty `why`, **and** a `TWI-PUBLIC-ROUTE:` marker in the file itself with
+  non-whitespace text after it *on the same line* (`PUBLIC_ROUTE_MARKER` / `markerReason`,
+  `scripts/lib/functions-registry.mjs`). A bare marker with no reason fails; so does a `'public'`
+  entry whose path cannot actually answer `/api/twi/*`, so the declaration cannot be parked somewhere
+  harmless-looking. A `_middleware` can **never** be declared public — the exemption would not be one
+  route, it would be all of them. Nothing is `'public'` today and nothing should be; the mechanism
+  makes going public a **visible decision**, not a silent one. It does not prevent it.
 - **Three §6 contracts are traps, not style notes.** Each fails silently if ignored: every timestamp
   you write must be exactly `YYYY-MM-DDTHH:MM:SS.sssZ` **generated in JS** (`datetime('now')`,
   `'now'` and hour 24 are all rejected at write time); repository methods return `{ job, outcome }`
@@ -328,7 +421,22 @@ Repo-specific hazards a newcomer hits otherwise. Each fails quietly.
   the repository's message, which quotes SQL. A mutation proved a seeded D1 error carrying
   `secret-connection-string` escaping `onRequest`. The contract check asserts every handler returned
   there is awaited. Awaiting a streaming `ReadableStream` handler does **not** buffer it — verified,
-  and Task 6's asset download needs that.
+  and Task 6's asset download needs that. One clause was deliberately loosened in round 3: the
+  vacuity guard counts *returns* below the gate rather than *awaits*, because an all-`json()` gated
+  sub-router is legitimate and used to fail with a message naming no offender. Every mutant that ever
+  tested that clause is still caught (measured).
+- **The narrowing has a price, and someone in a hurry will read it as obstruction.** Any legitimate
+  change above the gate is a **two-file edit** (the code and `EXPECTED_PREGATE_PREAMBLE`), and any new
+  file under `functions/` is a two-file edit (the file and `FUNCTIONS_REGISTRY`). The failure messages
+  name the file and print the canonical statement to paste. That is the trade the equality bought;
+  both edits are the kind a reviewer should see.
+- **Factoring the CORS preflight out passes the guard and still breaks eight manifest anchors.**
+  `test:twi:structure` then fails with "anchor not present … update this mutant's `mutation.find`",
+  because those entries anchor on the inline preflight line. That is correct behaviour for
+  `substantiation: "exact-from-source"`, and the message says what to do — but it is friction Task 6
+  will meet if it takes the factored form (which is admitted: `if (method === 'OPTIONS') return
+  preflight();`, with the helper resolved in `src/twi/server/http.ts` and required to return exactly
+  the verified response).
 
 ### `functions/api/[[route]].ts` — the parent router
 
@@ -347,7 +455,10 @@ Repo-specific hazards a newcomer hits otherwise. Each fails quietly.
 - The dispatcher does **not** consume the request body. Each handler reads it itself.
 - Do **not** reuse `checkNowPlayingRateLimit` — its key is an unnamespaced IP, so TWI traffic would
   share a budget with Spotify polling. The sudoku limiter is a deliberately separate map; follow it.
-- `functions/_middleware.ts` gates only `/fredagsfett*`. It protects nothing under `/api/twi/*`.
+- `functions/_middleware.ts` gates only `/fredagsfett*`. It protects nothing under `/api/twi/*` — but
+  Pages runs it **before every route function**, so a branch that returns instead of calling `next()`
+  answers first, for any path. That is why the registry declares it `twi: 'must-not-reference'` and
+  pins its source to mention no TWI path. It is also **in no typecheck program**.
 
 ### Toolchain and tests
 
@@ -405,25 +516,55 @@ pass, including every line the deleted 17-reserved-prefix rule rejected — `Key
 automatically, but the three `toBe`-pinned prompts must be regenerated in the same commit if it ever
 changes. Mutants exist to make that drift impossible; never loosen those assertions to `toContain`.
 
-### `/twi/assets/*` redirect ordering cannot be settled in this repo
+### FOUR Cloudflare dispatch facts cannot be settled in this repo — one deploy settles all four
 
-The contract check asserts, statically, that the `/twi/assets` passthrough precedes the SPA rewrite
-in `_redirects`, that a hashed bundle request resolves to itself, and that no `_redirects` rule
-matches an `/api/` path. What it **cannot** settle is how Cloudflare dispatches at the edge —
-whether a `_redirects` rule outranks a Pages Function, and which export Pages prefers when several
-exist. Those are deploy-time facts. The guard refuses both ambiguities rather than resolving them.
-TWI is the site's first splat-rewrite SPA, so no in-repo precedent applies. **This needs a deploy
-preview.**
+The guard **refuses** these ambiguities rather than resolving them in either direction, which is the
+right call and also a standing gap. All four are deploy-time facts:
 
-### The route guard's kill signal lives in ONE file
+1. **advanced-mode `./_worker.js` precedence.** A `_worker.js` at the build output root makes Pages
+   ignore the `functions/` directory *entirely* — every assertion the guard makes about code included.
+   One committed file, no code change. All three earlier rounds were blind to it because they all
+   looked inside `functions/`.
+2. **`./_routes.json` exclusion.** Excluding `/api/twi/*` from the Functions runtime makes the path a
+   static asset and the Function never runs. Same class as the `_redirects` hole round 2 found.
+3. **`_middleware` ordering** relative to a route function, and which export Pages prefers when
+   several exist (and whether a re-exported handler answers at all).
+4. **The `/twi/assets/*` redirect passthrough.** The contract check asserts statically that the
+   passthrough precedes the SPA rewrite in `_redirects`, that a hashed bundle request resolves to
+   itself, and that no `_redirects` rule matches an `/api/` path. Whether a `_redirects` rule
+   *outranks a Pages Function* at the edge is not in the repo. TWI is the site's first splat-rewrite
+   SPA, so no in-repo precedent applies.
 
-**24 mutants — `API-27` through `API-50` — all die if `scripts/lib/twi-route-structure.mjs`
-regresses**, and each carries a `premise` saying so. Revert it to a line scan and all 24 become
-survivors while `npm test` stays green. Worse, `API-30`–`API-50` are **text-only facts**: only two
-of them (`API-31`, `API-32`) are visible to `test:twi` at all, and `API-30` (a resource-scoped gate
-exemption) was simultaneously green on `test:twi`, `typecheck:twi` and fix round 1's contract check.
-That file is a single point of failure for the whole auth-placement guarantee. Treat any change to
-it as a change to the security model.
+**ONE throwaway Pages preview deploy would settle all four**, and the same deploy validates Task 5's
+redirect ordering. It is the cheapest high-value action open on this project. Two of round 3's own
+findings (1 and 2 above) rest on documented behaviour nobody here could test.
+
+### The route guard now defends itself — and the residue, honestly
+
+**24 mutants — `API-27` through `API-50` — die by the analysis in
+`scripts/lib/twi-route-structure.mjs`**, and each carries a `premise` saying so. Until fix round 3
+that was a single point of failure with no tripwire: a **14-line permissive stub** of the parser left
+`npm test` fully green *and the contract check still printing its usual number of checks* — the count
+is invariant to whether the checks mean anything. The `API-30` mutant (a resource-scoped gate
+exemption) resurrected under it. That is the same failure shape as the 227 tests that never ran.
+
+`scripts/twi-route-structure.test.mjs` closes it: **58 tests** driving both analysis modules directly,
+wired in as `test:twi:structure` **before** `test:twi:contracts` so a hollowed-out analysis reddens
+`npm test` by name. Measured against the same stub: the contract check still passes 38/38, and that
+suite fails **41 of 58**. It also immediately caught a real bug the contract check could not see — the
+module split moved `resolvePreflightHelper` to where `parse` was out of scope, and the committed route
+file's code path never exercised it.
+
+Two residues, stated:
+
+- **17 of the 58 tests still pass under a stubbed parser** — the registry and `_routes.json` ones,
+  which do not import it. Stubbing `functions-registry.mjs` instead is caught by the mirror image of
+  the same argument. **No single-file stub survives, and no two-file stub does either**, because the
+  positive cases still have to hold: the committed file must analyse clean and the tree must equal the
+  registry.
+- `API-30`–`API-50` are still **text-only facts**: only two of them (`API-31`, `API-32`) are visible to
+  `test:twi` at all, and `API-30` was once simultaneously green on `test:twi`, `typecheck:twi` and fix
+  round 1's contract check. Treat any change to these modules as a change to the security model.
 
 ---
 
@@ -495,20 +636,31 @@ Four claims in the pre-`7a4c762` handover were **measured false**. Do not carry 
 4. **The baseline row and the per-task commit "chains."** See §3. The legacy suite is 128 tests, not
    127; `7bfbe50` is the plan-document commit, not the branch point.
 
-One correction to the **previous version of this file**, which was written when Task 4 closed: its
-§1 recorded tip `2b6d759` with six suites and `test:twi` at 142, and its "in flight" section listed
-five branches whose outcomes were then unknown. All five have since landed. §2 and §11 are the
-current truth.
+Corrections to **previous versions of this file**, recorded so the pattern is visible rather than
+tidied away. Both were true when written and stale within hours — which is the point.
+
+- The version written when **Task 4** closed recorded tip `2b6d759` with six suites and `test:twi` at
+  142, and an "in flight" section listing five branches whose outcomes were then unknown. All five
+  landed.
+- The version written at **`ab490d0`** (`bfc5ec2`) said **"Task 5 is NOT closed"** with a final
+  re-review in flight, seven suites, `test:twi:contracts` at 33 checks, and the manifest's stale
+  `baselines` block filed as an open item. Task 5 closed at `1da7968`; there are eight suites; the
+  contract check is 38; and the `baselines` block is fixed in manifest v1.4.0. It also described the
+  route guard as *enumerating* `functions/api/twi/` and asserting the absence of known evasions — that
+  description is **deleted**, because the guard now asserts equalities (§7) and the enumeration
+  formulation was falsified in three consecutive rounds.
 
 ---
 
 ## 11. Merged branches — archaeology
 
-Every merge in `18a70fb..ab490d0`, newest first, plus the one direct commit. Each branch's own
+Every merge in `18a70fb..1da7968`, newest first, plus the one direct commit. Each branch's own
 reasoning lives in the plan's shipped-state notes.
 
 | Merge | Branch | Tip | What it did |
 |---|---|---|---|
+| `1da7968` | `fix/twi-gate-lock-round3` | `b0abceb` | **Task 5 fix round 3, and its closure.** Two enumerations became equalities; the guard given its own 58-test suite (`test:twi:structure`, → eight suites); contracts 33 → 38 with zero names removed; parser split into `ts-ast.mjs` + `twi-preflight.mjs` to respect the 800-line ceiling. Manifest → v1.3.0, no ids added |
+| `88e8a50` | `docs/handover-refresh` | `bfc5ec2` | This file rewritten at `ab490d0` (+414 / −229): the seven-suite baseline measured, two outgrown traps deleted, five stale figures corrected |
 | `ab490d0` | `fix/twi-gate-lock-structural` | `b7f1084` | Task 5 fix round 2: owner gate locked by AST parse + directory inventory, not a line scan. Manifest 117 → 138 |
 | `df9af7a` | `fix/twi-task5-gate-hardening` | `d441679` | Task 5 fix round 1: spelling allowlist → behaviour denylist; cookie-prefix coverage; Task 5's mutants registered. Manifest 88 → 117 |
 | `f24cc24` | `fix/sp1epacker-static-guard` | `f746a62` | `sp1epacker/index.html` + `styles.css` tracked-ness guarded (additive, 8 new failure sites) |
@@ -536,16 +688,43 @@ reasoning lives in the plan's shipped-state notes.
 
 ## 12. Open items
 
-Carried forward, none of them blocking Task 6.
+None of them blocking Task 6. **The first two are the ones that matter.**
 
-- **Task 5's closure.** §1. Everything else here waits behind it.
+### 1. `src/twi/server/auth.ts` is pinned by REGEXES, not structurally → Task 15
+
+The guard proves **which** function the gate calls. **Nothing proves what it does.** Two checks, three
+regexes each, are the whole of it: `requireOwnerSession` is pinned by `getCookie(request, 'session')`,
+the sessions-table SELECT and `new HttpError(401, 'Unauthorized')` over `src/twi/server/auth.ts`
+(`scripts/twi-contract-check.mjs:395-400`), and `assertSameOriginMutation` by three more over
+`http.ts`. Every one would still match if the surrounding logic inverted its result — the fail-closed
+direction is a behavioural fact and only the behavioural suites see it (the manifest says so on
+`API-*`'s `killSuiteWarning`). Everything above them in §7 is structural; this is not. It is now the **weakest link in the
+auth story**, and it is a different layer rather than a reopened hole — round 3's own report names it
+as where a round 4 should go, and the controller filed it against **Task 15** (harden headers,
+integration contracts, browser E2E, runbooks) rather than extending Task 5 past its brief.
+
+### 2. ONE throwaway Pages preview deploy settles FOUR unprovable facts
+
+`_worker.js` precedence, `_routes.json` exclusion, `_middleware` ordering / export preference, and the
+`/twi/assets/*` redirect passthrough. The guard refuses all four rather than asserting either way.
+Full detail in §8. Cheapest high-value action on this project; the same deploy validates Task 5's
+redirect ordering.
+
+### The rest
+
 - **`node --test` zero-test guard** for `scripts/run-tests.mjs` — a suite can vanish while `npm test`
-  stays green, the same class of failure as the 227 tests that never ran. Deliberately queued rather
-  than dispatched, to avoid colliding with Task 5's edits to that file. Dispatch now that Task 5 has
-  merged.
-- **The mutant manifest's `baselines` block is stale** — it still describes v1.0.0 at `ac034a4`
-  (6 suites, `test:twi` 262). Either refresh it against `ab490d0` or mark it explicitly as
-  per-round history.
+  stays green, the same class of failure as the 227 tests that never ran. Was queued to avoid
+  colliding with Task 5's edits to that file; **Task 5 is closed, so dispatch it.**
+- **The preamble constant and the registry are maintenance surface** (§7): a two-file edit for any
+  legitimate change above the gate or any new file under `functions/`. Deliberate, with failure
+  messages that name the file — but expect it to read as obstruction to someone in a hurry.
+- **Factoring out the CORS preflight passes the guard and breaks eight manifest anchors** (§7). Task 6
+  will meet this if it takes the factored form.
+- **`functions/api/[[route]].ts` (11 505 lines) was read but never analysed.** Registered
+  `twi: 'must-not-reference'` and content-pinned, which is enough for the TWI URL space — but nobody
+  has attacked its own routes.
+- **Gate 2's Minors 2, 3, 4, 6 and 7 remain unaddressed** after all three fix rounds. None was ever in
+  scope; recorded so they are not mistaken for closed.
 - `PROJECT.md` has no TWI entry yet (plan Task 15 Step 7).
 - `docs/ci-workflow.yml` is an inert superseded draft — delete it or mark it so.
 - **`HAND_AUTHORED` in `scripts/sp1epacker-bundle-check.mjs` is hand-maintained** and nothing can
@@ -559,11 +738,29 @@ Carried forward, none of them blocking Task 6.
   SHA-256 of the **stored** `spec_json` — reading the row and hashing it gives the right value, which
   is precisely what was false before `e3ba46d`.
 
-Two items that appeared on the previous version of this list are **done**, and are recorded here so
-nobody re-opens them: `miniflare` is declared in `package.json` (`c7c8b25`), and
-`scripts/twi-bundle-check.mjs` now derives its vite argv from `package.json`'s `build:twi` instead of
-hand-copying it (`b1f788c`). The repo-wide LIKE/GLOB sweep is likewise covered — `test:migrations`
-tripwires **every** root `.sql` file and fails if the sweep finds nothing to look at.
+Items that appeared on the previous version of this list are **done**, and are recorded here so nobody
+re-opens them: **Task 5's closure** (§1); the **manifest `baselines` block**, fixed in v1.4.0 (§5);
+`miniflare` declared in `package.json` (`c7c8b25`); and `scripts/twi-bundle-check.mjs` deriving its
+vite argv from `package.json`'s `build:twi` instead of hand-copying it (`b1f788c`). The repo-wide
+LIKE/GLOB sweep is likewise covered — `test:migrations` tripwires **every** root `.sql` file and fails
+if the sweep finds nothing to look at.
+
+### Provisioned since the last handover — Task 10's dependency is met
+
+**Modal is authenticated** (2026-08-17, by the owner): `python -m modal setup`, web auth OK, token
+connected to workspace `simonpsson`, verified against both API endpoints. So **Task 10's GPU
+dependency is provisioned** — it is no longer a blocker to plan for.
+
+Two consequences worth knowing:
+
+- **Stem Lab P1 is now runnable.** It has been built and E2E-verified since 2026-08-15 and was blocked
+  on exactly this login. Its runbook is `stems-gpu/README.md` — start there, not from scratch.
+- **Both paths run real GPU jobs from here**, on a Starter plan. Cost is no longer hypothetical.
+
+Windows gotcha, for whoever reads Modal's docs next: `python3` is an App Execution Alias stub that
+redirects to the Microsoft Store, so the documented `python3 -m modal setup` fails with "Python was
+not found". Use `python -m modal setup`. There is no `modal token show` subcommand, and none is
+needed — `setup` verifies the token itself.
 
 ---
 

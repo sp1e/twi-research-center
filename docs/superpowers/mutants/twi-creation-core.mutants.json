@@ -1,8 +1,9 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.3.0",
+  "manifestVersion": "1.4.0",
   "recordedAt": "2026-08-17",
   "baselineCommit": "ac034a4",
+  "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
   "plan": "docs/superpowers/plans/2026-08-16-twi-creation-core.md",
   "humanIndex": "docs/superpowers/mutants/README.md",
 
@@ -27,7 +28,24 @@
       "at": "fix/twi-gate-lock-structural, base df9af7a",
       "what": "Added API-30 to API-50 (21 entries) for the owner gate as fix round 2 rebuilt its guard. Total entries 117 -> 138. Nothing in the five pre-v1.1.0 sets was edited; API-01 to API-26 are byte-identical; API-27, API-28 and API-29 gained one `premise.reimplementedIn` note each, because the assertion that kills them kept its NAME and was rewritten from a line scan to a parse.",
       "why": "A scoped re-review attacked fix round 1\u2019s guard with 15 constructions and ELEVEN beat it, eight of them green on the contract check, test:twi and typecheck:twi at once. The two worst needed no trickery: a gate that is present and early but CONDITIONAL (`if (segments[0] !== 'health') await requireOwnerSession(request, env);`), and a sibling Pages Function file that Cloudflare prefers by path specificity. Both were invisible because the guard was a line scan over one file. Round 2 replaced it with an AST parse plus a directory inventory; these entries are the record of what that closes.",
-      "scopeNote": "The kill signal for API-27 to API-50 is the structural analysis in scripts/lib/twi-route-structure.mjs. All 24 carry a `premise` saying so, because reverting to a line scan turns every one of them back into a survivor while npm test stays green. `baselineCommit`, `baselines` and `verifiedByThisRound` still describe v1.0.0 and do not include this set."
+      "scopeNote": "The kill signal for API-27 to API-50 is the structural analysis in scripts/lib/twi-route-structure.mjs. All 24 carry a `premise` saying so, because reverting to a line scan turns every one of them back into a survivor while npm test stays green. `baselineCommit`, `baselines` and `verifiedByThisRound` still describe v1.0.0 and do not include this set.",
+      "supersededBy": "v1.3.0 for the last sentence's `failureMode` claim (test:twi:structure now reddens npm test when the analysis is hollowed out), and v1.4.0 for `baselines`, which now carries a measured current block beside the v1.0.0 one."
+    },
+    {
+      "version": "1.3.0",
+      "round": "task-5-fix-round3",
+      "at": "fix/twi-gate-lock-round3, base ab490d0, merged 1da7968",
+      "what": "NO ids added, renumbered or removed — 138 before and after. 37 lines rewritten in place: the seven self-contradicting API entries corrected (API-40, 41, 43, 44, 48, 49, 50), API-45's over-attributed kill recorded, and the `failureMode` on all 24 gate entries updated because it stopped being true. README gained a v1.3.0 section.",
+      "why": "A third adversarial re-review beat round 2's guard with 16 of 23 constructions, including a MEASURED REGRESSION (round 2's AST rewrite was weaker than round 1 for the simplest attack) and a 14-line permissive parser stub that kept npm test green at an unchanged check count. Round 3 closed all of it over 52 measured constructions with zero regressions, and built scripts/twi-route-structure.test.mjs — 58 tests over the analysis modules, corpus = this manifest's own exact-from-source pairs — wired in as test:twi:structure.",
+      "scopeNote": "Round 3's own 14 new constructions are registered as NAMED TESTS in scripts/twi-route-structure.test.mjs rather than as ids here, deliberately: a test that runs beats JSON prose no runner reads. It did NOT refresh `baselines`; see v1.4.0."
+    },
+    {
+      "version": "1.4.0",
+      "round": "docs/handover-correction",
+      "at": "docs/handover-correction, base 1da7968",
+      "what": "Data-only. No mutant entry touched — 138 entries, 138 unique ids, every `sets` member byte-identical. Added `baselines.currentAtHead` with the eight-suite state MEASURED at 1da7968, labelled the v1.0.0 numbers beside it as history, and noted that `baselineCommit` is an anchor fact rather than a suite fact.",
+      "why": "The `baselines` block asserted 6 suites and test:twi 262/13 files inside a tracked file at a tip where there are 8 suites and test:twi is 353/19. Three revisions had gone past it. A published figure that reads as current and is not is the same failure class the api set exists to record, so it was corrected rather than filed as an open item again.",
+      "scopeNote": "The numbers in `currentAtHead` are the SUITE, not a score. No round has measured the combined 138-entry set against any single commit; `uncertainty` still governs that."
     }
   ],
 
@@ -89,16 +107,44 @@
   },
 
   "baselines": {
+    "readThisFirst": [
+      "`measuredAt`, `npmTest` and `suites` below are the v1.0.0 round's numbers at ac034a4 and are",
+      "HISTORY. They were left unchanged through v1.1.0, v1.2.0 and v1.3.0 while the suite grew, so by",
+      "v1.3.0 this block claimed 6 suites and test:twi 262/13 files when there were 8 suites and",
+      "test:twi was 353/19. A tracked document asserting numbers that stopped being true is the exact",
+      "failure this workstream has spent four rounds closing, so v1.4.0 adds `currentAtHead` beside it",
+      "rather than editing the history. Use `currentAtHead` for what the suite is now; use this block",
+      "only when reasoning about a mutant measured by the v1.0.0 round."
+    ],
+    "currentAtHead": {
+      "measuredAt": "1da7968 (merge of fix/twi-gate-lock-round3; Task 5 closed)",
+      "measuredBy": "docs/handover-correction, per-suite, read off one `npm test` run on a clean tree",
+      "npmTest": "ALL SUITES PASSED (8/8), exit 0",
+      "suites": {
+        "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "plus six chained contract-check scripts that print no count" },
+        "test:sp1epacker": { "tests": 149, "files": 8 },
+        "test:twi": { "tests": 353, "files": 19 },
+        "test:twi:schema": { "tests": 39 },
+        "test:twi:structure": { "tests": 58, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
+        "test:twi:contracts": { "checks": 38, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3. Zero check names have ever been removed." },
+        "test:migrations": { "tests": 10 },
+        "test:twi:bundle": { "checks": 8 }
+      },
+      "totals": "737 tests plus 46 script checks",
+      "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
+      "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 138-entry set against 1da7968, or against any single commit. This block records the suite the mutants would be measured against, not a score."
+    },
     "measuredAt": "ac034a4",
-    "measuredBy": "this manifest round, per-suite, individually",
-    "npmTest": "ALL SUITES PASSED (6/6), exit 0",
+    "measuredBy": "the v1.0.0 manifest round, per-suite, individually — history, see readThisFirst",
+    "npmTest": "ALL SUITES PASSED (6/6), exit 0 — at ac034a4, when there were six suites",
     "suites": {
       "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4] },
       "test:sp1epacker": { "tests": 149, "files": 8 },
       "test:twi": { "tests": 262, "files": 13 },
       "test:twi:schema": { "tests": 39 },
       "test:migrations": { "tests": 10 },
-      "test:twi:bundle": { "checks": 8 }
+      "test:twi:bundle": { "checks": 8 },
+      "staleAsOf1da7968": "test:twi is 353/19 files now, and test:twi:contracts (38 checks) and test:twi:structure (58 tests) do not appear here at all because neither existed at ac034a4."
     },
     "headlineMutationScores": {
       "caveat": [
