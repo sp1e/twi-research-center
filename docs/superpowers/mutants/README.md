@@ -261,6 +261,50 @@ mutant measured by that round was measured against. What changed:
 `currentAtHead` is the suite, **not a score**. No round has applied the combined 138-entry set
 against `1da7968` or against any other single commit; `uncertainty` still governs that.
 
+## Changed in v1.5.0 — the `baselines` block is now executed, not asserted
+
+v1.4.0 corrected the figures by hand. That fixed the value and not the class: a hand-measured
+baseline is stale again the moment a test is added, and the reason the block went wrong for three
+revisions was never that someone mistyped a number — it was that **nothing ran it**.
+
+So `npm test` now measures the suite and holds this file to it. `scripts/run-tests.mjs` captures each
+suite's output instead of letting it stream past unread, reads back the count the suite printed about
+itself, and after the suites calls `scripts/lib/mutant-baselines.mjs`. Any disagreement fails the run
+naming the JSON path, the recorded value and the measured one:
+
+```
+MANIFEST BASELINE DRIFT (1) — docs/superpowers/mutants/twi-creation-core.mutants.json
+
+  baselines.currentAtHead.suites["test:twi"].tests
+      recorded: 352
+      measured: 353
+```
+
+- **What is compared:** every figure `currentAtHead` asserts — per-suite `tests` / `files` /
+  `checks`, `test:legacy`'s `composition` array, the suite roster in **both** directions, `npmTest`'s
+  `(N/N)` and both sums in `totals`. Prose (`note`, `gates`, `whatThisIsNot`) is not compared.
+- **What is not compared, deliberately:** the v1.0.0 block. It is history. Rewriting history to match
+  today is the failure being closed, not the fix for it.
+- **Adding tests is not a chore.** The gate is exact in both directions, because the drift nobody
+  noticed was an *increase* — but `npm test -- --update-baselines` applies the corrections in place,
+  a surgical single-line edit per figure that leaves this 353 KB file's formatting alone. A gate you
+  have to hand-edit around is a gate people learn to route around, which is worse than none.
+- **The flag cannot launder a deletion.** Each suite also declares a count **floor** in
+  `scripts/run-tests.mjs`, checked the moment that suite finishes; `--update-baselines` is
+  unreachable while any floor is breached. So it records growth and only growth.
+
+Why the floors exist at all, beside this: `node --test` on a file with no tests in it reports the
+**file** as one passing test and exits 0. An emptied `scripts/twi-schema-behavior.test.mjs` used to
+take `test:twi:schema` from 39 to 1 with `npm test` still green — the 227-tests failure, still live.
+It now fails with `process 1 of 1 in the chain: 1, floor is 39`.
+
+One figure the runner tracks that this file does not: `test:legacy`'s **199** `ok`-lines across its
+chained contract-check scripts. There are **eight** of those scripts, not six — v1.4.0's note on
+`test:legacy` said six, and the note is corrected. None of the eight prints a total of its own, so
+there is no count of theirs to record here and the floor lives only in the runner. The six figures in
+`composition` are the six `node --test` processes, which is a different thing and was being read as
+the same one.
+
 ## No runner, deliberately
 
 The owner chose a manifest, not an executable suite. One qualification since v1.3.0:

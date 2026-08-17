@@ -114,14 +114,20 @@
       "test:twi was 353/19. A tracked document asserting numbers that stopped being true is the exact",
       "failure this workstream has spent four rounds closing, so v1.4.0 adds `currentAtHead` beside it",
       "rather than editing the history. Use `currentAtHead` for what the suite is now; use this block",
-      "only when reasoning about a mutant measured by the v1.0.0 round."
+      "only when reasoning about a mutant measured by the v1.0.0 round.",
+      "v1.5.0: `currentAtHead` stopped being a hand measurement. It is now compared against a real",
+      "run on every `npm test` and the run FAILS naming any figure that drifted — see",
+      "`currentAtHead.heldTrueBy`. Correcting the value by hand, as v1.4.0 did, fixed the value and",
+      "not the class: a hand-measured figure is stale again the moment a test is added. This v1.0.0",
+      "block is deliberately NOT compared. Rewriting history to match today is the failure being",
+      "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "1da7968 (merge of fix/twi-gate-lock-round3; Task 5 closed)",
-      "measuredBy": "docs/handover-correction, per-suite, read off one `npm test` run on a clean tree",
+      "measuredAt": "2b6c95c (fix/twi-test-integrity). The figures are unchanged from the 1da7968 measurement; what changed is that they are now re-measured on every run rather than asserted.",
+      "measuredBy": "scripts/run-tests.mjs — parsed per suite out of the suites' own output, on every `npm test`. Not a hand measurement any more.",
       "npmTest": "ALL SUITES PASSED (8/8), exit 0",
       "suites": {
-        "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "plus six chained contract-check scripts that print no count" },
+        "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
         "test:twi": { "tests": 353, "files": 19 },
         "test:twi:schema": { "tests": 39 },
@@ -131,6 +137,7 @@
         "test:twi:bundle": { "checks": 8 }
       },
       "totals": "737 tests plus 46 script checks",
+      "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 138-entry set against 1da7968, or against any single commit. This block records the suite the mutants would be measured against, not a score."
     },
