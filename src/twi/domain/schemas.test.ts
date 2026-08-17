@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { normalizeGenerationSpec } from './prompt';
 import { estimateRequestSchema, generationSpecObject, generationSpecSchema, submitJobSchema } from './schemas';
 import type { NormalizedGenerationSpec } from './schemas';
-import { LYRICS_FENCE_CLOSE, LYRICS_FENCE_OPEN } from './text';
+import { LYRICS_DIRECTIVE, LYRICS_FENCE_CLOSE, LYRICS_FENCE_OPEN } from './text';
 import { draft, idempotencyKey, projectId } from './spec.fixture';
 
 const LINE_BREAK = /[\n\r\u2028\u2029\u0085\u000B\u000C]/;
@@ -163,6 +163,9 @@ test('ordinary lyric lines that happen to open with a directive word are accepte
     'Tempo: of a slow goodbye',
     'Avoid: the long way home',
     'Use these exact section-tagged lyrics:',
+    // Whatever the directive line currently says, it is ordinary lyric text here:
+    // only the closing marker is reserved.
+    LYRICS_DIRECTIVE,
   ].join('\n');
   const normalized = normalizeGenerationSpec({
     ...draft,
