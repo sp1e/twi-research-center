@@ -2,11 +2,12 @@
  * The raw pre-normalization bounds — pinned to the RAW bound, not to "oversized input is
  * rejected".
  *
- * `RAW_LENGTH_SLACK` and `RAW_ENTRY_SLACK` (schemas.ts:11-12) are applied at four sites:
- * `singleLine` (:21), `lyricText` (:28), and both stages of `normalizedList` — per-item
- * length (:33) and entry count (:34). They are NOT length validation; the `.pipe()` caps
- * already do that on the normalized value. They exist so a client cannot make a Worker
- * isolate trim, NFC-normalize and Set-hash megabytes before the isolate decides to say no.
+ * `RAW_LENGTH_SLACK` and `RAW_ENTRY_SLACK` (schemas.ts:13-14) are applied at four sites:
+ * `singleLine` (:23), `lyricText` (:30), `normalizedList`'s per-item length (:74) and the
+ * entry count, which lives in `rawEntryCountBound` (:58) ahead of the array stage rather
+ * than beside it. They are NOT length validation; the `.pipe()` caps already do that on the
+ * normalized value. They exist so a client cannot make a Worker isolate trim,
+ * NFC-normalize and Set-hash megabytes before the isolate decides to say no.
  *
  * That distinction is exactly what makes them hard to test and why they were shadowed for
  * several rounds: an oversized payload is rejected either way, both routes raise `too_big`,
@@ -28,6 +29,11 @@
  *      Pinned with a live call counter on the same three-stage composition, so a future zod
  *      that stopped short-circuiting turns the guard into a no-op and goes red HERE rather
  *      than silently.
+ *
+ * What this file deliberately does NOT see is WHEN the entry-count bound fires relative to
+ * the element schema — every assertion here holds whether the bound rejects before the
+ * elements are parsed or after. That is a separate property with its own measurement, in
+ * raw-prebound.test.ts.
  *
  * Inputs are built with repeat() and are sized to the bound (tens of thousands of characters
  * at most, not millions): the boundary is what carries the information, and the suite runs
@@ -125,23 +131,23 @@ const performanceField = (key: string): SetField => (value) => ({ performance: {
 
 /** Every application of the two slack constants, with the declared cap it is derived from. */
 const SITES: readonly RawBoundSite[] = [
-  scalarSite('intent.purpose', 'schemas.ts:21', 160, intentField('purpose')),
-  scalarSite('intent.narrative', 'schemas.ts:21', 4_000, intentField('narrative')),
-  scalarSite('composition.key', 'schemas.ts:21', 64, compositionField('key')),
-  scalarSite('composition.meter', 'schemas.ts:21', 32, compositionField('meter')),
-  scalarSite('composition.arrangement', 'schemas.ts:21', 2_000, compositionField('arrangement')),
-  scalarSite('performance.vocalRange', 'schemas.ts:21', 100, performanceField('vocalRange')),
-  scalarSite('performance.timbre', 'schemas.ts:21', 300, performanceField('timbre')),
-  scalarSite('performance.delivery', 'schemas.ts:21', 300, performanceField('delivery')),
-  scalarSite('composition.lyrics', 'schemas.ts:28', 16_000, compositionField('lyrics')),
-  itemSite('intent.mood', 'schemas.ts:33', 80, intentField('mood')),
-  itemSite('composition.sections', 'schemas.ts:33', 100, compositionField('sections')),
-  itemSite('sound.styles', 'schemas.ts:33', 100, soundField('styles')),
-  itemSite('sound.exclusions', 'schemas.ts:33', 160, soundField('exclusions')),
-  entrySite('intent.mood', 'schemas.ts:34', 16, intentField('mood')),
-  entrySite('composition.sections', 'schemas.ts:34', 64, compositionField('sections')),
-  entrySite('sound.styles', 'schemas.ts:34', 32, soundField('styles')),
-  entrySite('sound.exclusions', 'schemas.ts:34', 32, soundField('exclusions')),
+  scalarSite('intent.purpose', 'schemas.ts:23', 160, intentField('purpose')),
+  scalarSite('intent.narrative', 'schemas.ts:23', 4_000, intentField('narrative')),
+  scalarSite('composition.key', 'schemas.ts:23', 64, compositionField('key')),
+  scalarSite('composition.meter', 'schemas.ts:23', 32, compositionField('meter')),
+  scalarSite('composition.arrangement', 'schemas.ts:23', 2_000, compositionField('arrangement')),
+  scalarSite('performance.vocalRange', 'schemas.ts:23', 100, performanceField('vocalRange')),
+  scalarSite('performance.timbre', 'schemas.ts:23', 300, performanceField('timbre')),
+  scalarSite('performance.delivery', 'schemas.ts:23', 300, performanceField('delivery')),
+  scalarSite('composition.lyrics', 'schemas.ts:30', 16_000, compositionField('lyrics')),
+  itemSite('intent.mood', 'schemas.ts:74', 80, intentField('mood')),
+  itemSite('composition.sections', 'schemas.ts:74', 100, compositionField('sections')),
+  itemSite('sound.styles', 'schemas.ts:74', 100, soundField('styles')),
+  itemSite('sound.exclusions', 'schemas.ts:74', 160, soundField('exclusions')),
+  entrySite('intent.mood', 'schemas.ts:58', 16, intentField('mood')),
+  entrySite('composition.sections', 'schemas.ts:58', 64, compositionField('sections')),
+  entrySite('sound.styles', 'schemas.ts:58', 32, soundField('styles')),
+  entrySite('sound.exclusions', 'schemas.ts:58', 32, soundField('exclusions')),
 ];
 
 const accepts = (patch: SpecPatch): void => {
@@ -259,9 +265,12 @@ test.each(SITES)(
 );
 
 /**
- * Fields that legitimately carry no raw slack bound, with the reason. `imageAssetIds` is the
- * only array without one and that is correct: it has no transform, so there is no
- * pre-normalization work to guard — `z.array(uuid).max(10)` already bounds the request.
+ * Fields that legitimately carry no raw SLACK bound, with the reason. `imageAssetIds` is the
+ * only array without one and that is correct: it has no transform, so there is nothing for a
+ * slack to absorb and its raw count IS its declared count of 10. It is not unbounded — it
+ * carries the same pre-bound as the lists, which is what stops a million UUIDs being parsed
+ * to discover the eleventh was one too many; that bound is measured in raw-prebound.test.ts,
+ * where the count, not the slack, is the property under test.
  */
 const UNBOUNDED_BY_DESIGN = new Set([
   'intent.durationSeconds',

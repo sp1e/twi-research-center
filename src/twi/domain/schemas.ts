@@ -8,6 +8,8 @@ import { cleanList, closesLyricsFence, LYRICS_FENCE_CLOSE, toLyricText, toSingle
 // million entries becomes a CPU and memory amplifier inside a Worker isolate.
 // The slack exists so that legitimate whitespace and duplicate entries — the very
 // things normalization is here to absorb — are not rejected at the door.
+// RAW_ENTRY_SLACK is applied by rawEntryCountBound below, which sits ahead of the
+// element schema rather than beside it; see the comment there for why that matters.
 const RAW_LENGTH_SLACK = 2;
 const RAW_ENTRY_SLACK = 2;
 
@@ -29,11 +31,57 @@ const lyricText = (maximumLength: number) => z
   .transform(toLyricText)
   .pipe(z.string().max(maximumLength));
 
-const normalizedList = (maximumEntries: number, maximumItemLength: number, minimumEntries = 0) => z
-  .array(z.string().max(maximumItemLength * RAW_LENGTH_SLACK))
-  .max(maximumEntries * RAW_ENTRY_SLACK)
-  .transform(cleanList)
-  .pipe(z.array(z.string().max(maximumItemLength)).min(minimumEntries).max(maximumEntries));
+/**
+ * The raw entry-count bound, placed so that it runs BEFORE the element schema is
+ * mapped over the array.
+ *
+ * `z.array(element).max(n)` does not do that, which made the guard above a partial
+ * mitigation. Measured on zod 3.25.76: an over-count array records its `too_big`
+ * issue, marks the result dirty, and then still maps the element schema over EVERY
+ * entry — a 100 000-entry payload cost 100 000 element parses before the isolate
+ * said no. Only the `.transform()` was skipped, so the trimming and Set-hashing were
+ * avoided but the per-element parse was not.
+ *
+ * `.pipe()` is what closes it: it returns without touching its right-hand side once
+ * the left one has failed, so a count check in front of the array stage makes the
+ * rejection cost O(1) instead of O(entries).
+ *
+ * The issue is raised by hand so the rejection stays indistinguishable from the
+ * `.max()` this replaces — same `code`, `type`, `maximum`, path and message — and is
+ * fatal so the parse aborts rather than merely going dirty. A non-array falls through
+ * untouched: the array stage is what must report the type error, and it still does.
+ *
+ * This is the ONLY raw entry-count bound. The array stage deliberately keeps no
+ * `.max()` of its own: a second copy of the same check sitting behind this one could
+ * never fire, so no test could hold it honest and no mutation to it could be caught.
+ */
+const rawEntryCountBound = (maximumRawEntries: number) => z
+  .unknown()
+  .superRefine((value, ctx) => {
+    if (!Array.isArray(value) || value.length <= maximumRawEntries) return;
+    ctx.addIssue({
+      code: z.ZodIssueCode.too_big,
+      type: 'array',
+      maximum: maximumRawEntries,
+      inclusive: true,
+      exact: false,
+      fatal: true,
+    });
+  });
+
+const normalizedList = (maximumEntries: number, maximumItemLength: number, minimumEntries = 0) => rawEntryCountBound(maximumEntries * RAW_ENTRY_SLACK)
+  .pipe(z
+    .array(z.string().max(maximumItemLength * RAW_LENGTH_SLACK))
+    .transform(cleanList)
+    .pipe(z.array(z.string().max(maximumItemLength)).min(minimumEntries).max(maximumEntries)));
+
+/**
+ * An array whose elements need no normalization, so there is no slack to absorb: the
+ * raw count IS the declared count. It still needs the pre-bound, because parsing a
+ * million UUIDs to discover the eleventh was one too many is the same amplifier.
+ */
+const boundedArray = <T extends z.ZodTypeAny>(element: T, maximumEntries: number) =>
+  rawEntryCountBound(maximumEntries).pipe(z.array(element));
 
 /**
  * A whole-number control. Fractional BPM and novelty are nonsense directives to a
@@ -69,7 +117,7 @@ export const generationSpecObject = z.object({
     styles: normalizedList(32, 100, 1),
     exclusions: normalizedList(32, 160),
     novelty: integer(0, 100),
-    imageAssetIds: z.array(uuid).max(10),
+    imageAssetIds: boundedArray(uuid, 10),
   }).strict(),
   performance: z.object({
     mode: z.literal('generic'),
