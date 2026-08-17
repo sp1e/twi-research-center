@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.1.0",
+  "manifestVersion": "1.2.0",
   "recordedAt": "2026-08-17",
   "baselineCommit": "ac034a4",
   "plan": "docs/superpowers/plans/2026-08-16-twi-creation-core.md",
@@ -20,6 +20,14 @@
       "what": "Added the `api` set: 29 entries for the authenticated API surface (Task 5), which had ZERO coverage in this file. Total entries 88 -> 117. Nothing in the five existing sets was edited, and no existing entry was renumbered.",
       "why": "Gate 2 Important 3: the manifest did not exist at Task 5's base 87fd87e, so the round that built the API could not have registered its mutants here. The consequence was that the money-and-auth boundary was the one part of the feature whose mutant set existed only as prose in a gitignored report.",
       "scopeNote": "The api set is measured at ITS OWN tree, not at ac034a4 — none of its target files exist at the baseline. `baselines` and `verifiedByThisRound` below are v1.0.0's numbers and do NOT include it; the api set carries its own `measuredInThisRound` block."
+    },
+    {
+      "version": "1.2.0",
+      "round": "task-5-fix-round2",
+      "at": "fix/twi-gate-lock-structural, base df9af7a",
+      "what": "Added API-30 to API-50 (21 entries) for the owner gate as fix round 2 rebuilt its guard. Total entries 117 -> 138. Nothing in the five pre-v1.1.0 sets was edited; API-01 to API-26 are byte-identical; API-27, API-28 and API-29 gained one `premise.reimplementedIn` note each, because the assertion that kills them kept its NAME and was rewritten from a line scan to a parse.",
+      "why": "A scoped re-review attacked fix round 1\u2019s guard with 15 constructions and ELEVEN beat it, eight of them green on the contract check, test:twi and typecheck:twi at once. The two worst needed no trickery: a gate that is present and early but CONDITIONAL (`if (segments[0] !== 'health') await requireOwnerSession(request, env);`), and a sibling Pages Function file that Cloudflare prefers by path specificity. Both were invisible because the guard was a line scan over one file. Round 2 replaced it with an AST parse plus a directory inventory; these entries are the record of what that closes.",
+      "scopeNote": "The kill signal for API-27 to API-50 is the structural analysis in scripts/lib/twi-route-structure.mjs. All 24 carry a `premise` saying so, because reverting to a line scan turns every one of them back into a survivor while npm test stays green. `baselineCommit`, `baselines` and `verifiedByThisRound` still describe v1.0.0 and do not include this set."
     }
   ],
 
@@ -28,7 +36,9 @@
     "ac034a4": "The manifest's baseline. All anchors marked anchorUnique were verified against this tree.",
     "615e2a5": "feat(twi): add private project API — Task 5, based on 87fd87e, merged at 3e4b6fc. Every entry in the `api` set applies here: none of its target files (functions/api/twi/[[route]].ts, src/twi/server/{auth,http,projects,capabilities}.ts, scripts/twi-contract-check.mjs) exists at ac034a4, and ac034a4 is not an ancestor of 87fd87e's work in the other direction either — the two arrived on parallel branches, which is why this manifest is absent from Task 5's base.",
     "f24cc24": "The tree fix round 1 measured against: 3e4b6fc (Task 5 merged) plus a parallel sp1epacker-guard merge that touches no TWI file. npm test 7/7, test:twi 349/19 files, test:twi:contracts 26 checks — the baseline reproduced before the api set's mutants were applied. The round then raised the contract check to 29 checks and test:twi to 353.",
-    "b69678b": "fix/twi-raw-array-prebound, based on ac034a4. Lifts the raw entry-count bound OUT of the array schema and in front of it via .pipe(), so an over-count array costs zero element parses instead of one per entry. Adds src/twi/domain/raw-prebound.test.ts (23 tests) and moves normalizedList, so DOM-37R/38R/39R exist only here and DOM-32R changes shape. test:twi goes 262/13 files -> 285/14 files."
+    "b69678b": "fix/twi-raw-array-prebound, based on ac034a4. Lifts the raw entry-count bound OUT of the array schema and in front of it via .pipe(), so an over-count array costs zero element parses instead of one per entry. Adds src/twi/domain/raw-prebound.test.ts (23 tests) and moves normalizedList, so DOM-37R/38R/39R exist only here and DOM-32R changes shape. test:twi goes 262/13 files -> 285/14 files.",
+    "d441679": "fix(twi): make the owner-gate lock unevadable and register Task 5\u2019s mutants \u2014 fix round 1, merged at df9af7a. Its guard was LEXICAL: line scans anchored by indexOf. API-30 to API-50 are measured against exactly this tree (29 contract checks, test:twi 353, typecheck:twi 0), and each entry records whether it survived it \u2014 ten of the twenty-one did not, four of those only because an indexOf anchor went to -1.",
+    "df9af7a": "The base of fix round 2: fix round 1 merged into codex/twi-research-center-design. npm test 7/7, test:twi 353, test:twi:contracts 29 checks \u2014 the baseline reproduced before any probe in round 2. Round 2 raises the contract check to 33 checks."
   },
 
   "purpose": [
@@ -1834,19 +1844,33 @@
       ],
       "testCommand": "npx vitest run --config vitest.twi.config.ts src/twi/server && npm run test:twi:contracts",
       "fullSuiteCommand": "npm test",
-      "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it.",
+      "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it. Fix round 2 widens this sharply: API-30 to API-50 are ALL text-only facts and only TWO of them (API-31, API-32) are visible to test:twi at all. API-30 \u2014 a resource-scoped gate exemption \u2014 is simultaneously green on test:twi, typecheck:twi AND fix round 1\u2019s 29-check contract check, which is precisely why the contract check must not delegate this class to the unit suite: those 401 tests enumerate the resources that EXIST.",
       "historicalNumbering": "M1-M21 from task-5-report.md, plus M22 published in the same section as \"Gap 3\". Gate 2 added one probe (its spot-check 4) and re-verified three of the 21. Fix round 1 added six. The API-* ids are this manifest\u2019s and are one-to-one with those labels via historicalLabels.",
       "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase.",
-      "liveCount": 29,
-      "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`.",
+      "liveCount": 50,
+      "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together.",
       "retiredCount": 0,
       "provenanceRounds": [
         "task-5-report.md (M1-M21 plus M22 as Gap 3; M10 and M11 recorded there as survivors it closed)",
         "task-5-gate2-quality-review.md (re-verified M5/M11/M14 independently; contributed API-23 as a measured survivor)",
         "task-5-gate1-spec-review.md (Minor 4: probes D and E, the same hole as gate 2 Important 1, found independently)",
-        "task-5-fix-round1-report.md (API-24-API-29; closed API-23 and API-27-API-29; re-measured API-05/11/14)"
+        "task-5-fix-round1-report.md (API-24-API-29; closed API-23 and API-27-API-29; re-measured API-05/11/14)",
+        "task-5-rereview-round1.md (15 constructions against fix round 1\u2019s guard; ELEVEN beat it \u2014 contributed API-30 to API-39)",
+        "task-5-fix-round2-report.md (API-40 to API-50, invented while attacking round 2\u2019s own guard; closed API-30 to API-39)"
       ],
       "methodNote": "ALL 29 were applied for real in fix round 1, one at a time, and reverted \u2014 not transcribed. Anchor uniqueness was checked mechanically before each application (the driver aborts the mutant rather than half-applying it), and every target file was verified byte-identical to an in-memory pristine copy afterwards. Anchors were chosen to sit in CODE, never in a comment, so the two comment edits fix round 1 made to the route file cannot invalidate them.",
+      "measuredInFixRound2": {
+        "round": "task-5-fix-round2",
+        "at": "fix/twi-gate-lock-structural, base df9af7a",
+        "scope": "API-30 to API-50 only. `measuredInThisRound` is fix round 1\u2019s block and covers API-01 to API-29; do not add the two scores together.",
+        "baselineFirst": "npm ci plain, exit 0. node scripts/twi-contract-check.mjs 29 checks exit 0; npx vitest run --config vitest.twi.config.ts 353 passed \u2014 reproduced before any probe.",
+        "suitesRun": "node scripts/twi-contract-check.mjs for all 21; plus vitest run --config vitest.twi.config.ts and tsc --noEmit -p tsconfig.twi.json for the ten re-review constructions.",
+        "score": "21/21 killed by the round-2 guard, 0 survivors, 0 ambiguous anchors",
+        "priorGuardMeasuredNotAssumed": "scripts/twi-contract-check.mjs was extracted verbatim from d441679 and run against every construction, so each `notKilledBy` verdict here is MEASURED rather than assumed. Against that 29-check guard: API-30 to API-39 all survived, which reproduces the re-review\u2019s table exactly and is this harness\u2019s own validation. Of the eleven invented in round 2, four survived (API-42, API-45, API-46, API-47), one was mixed by spelling (API-48) and six were already caught (API-40, API-41, API-43, API-44, API-49, API-50).",
+        "reMeasuredExisting": "API-27, API-28 and API-29 were re-applied because the assertion that kills them was reimplemented. All three still exit 1, and each now carries `premise.reimplementedIn`. API-01 to API-26 were not re-applied wholesale and their records are untouched.",
+        "falsePositivesRetired": "Four classes of correct code that fix round 1\u2019s guard rejected now pass, all measured both ways: a trailing comment containing the word \"return\" on the preflight line and inside the gate; `return (await handler(\u2026));`; and `return cond ? await handler(\u2026) : json(\u2026, 405);`. None of them is a mutant \u2014 they are the cost the line scan imposed on a future editor, and they are gone because comments are not part of an AST and parentheses unwrap.",
+        "notCommitted": "The probe driver again lives in a session scratchpad and is NOT committed, per the README\u2019s \"No runner, deliberately\". It restores every probed file and asserts byte identity after each one. This round finally satisfies `futureRunner`\u2019s SYNTAX GATE, though not inside the driver: the contract check now asserts that the route file PARSES, so a mutant that breaks the syntax is reported as a parse failure instead of being scored as a kill."
+      },
       "measuredInThisRound": {
         "round": "task-5-fix-round1",
         "at": "fix/twi-task5-gate-hardening, base f24cc24",
@@ -2890,7 +2914,13 @@
             "dependsOn": "the hardened scripts/twi-contract-check.mjs added in fix round 1",
             "claim": "The kill signal is a contract assertion that did not exist in Task 5. Against Task 5\u2019s own check (26 checks, commit 615e2a5) this mutant is a MEASURED SURVIVOR, not a killed one.",
             "crossCheck": "Measured both ways in fix round 1: exit 0 against the 26-check version, exit 1 against the 29-check version, with the FAIL message quoting the offending line.",
-            "failureMode": "If a later round simplifies the pre-gate denylist or the await assertion back to an idiom allowlist, these mutants revert to survivors while every unit test stays green. That is the exact state gate 2 found and this round closed."
+            "failureMode": "If a later round simplifies the pre-gate denylist or the await assertion back to an idiom allowlist, these mutants revert to survivors while every unit test stays green. That is the exact state gate 2 found and this round closed.",
+            "reimplementedIn": {
+              "round": "task-5-fix-round2",
+              "what": "The assertion named in `killedBy` kept its NAME and was rewritten from a line scan into a parse of the route file (scripts/lib/twi-route-structure.mjs), so the killedBy entry is still literally accurate.",
+              "reMeasured": "Re-applied and reverted in fix round 2 against the 33-check structural version: exit 1.",
+              "note": "The failureMode above still holds and now has a wider form. Reverting to a line scan resurrects not only these three but API-30 to API-50 \u2014 24 mutants at once, with npm test green throughout."
+            }
           },
           "notes": "Variants G and H were found in fix round 1 and are not in either gate\u2019s list. H matters most: it defeats any check that reasons about which LINE a route is on, because the route shares the preflight\u2019s line. The assertion handles it by counting `return` occurrences on that line rather than merely matching it."
         },
@@ -2939,7 +2969,13 @@
             "dependsOn": "the hardened scripts/twi-contract-check.mjs added in fix round 1",
             "claim": "The kill signal is a contract assertion that did not exist in Task 5. Against Task 5\u2019s own check (26 checks, commit 615e2a5) this mutant is a MEASURED SURVIVOR, not a killed one.",
             "crossCheck": "Measured both ways in fix round 1: exit 0 against the 26-check version, exit 1 against the 29-check version, with the FAIL message quoting the offending line.",
-            "failureMode": "If a later round simplifies the pre-gate denylist or the await assertion back to an idiom allowlist, these mutants revert to survivors while every unit test stays green. That is the exact state gate 2 found and this round closed."
+            "failureMode": "If a later round simplifies the pre-gate denylist or the await assertion back to an idiom allowlist, these mutants revert to survivors while every unit test stays green. That is the exact state gate 2 found and this round closed.",
+            "reimplementedIn": {
+              "round": "task-5-fix-round2",
+              "what": "The assertion named in `killedBy` kept its NAME and was rewritten from a line scan into a parse of the route file (scripts/lib/twi-route-structure.mjs), so the killedBy entry is still literally accurate.",
+              "reMeasured": "Re-applied and reverted in fix round 2 against the 33-check structural version: exit 1.",
+              "note": "The failureMode above still holds and now has a wider form. Reverting to a line scan resurrects not only these three but API-30 to API-50 \u2014 24 mutants at once, with npm test green throughout."
+            }
           },
           "notes": "Not raised by either gate. Found while enumerating ways a route can answer without the gate, which is the class gate 2\u2019s Important 1 named. The guard is a plain absence assertion, so it also fails if a later task legitimately wants onRequestPost \u2014 at which point the gate has to be moved into that handler too, deliberately, which is the intended conversation.",
           "spotChecked": {
@@ -2997,9 +3033,1459 @@
             "dependsOn": "the hardened scripts/twi-contract-check.mjs added in fix round 1",
             "claim": "The kill signal is a contract assertion that did not exist in Task 5. Against Task 5\u2019s own check (26 checks, commit 615e2a5) this mutant is a MEASURED SURVIVOR, not a killed one.",
             "crossCheck": "Measured both ways in fix round 1: exit 0 against the 26-check version, exit 1 against the 29-check version, with the FAIL message quoting the offending line.",
-            "failureMode": "If a later round simplifies the pre-gate denylist or the await assertion back to an idiom allowlist, these mutants revert to survivors while every unit test stays green. That is the exact state gate 2 found and this round closed."
+            "failureMode": "If a later round simplifies the pre-gate denylist or the await assertion back to an idiom allowlist, these mutants revert to survivors while every unit test stays green. That is the exact state gate 2 found and this round closed.",
+            "reimplementedIn": {
+              "round": "task-5-fix-round2",
+              "what": "The assertion named in `killedBy` kept its NAME and was rewritten from a line scan into a parse of the route file (scripts/lib/twi-route-structure.mjs), so the killedBy entry is still literally accurate.",
+              "reMeasured": "Re-applied and reverted in fix round 2 against the 33-check structural version: exit 1.",
+              "note": "The failureMode above still holds and now has a wider form. Reverting to a line scan resurrects not only these three but API-30 to API-50 \u2014 24 mutants at once, with npm test green throughout."
+            }
           },
           "notes": "The assertion admits exactly two forms inside the gated try: `return await \u2026` and `return json(\u2026)`. Whole-line comments are stripped before the scan, which is load-bearing \u2014 the region\u2019s own comment contains the literal text `return somePromise`, and an unstripped scan would report the documentation as the violation."
+        },
+        {
+          "id": "API-30",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P8",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P8"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "significance": "the worst construction of the three review rounds \u2014 no comment trick, no exotic spelling, and green on the contract check, test:twi AND typecheck:twi",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a RESOURCE-SCOPED gate exemption: the gate is present, early and byte-identical to the old anchor, and simply does not run for one resource"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    await requireOwnerSession(request, env);\n",
+            "replace": "    if (segments[0] !== 'health') await requireOwnerSession(request, env);\n",
+            "anchorUnique": true,
+            "note": "The published construction also adds a matching `health` branch BELOW the gate. The exemption alone is the mutation; the branch is what makes it useful. Both were applied together when measured."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "SURVIVED the 29-check lexical guard fix round 1 left (measured at d441679 by the scoped re-review, and reproduced independently in fix round 2: exit 0).",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "BLIND \u2014 the pre-gate denylist finds `gateIndex` by indexOf of the exact gate text, which is still present; every route still sits below it; the region above it still holds exactly one return, the preflight"
+              },
+              {
+                "file": "npm run test:twi at d441679",
+                "result": "BLIND BY CONSTRUCTION \u2014 the 401-with-no-cookie tests enumerate the four resources that EXIST. 353/353 green with /api/twi/health public"
+              }
+            ],
+            "why": "The lock asserted WHERE the gate sits, never that it RUNS. Fix round 2 asserts the gate statement has no enclosing condition up to the handler body, which is a fact about control flow rather than about position."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P8",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, 3 checks red, message: \"the gate is CONDITIONAL \u2014 enclosed by IfStatement: if (segments[0] !== 'health') await requireOwnerSession(request, env);\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-31",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P5",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P5"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a METHOD-SCOPED gate exemption, which makes every GET route public"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    await requireOwnerSession(request, env);\n",
+            "replace": "    if (method !== 'GET') await requireOwnerSession(request, env);\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Unlike API-30 this one was ALREADY caught at d441679 \u2014 by src/twi/server/route-dispatch.test.ts, which asserts 401 for the four resources that exist and so fails 5 tests. It is recorded because the contract check must not depend on that: the same trick scoped to a resource nobody has written a test for is API-30, and the unit suite is blind to it.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679",
+                "result": "BLIND \u2014 same reason as API-30: the anchored text is intact and the ordering is unchanged"
+              }
+            ],
+            "why": "Same class as API-30. Kept as a separate entry because its kill history differs: unit suite yes, contract check no."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P5",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, 3 contract checks red; test:twi 5 failed / 348 passed, as at d441679"
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-32",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P6",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P6"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the gate wrapped in its OWN try whose catch allows anonymous through"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    await requireOwnerSession(request, env);\n",
+            "replace": "    try { await requireOwnerSession(request, env); } catch { /* anonymous allowed */ }\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Also already caught at d441679 by route-dispatch.test.ts (6 failures), for the same reason and with the same limitation as API-31.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679",
+                "result": "BLIND \u2014 the anchored gate text is present and in the right place; nothing asked whether its failure stops the request"
+              }
+            ],
+            "why": "Fix round 2 requires exactly ONE try between the gate and the handler body, and requires it to be a direct statement of that body. An inner try is therefore a second one and fails. The mapping catch is additionally required to end in return or throw, so an empty catch fails twice over."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P6",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, message: \"the gate must sit in exactly one try (the one that maps its 401), found 2\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-33",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P9",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P9"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "significance": "the evasion with the highest chance of happening by accident: it is how you add a route in Pages Functions",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/health.ts",
+            "construct": "a SIBLING Pages Function file with its own ungated onRequest"
+          },
+          "mutation": {
+            "kind": "add-file",
+            "find": null,
+            "replace": null,
+            "anchorUnique": false,
+            "describedAs": "create functions/api/twi/health.ts, a second Pages Function module in the gated directory",
+            "payload": "import { json } from '../../../src/twi/server/http';\n\nexport const onRequest = async (): Promise<Response> => json({ status: 'ok', private: false });\n"
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "functions/api/twi/ holds only the gated catch-all, so no sibling file can answer beside it",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "SURVIVED the 29-check lexical guard fix round 1 left (measured at d441679 by the scoped re-review, and reproduced independently in fix round 2: exit 0).",
+            "blindSuites": [
+              {
+                "file": "every script in scripts/ at d441679",
+                "result": "BLIND \u2014 none enumerated any directory under functions/. The only readdirSync was scripts/twi-bundle-check.mjs over the BUILT bundle. `nested TWI route exists` asserts one path exists and nothing asserted what else does"
+              },
+              {
+                "file": "npm test at d441679",
+                "result": "BLIND \u2014 ALL SUITES PASSED (7/7) with the file present. No suite imports it and no suite lists the directory"
+              }
+            ],
+            "why": "Cloudflare Pages resolves /api/twi/health to the more specific health.ts, so the gate sits in a file that is never entered. The gate cannot defend a file it is not in, so fix round 2 pins the INVENTORY of the directory instead, recursively, with an empty publicAllowlist."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P9",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, message names the file and states the two ways to resolve it (route it through the gate, or allowlist it and mark it TWI-PUBLIC-ROUTE:)"
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-34",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P2 / P10",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P2 and \u00a7P10"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a LEADING block comment on the offending line, which deleted the whole line from the scan"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n",
+            "replace": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n  /* public health probe, no auth needed */ if (segments[0] === 'debug') return json({ leak: 'ok' });\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "SURVIVED the 29-check lexical guard fix round 1 left (measured at d441679 by the scoped re-review, and reproduced independently in fix round 2: exit 0).",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679",
+                "result": "BLIND \u2014 statementLines() dropped any line whose trimmed form starts with '/*', so a line that BEGINS with a block comment and continues into live code was dropped whole. The helper's own docblock ruled this case out in prose and did not handle it"
+              }
+            ],
+            "why": "Comments are not part of an AST. The same construction inside the gate (published as P10) blinded the awaited-return assertion for the same reason and dies the same way."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P2 and \u00a7P10",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1 for both placements. Above the gate: \"IfStatement above the gate: /* public health probe \u2026 */ if (segments[0] === \u2026\". Inside the gate: \"UNAWAITED: /* fast path, already cached */ if (resource === 'projects' \u2026\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-35",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P4",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P4"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a DECOY gate string inside a comment, which moved the first-occurrence indexOf anchor"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n",
+            "replace": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n  // Gate reference for maintainers: await requireOwnerSession(request, env);\n  if (segments[0] === 'debug') return json({ leak: 'ok' });\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "SURVIVED the 29-check lexical guard fix round 1 left (measured at d441679 by the scoped re-review, and reproduced independently in fix round 2: exit 0).",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679",
+                "result": "BLIND for the useful placement \u2014 gateIndex took the FIRST occurrence anywhere in the file text, comments included, so the pre-gate region shrank to the part already clean. Placed in the file HEADER instead it failed closed, which is why only the after-the-preflight placement went green"
+              }
+            ],
+            "why": "There is no text anchor left to move: the gate is located as an AST node and the pre-gate region is the statements that precede it in the handler body."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P4",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"IfStatement above the gate: if (segments[0] === 'debug') return json({ leak: 'ok' });\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-36",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P11",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P11"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "information disclosure",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a nested `} catch (error) {` spelled identically to the real one, truncating the scanned region"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    if (resource === 'projects' && id && !sub && method === 'GET') return await getProject(id, repo);\n",
+            "replace": "    if (resource === 'projects' && id && !sub && method === 'GET') return await getProject(id, repo);\n\n    try {\n      JSON.parse('{}');\n    } catch (error) {\n      console.error('[twi] warmup', error instanceof Error ? error.name : 'unknown');\n    }\n\n    if (resource === 'recent' && !id && method === 'GET') return listProjects(repo);\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "SURVIVED the 29-check lexical guard fix round 1 left (measured at d441679 by the scoped re-review, and reproduced independently in fix round 2: exit 0).",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679",
+                "result": "BLIND \u2014 catchIndex took the FIRST occurrence of the literal `} catch (error) {`, so a nested try spelled the same way truncated the region and everything after it went unexamined. The vacuity guard still passed because the truncated region kept the earlier `return await` lines"
+              }
+            ],
+            "why": "The gated region is now the try statement\u2019s own block, taken from the AST, and every return in it is examined at every nesting depth. There is no slice to mis-take."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P11",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"UNAWAITED: if (resource === 'recent' && !id && method === 'GET') return listProjects(repo);\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-37",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P3 (widened)",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P3"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the CORS preflight exemption widened by one `||`, keeping its exemption"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n",
+            "replace": "  if (method === 'OPTIONS' || segments[0] === 'debug') return new Response(null, { status: 204, headers: { ...cors(), 'x-twi-probe': 'leaked' } });\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "SURVIVED the 29-check lexical guard fix round 1 left (measured at d441679 by the scoped re-review, and reproduced independently in fix round 2: exit 0).",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679",
+                "result": "BLIND \u2014 isPreflightReturn asked only whether the TEXT `method === 'OPTIONS'` appeared on the line, never whether it was the WHOLE condition. 204 forbids a body but headers are unconstrained, and a side effect can ride in the condition itself"
+              }
+            ],
+            "why": "The preflight is now verified as a shape: the condition must be exactly the `method === 'OPTIONS'` comparison, there is no else, the branch is one return, the first argument is the null literal and the status is the literal 204."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P3",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"IfStatement above the gate: if (method === 'OPTIONS' || segments[0] === 'debug') return ne\u2026\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-38",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P7",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P7"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "information disclosure",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "answering above the gate by THROW, with no `return` token on the line"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    // Add new TWI routes BELOW this gate. See the header.\n",
+            "replace": "    // Add new TWI routes BELOW this gate. See the header.\n    if (segments[0] === 'debug') throw new HttpError(200, 'leaked-secret-payload');\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "SURVIVED the 29-check lexical guard fix round 1 left (measured at d441679 by the scoped re-review, and reproduced independently in fix round 2: exit 0).",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679",
+                "result": "BLIND \u2014 the denylist counted `return` tokens, and its stated premise was that a route cannot answer without one. HttpError takes any status and the mapping catch answers it verbatim, so this replies 200 {\"error\":\"leaked-secret-payload\"} to an unauthenticated caller"
+              }
+            ],
+            "why": "The pre-gate region is no longer described by what it may return but by what it may CONTAIN: variable declarations and one verified preflight. A ThrowStatement is neither."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P7",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"IfStatement above the gate: if (segments[0] === 'debug') throw new HttpError(200, \u2026\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-39",
+          "historicalLabels": [
+            {
+              "round": "task-5-rereview-round1",
+              "label": "P14",
+              "publishedIn": "task-5-rereview-round1.md \u00a7P14"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "onRequestGe\\u0074 \u2014 a verb export declared with a unicode escape in the identifier"
+          },
+          "mutation": {
+            "kind": "append",
+            "find": null,
+            "replace": null,
+            "anchorUnique": false,
+            "describedAs": "append a second Pages handler export to the route file",
+            "payload": "export const onRequestGe\\u0074 = async (): Promise<Response> =>\n  json({ leak: 'public GET handler' });\n"
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "onRequest is the only Pages handler in the TWI function, so no verb export can answer beside the gate",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "SURVIVED the 29-check lexical guard fix round 1 left (measured at d441679 by the scoped re-review, and reproduced independently in fix round 2: exit 0).",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679",
+                "result": "BLIND \u2014 JavaScript admits \\uXXXX escapes inside identifiers, so this declares onRequestGet while the regex /\\bonRequest(?:Get|Post|\u2026)\\b/ never matched"
+              }
+            ],
+            "why": "Export names are collected as DECODED identifiers from the AST, and any exported name beginning with `onRequest` other than `onRequest` itself fails \u2014 a prefix rule rather than an enumeration of the seven verbs."
+          },
+          "provenance": {
+            "introducedIn": "task-5-rereview-round1.md \u00a7P14",
+            "section": "evasion attempts",
+            "originalVerdict": "SURVIVED \u2014 29 contract checks green at d441679, per the re-review table and reproduced here",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"\u2014 exports onRequestGet\". The message prints the decoded name, which is the point"
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-40",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the gate present, unconditional and in the right place, but NOT awaited \u2014 a floating promise"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    await requireOwnerSession(request, env);\n",
+            "replace": "    requireOwnerSession(request, env);\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "all owner routes call requireOwnerSession",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2. It is NOT a former survivor: the 29-check lexical guard at d441679 already caught it. exit 1, 5 checks red at d441679 \u2014 caught INCIDENTALLY. Dropping `await` breaks both the /await requireOwnerSession\\(request, env\\)/ regex and the gateIndex anchor, so several checks collapse for a structural reason. Nothing there asserted the gate is awaited. Recorded anyway, because round 2 catches it as a STATED fact rather than as a side effect of a broken anchor, and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "NOT BLIND \u2014 exit 1, 5 checks red at d441679 \u2014 caught INCIDENTALLY. Dropping `await` breaks both the /await requireOwnerSession\\(request, env\\)/ regex and the gateIndex anchor, so several checks collapse for a structural reason. Nothing there asserted the gate is awaited."
+              }
+            ],
+            "why": "An unawaited gate rejects into a floating promise and the route table runs anyway, so every route is public while the gate line is still there to read. Not tried by any of the three review rounds. The structural check requires the call\u2019s parent to be an AwaitExpression whose parent is an ExpressionStatement."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "ALREADY KILLED at d441679, incidentally rather than by assertion (measured in fix round 2) \u2014 round 2 kills it as a stated fact",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, 6 checks red, message: \"the requireOwnerSession call is not awaited: requireOwnerSession(request, env);\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-41",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the gate as an operand of `||`, so it is a statement expression and still conditional"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    await requireOwnerSession(request, env);\n",
+            "replace": "    (method === 'GET') || (await requireOwnerSession(request, env));\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2. It is NOT a former survivor: the 29-check lexical guard at d441679 already caught it. exit 1, 4 checks red at d441679 \u2014 caught INCIDENTALLY. `(await requireOwnerSession(request, env));` does not contain the anchored substring `await requireOwnerSession(request, env);`, so gateIndex became -1 and three checks failed closed. Recorded anyway, because round 2 catches it as a STATED fact rather than as a side effect of a broken anchor, and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "NOT BLIND \u2014 exit 1, 4 checks red at d441679 \u2014 caught INCIDENTALLY. `(await requireOwnerSession(request, env));` does not contain the anchored substring `await requireOwnerSession(request, env);`, so gateIndex became -1 and three checks failed closed."
+              }
+            ],
+            "why": "A conditional gate that is not an `if`. Short-circuit evaluation skips the gate for GET without any enclosing statement to notice. Caught because the awaited call must be the ENTIRE expression of its statement."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "ALREADY KILLED at d441679, incidentally rather than by assertion (measured in fix round 2) \u2014 round 2 kills it as a stated fact",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, message: \"the awaited gate is an expression, not a statement, so it can be conditional: (method === 'GET') || (await requireOwnerSession\u2026\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-42",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/_middleware.ts",
+            "construct": "a sibling _middleware.ts, which Pages runs BEFORE the catch-all"
+          },
+          "mutation": {
+            "kind": "add-file",
+            "find": null,
+            "replace": null,
+            "anchorUnique": false,
+            "describedAs": "create functions/api/twi/_middleware.ts, a second Pages Function module in the gated directory",
+            "payload": "interface Ctx {\n  request: Request;\n  next: () => Promise<Response>;\n}\n\nexport const onRequest = async (ctx: Ctx): Promise<Response> => {\n  if (new URL(ctx.request.url).pathname === '/api/twi/health') {\n    return new Response('ok', { status: 200 });\n  }\n  return await ctx.next();\n};\n"
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "functions/api/twi/ holds only the gated catch-all, so no sibling file can answer beside it",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2 while attacking round 2's own guard. Measured against the 29-check lexical guard at d441679: SURVIVED. exit 0, all 29 checks green at d441679",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "BLIND \u2014 exit 0, all 29 checks green at d441679"
+              }
+            ],
+            "why": "The same class as API-33 and a more plausible accident: middleware is the documented place to put cross-cutting logic, and it can answer instead of calling next(). Caught by the same directory inventory."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "SURVIVED the 29-check lexical guard (measured in fix round 2, exit 0) \u2014 killed by the structural assertions added in the same round",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"_middleware.ts can answer /api/twi/* WITHOUT the gate in [[route]].ts\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-43",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the gate reached through a module-scope alias, so the real gate can be swapped out"
+          },
+          "mutation": {
+            "kind": "multi-site",
+            "sites": [
+              {
+                "find": "import { requireOwnerSession } from '../../../src/twi/server/auth';\n",
+                "replace": "import { requireOwnerSession } from '../../../src/twi/server/auth';\n\nconst requireSession = requireOwnerSession;\n"
+              },
+              {
+                "find": "    await requireOwnerSession(request, env);\n",
+                "replace": "    await requireSession(request, env);\n"
+              }
+            ],
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "all owner routes call requireOwnerSession",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2. It is NOT a former survivor: the 29-check lexical guard at d441679 already caught it. exit 1, 5 checks red at d441679 \u2014 caught INCIDENTALLY, by the same -1 anchor: `await requireSession(...)` is not the anchored text. Recorded anyway, because round 2 catches it as a STATED fact rather than as a side effect of a broken anchor, and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "NOT BLIND \u2014 exit 1, 5 checks red at d441679 \u2014 caught INCIDENTALLY, by the same -1 anchor: `await requireSession(...)` is not the anchored text."
+              }
+            ],
+            "why": "Indirection through a local name is the shape a real weakening would take (alias today, no-op tomorrow). The check requires exactly one CALL to `requireOwnerSession` inside onRequest, so an alias reads as zero and fails closed."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "ALREADY KILLED at d441679, incidentally rather than by assertion (measured in fix round 2) \u2014 round 2 kills it as a stated fact",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"expected exactly ONE requireOwnerSession call in onRequest, found 0\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-44",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a switch-statement route table above the gate"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n",
+            "replace": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n  switch (segments[0]) {\n    case 'debug':\n      return json({ leak: 'switch' });\n    default:\n      break;\n  }\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2. It is NOT a former survivor: the 29-check lexical guard at d441679 already caught it. exit 1 at d441679 \u2014 this one the denylist really did see: the `return json(...)` inside the switch is a bare pre-gate return on its own line. Recorded anyway, because round 2 catches it as a STATED fact rather than as a side effect of a broken anchor, and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "NOT BLIND \u2014 exit 1 at d441679 \u2014 this one the denylist really did see: the `return json(...)` inside the switch is a bare pre-gate return on its own line."
+              }
+            ],
+            "why": "No review round tried a dispatch construct other than `if`. It is caught not because `switch` is enumerated but because the pre-gate region admits only declarations and the verified preflight, so every other statement kind fails by default \u2014 including ones nobody has thought of."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "ALREADY KILLED at d441679, incidentally rather than by assertion (measured in fix round 2) \u2014 round 2 kills it as a stated fact",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"SwitchStatement above the gate: switch (segments[0]) {\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-45",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "data loss",
+          "significance": "answering is not the only way to abuse an ungated path",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "an unauthenticated D1 WRITE above the gate that answers nothing at all"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n",
+            "replace": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n  const purge = env.DB.prepare('DELETE FROM twi_projects').run();\n  void purge;\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2 while attacking round 2's own guard. Measured against the 29-check lexical guard at d441679: SURVIVED. exit 0, all 29 checks green at d441679",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "BLIND \u2014 exit 0, all 29 checks green at d441679"
+              }
+            ],
+            "why": "Every guard so far reasoned about ANSWERING \u2014 returns, throws, handler exports. A destructive statement above the gate needs none of those, and a variable declaration is otherwise legal up there. So the pre-gate region additionally forbids any reference to `env`, which is D1, the bindings and every secret; the destructuring that BINDS it is the sole exception, and `request` stays readable because reading a request discloses nothing."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "SURVIVED the 29-check lexical guard (measured in fix round 2, exit 0) \u2014 killed by the structural assertions added in the same round",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"`env` is reachable above the gate: const purge = env.DB.prepare('DELETE FROM twi_projects')\u2026\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-46",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "information disclosure",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a secret smuggled out through the CORS preflight response HEADERS"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });\n",
+            "replace": "  if (method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors(), 'x-twi-db': env.DB ? 'bound' : 'missing' } });\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2 while attacking round 2's own guard. Measured against the 29-check lexical guard at d441679: SURVIVED. exit 0, all 29 checks green at d441679",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "BLIND \u2014 exit 0, all 29 checks green at d441679"
+              }
+            ],
+            "why": "The preflight is the one thing allowed to answer above the gate, so it is the one place a payload can ride out. 204 forbids a body; it does not forbid headers. Caught by the same no-`env` rule as API-45, applied to the preflight statement as well as to declarations \u2014 the first draft of the round-2 check exempted the preflight from that scan and this mutant is why it does not."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "SURVIVED the 29-check lexical guard (measured in fix round 2, exit 0) \u2014 killed by the structural assertions added in the same round",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"`env` is reachable above the gate: if (method === 'OPTIONS') return new Response(null, { s\u2026\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-47",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "information disclosure",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a second route table AFTER the try/catch, outside the mapping catch"
+          },
+          "mutation": {
+            "kind": "multi-site",
+            "sites": [
+              {
+                "find": "    return json({ error: 'not found', code: 'not_found' }, 404);\n",
+                "replace": ""
+              },
+              {
+                "find": "    return json({ error: 'internal error', code: 'internal_error', correlationId }, 500);\n  }\n};\n",
+                "replace": "    return json({ error: 'internal error', code: 'internal_error', correlationId }, 500);\n  }\n\n  if (segments[0] === 'debug') return json({ leak: 'after-try' });\n  return json({ error: 'not found', code: 'not_found' }, 404);\n};\n"
+              }
+            ],
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2 while attacking round 2's own guard. Measured against the 29-check lexical guard at d441679: SURVIVED. exit 0, all 29 checks green at d441679, in both spellings (answering directly, and calling a handler)",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "BLIND \u2014 exit 0, all 29 checks green at d441679, in both spellings (answering directly, and calling a handler)"
+              }
+            ],
+            "why": "Statements after the try are outside the catch that maps failures, so a handler called there escapes to Pages\u2019 own 500 with the repository message \u2014 the exact F2 leak \u2014 whether it is awaited or not. They were also outside every assertion, which examine the try\u2019s block. The check now requires the try to be the LAST statement of the handler."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "SURVIVED the 29-check lexical guard (measured in fix round 2, exit 0) \u2014 killed by the structural assertions added in the same round",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"code follows the gated try, so it answers outside the catch that maps failures\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-48",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "auth boundary",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "onRequest as a thin alias for an ungated handler defined above it"
+          },
+          "mutation": {
+            "kind": "multi-site",
+            "sites": [
+              {
+                "find": "export const onRequest = async (ctx: TwiRouteContext): Promise<Response> => {\n",
+                "replace": "const handle = async (ctx: TwiRouteContext): Promise<Response> => {\n"
+              },
+              {
+                "find": null,
+                "replace": null,
+                "describedAs": "append `export const onRequest = handle;`"
+              }
+            ],
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2. Against the 29-check lexical guard at d441679 the two spellings differ. MIXED at d441679. `export const onRequest = handle;` SURVIVED (exit 0, 29/29) because /export const onRequest =/ still matched the alias line. `export { handle as onRequest };` was CAUGHT, incidentally, because that same regex then matched nothing.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "BLIND \u2014 MIXED at d441679. `export const onRequest = handle;` SURVIVED (exit 0, 29/29) because /export const onRequest =/ still matched the alias line. `export { handle as onRequest };` was CAUGHT, incidentally, because that same regex then matched nothing."
+              }
+            ],
+            "why": "The point is not that this particular alias is ungated \u2014 it is that the check must FAIL CLOSED when it cannot find the handler to analyse, rather than pass because it found nothing to complain about. Measured in both spellings: `export const onRequest = handle;` and `export { handle as onRequest };`."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "MIXED against the 29-check lexical guard \u2014 one spelling survived, the other was caught incidentally (measured in fix round 2)",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1 in both spellings, \"the exported onRequest handler was not found, or its body is not a block\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-49",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "information disclosure",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "a promise returned through an `as` cast, dodging the awaited-return rule"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    if (resource === 'projects' && !id && method === 'GET') return await listProjects(repo);\n",
+            "replace": "    if (resource === 'projects' && !id && method === 'GET') return listProjects(repo) as unknown as Response;\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2. It is NOT a former survivor: the 29-check lexical guard at d441679 already caught it. exit 1 at d441679 \u2014 the cast leaves `return listProjects(repo) as \u2026` on the line and the negative lookahead saw it. Recorded anyway, because round 2 catches it as a STATED fact rather than as a side effect of a broken anchor, and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "NOT BLIND \u2014 exit 1 at d441679 \u2014 the cast leaves `return listProjects(repo) as \u2026` on the line and the negative lookahead saw it."
+              }
+            ],
+            "why": "API-29 models the unawaited handler written plainly. This is the same leak wearing a cast, which also silences the type error that would otherwise reveal it. Caught because only three expression shapes are admitted (await, `json(\u2026)`, and a conditional whose branches are both admitted) and everything else is named."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "ALREADY KILLED at d441679, incidentally rather than by assertion (measured in fix round 2) \u2014 round 2 kills it as a stated fact",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"UNAWAITED: if (resource === 'projects' && !id && method === 'GET') return listProjects(repo) as unknown as Respon\u2026\""
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
+        },
+        {
+          "id": "API-50",
+          "historicalLabels": [
+            {
+              "round": "task-5-fix-round2",
+              "label": null,
+              "publishedIn": "task-5-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "fail-closed regression guard",
+          "appliesAtCommit": "d441679",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the mapping catch binds a name the body never reads"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  } catch (error) {\n",
+            "replace": "  } catch (err) {\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the owner gate is UNCONDITIONAL and reached on every path that can answer",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "nothing above the owner gate answers except the CORS preflight",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every handler returned inside the gate is awaited, so no rejection escapes the catch",
+              "measured": true
+            }
+          ],
+          "notKilledBy": {
+            "note": "Not published by any review round \u2014 invented in fix round 2. It is NOT a former survivor: the 29-check lexical guard at d441679 already caught it. exit 1 at d441679 \u2014 caught, but for the wrong reason: catchIndex became -1 and the await assertion failed closed. Renaming the binding AND the mapping consistently would have passed round 1, and passes round 2 too, correctly. Recorded anyway, because round 2 catches it as a STATED fact rather than as a side effect of a broken anchor, and a guard that catches a thing by accident stops catching it the moment the accident is tidied away.",
+            "blindSuites": [
+              {
+                "file": "scripts/twi-contract-check.mjs at d441679 (29 checks)",
+                "result": "NOT BLIND \u2014 exit 1 at d441679 \u2014 caught, but for the wrong reason: catchIndex became -1 and the await assertion failed closed. Renaming the binding AND the mapping consistently would have passed round 1, and passes round 2 too, correctly."
+              }
+            ],
+            "why": "Recorded because it is the ONE construction fix round 1's check caught that the first draft of round 2's did not. Round 1 caught it by accident: catchIndex became -1 and the await check failed closed. Round 2 restored it as a fact rather than a name \u2014 the catch must bind an identifier and the block must read it \u2014 so renaming the binding consistently is now allowed and renaming it while the mapping still says `error` is not."
+          },
+          "provenance": {
+            "introducedIn": "task-5-fix-round2-report.md",
+            "section": "new constructions",
+            "originalVerdict": "ALREADY KILLED at d441679, incidentally rather than by assertion (measured in fix round 2) \u2014 round 2 kills it as a stated fact",
+            "closedBy": "task-5-fix-round2-report.md"
+          },
+          "spotChecked": {
+            "at": "fix/twi-gate-lock-structural, base df9af7a",
+            "byRound": "task-5-fix-round2",
+            "result": "killed",
+            "observed": "exit 1, \"the catch binds `err` and never reads it, so its mapping references something else\". Also caught by test:twi and typecheck:twi, since the mapping references an unbound name"
+          },
+          "premise": {
+            "dependsOn": "the STRUCTURAL gate assertions added in fix round 2 (scripts/lib/twi-route-structure.mjs, imported by scripts/twi-contract-check.mjs)",
+            "claim": "The kill signal is a parse of the route file, not a scan of its lines. Against the 29-check lexical version fix round 1 left (commit d441679) this mutant is a MEASURED SURVIVOR.",
+            "crossCheck": "Measured both ways in fix round 2: exit 0 against the 29-check lexical version, exit 1 against the 33-check structural version, with the failure message naming the construct.",
+            "failureMode": "If a later round replaces the AST analysis with a line scan again \u2014 for speed, or to drop the typescript import \u2014 every entry carrying this premise reverts to a survivor while every unit test stays green. That is the exact state the scoped re-review of fix round 1 found, twice over."
+          }
         }
       ]
     }

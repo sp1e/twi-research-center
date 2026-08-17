@@ -148,6 +148,50 @@ shape of the `M29` collision above. `API-01`–`API-22` are pinned one-to-one to
 at `ac034a4` and do **not** include this set. Its numbers live in `sets[api].measuredInThisRound`.
 Do not add the two together.
 
+One correction to this section as it was first written: it said "Every entry carries `measured: true`."
+No entry has a top-level `measured` field — the flag is on each item inside `killedBy`, where all
+items across all entries do carry it. The substance was right and the sentence put it in the wrong
+place.
+
+## Added in v1.2.0 — `API-30` to `API-50` (the owner gate, structurally)
+
+A scoped re-review attacked fix round 1's hardened guard with **15 constructions and eleven beat
+it** — eight of them green on the contract check, `test:twi` and `typecheck:twi` at the same time.
+The two worst needed no trickery at all:
+
+```ts
+if (segments[0] !== 'health') await requireOwnerSession(request, env);   // present, early, CONDITIONAL
+```
+
+and a sibling file `functions/api/twi/health.ts` with its own ungated `onRequest`, which Cloudflare
+Pages prefers by path specificity while the gate sits in a file that is never entered. Both were
+invisible because the guard was a **line scan over one file** — and the fact it needed to pin is
+neither lexical nor positional. Round 2 replaced it with a parse (`scripts/lib/twi-route-structure.mjs`,
+using the `typescript` devDependency) plus a recursive directory inventory. These 21 entries are the
+record of what that closes.
+
+- **21/21 killed** by the round-2 guard, measured at `fix/twi-gate-lock-structural` (base `df9af7a`),
+  after reproducing that tree's baseline first (contract check 29, `test:twi` 353).
+- **The prior guard was measured, not assumed.** `scripts/twi-contract-check.mjs` was extracted
+  verbatim from `d441679` and run against all 21. `API-30`–`API-39` all survived it, which reproduces
+  the re-review's table exactly and is the harness's own validation. Of the eleven invented in round
+  2, **four** survived, **one** was mixed by spelling, and **six were already caught** — four of the
+  six only because an `indexOf` anchor went to `-1`, not because anything asserted the fact. Each
+  entry says which, rather than the set rounding all eleven up to "former survivors".
+- **A guard that catches by accident is recorded as such.** `API-50` is the one construction round 1
+  caught that round 2's first draft did not: renaming the `catch` binding. Round 1 caught it because
+  `catchIndex` became `-1`; round 2 catches it as a stated fact (the catch must bind an identifier and
+  the block must read it), so renaming consistently is now correctly allowed.
+- **Four false-positive classes retired.** Correct code that round 1's guard rejected: a trailing
+  comment containing "return" (on the preflight line *and* inside the gate), `return (await h(…));`,
+  and `return cond ? await h(…) : json(…, 405);`. None is a mutant; they were the cost the line scan
+  imposed on the next editor. Recorded in `measuredInFixRound2.falsePositivesRetired`.
+- **`futureRunner`'s syntax gate now exists**, though not in a runner: the contract check asserts the
+  route file *parses*, so a mutant that breaks the syntax is a parse failure rather than a scored kill.
+
+Round 2's numbers live in `sets[api].measuredInFixRound2`; `measuredInThisRound` beside it is fix
+round 1's. Do not add those two together either.
+
 ## No runner, deliberately
 
 The owner chose a manifest, not an executable suite. The format is shaped so a runner can consume
