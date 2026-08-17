@@ -1,6 +1,7 @@
 import { generationSpecSchema } from './schemas';
 import type { NormalizedGenerationSpec } from './schemas';
 import {
+  LYRICS_DIRECTIVE,
   LYRICS_FENCE_CLOSE,
   LYRICS_FENCE_OPEN,
   VOCAL_DIRECTIVE_PREFIXES,
@@ -52,12 +53,13 @@ function assertInstrumentalIsSilent(prompt: string): void {
 /**
  * The lyric block: the directive line, then the sung text between two fence markers.
  * Lyrics are the one legitimately multi-line field, and the fence is what lets them
- * stay that way without any line of them being readable as a directive.
+ * stay that way without any line of them being readable as a directive. The directive
+ * spells that out for the model, which is the only reader the markers alone cannot bind.
  */
 function lyricBlock(lyrics: string): string {
   if (!lyrics) return '';
   assertLyricsStayFenced(lyrics);
-  return `Use these exact section-tagged lyrics:\n${LYRICS_FENCE_OPEN}\n${lyrics}\n${LYRICS_FENCE_CLOSE}`;
+  return `${LYRICS_DIRECTIVE}\n${LYRICS_FENCE_OPEN}\n${lyrics}\n${LYRICS_FENCE_CLOSE}`;
 }
 
 export function compileLyriaPrompt(spec: NormalizedGenerationSpec): string {
