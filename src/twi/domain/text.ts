@@ -25,6 +25,17 @@ const LINE_BREAK = /[\n\r\u2028\u2029\u0085\u000B\u000C]/;
 /** Line terminators folded to a single U+000A inside lyrics. */
 const LINE_TERMINATOR = /\r\n|[\r\u2028\u2029\u0085]/g;
 
+/**
+ * Where a line of lyrics ends: every terminator {@link LINE_TERMINATOR} folds, plus
+ * the U+000A it folds them into. DERIVED from that one list rather than restated, so
+ * the normalizer and {@link closesLyricsFence} cannot drift apart about what a line
+ * is — a second hand-written character class is exactly how they drifted before.
+ *
+ * U+000B and U+000C are deliberately absent, because they are absent there: lyrics
+ * collapse them as intra-line whitespace, so they cannot end a line either.
+ */
+const LYRIC_LINE_BREAK = new RegExp(`${LINE_TERMINATOR.source}|\\n`);
+
 /** Whitespace other than the line feed, collapsed within a single lyric line. */
 const INTRA_LINE_WHITESPACE = /[^\S\n]+/g;
 
@@ -121,10 +132,17 @@ const CLOSING_IDENTITY = fenceIdentity(LYRICS_FENCE_CLOSE);
  * reduces to the marker's words once case and punctuation are dropped (so a near
  * miss like `--- end lyrics ---` cannot be read as the close either). Ordinary
  * lyrics — including every line the old reserved-prefix rule rejected — pass.
+ *
+ * "Whole line" means {@link LYRIC_LINE_BREAK}, not U+000A alone, and that is load
+ * bearing rather than tidy. The schema sees lyrics after {@link toLyricText} has
+ * folded every terminator to U+000A; the compiler's re-check exists precisely for
+ * text that skipped it. Splitting on the same set the normalizer folds makes the
+ * predicate answer identically on both, so a near miss hidden behind a CR, U+2028,
+ * U+2029 or U+0085 is no longer invisible to the layer that sees raw text.
  */
 export const closesLyricsFence = (lyrics: string): boolean =>
   lyrics.toLowerCase().includes(LYRICS_FENCE_CLOSE.toLowerCase())
-  || lyrics.split('\n').some((line) => fenceIdentity(line) === CLOSING_IDENTITY);
+  || lyrics.split(LYRIC_LINE_BREAK).some((line) => fenceIdentity(line) === CLOSING_IDENTITY);
 
 /**
  * Case- and form-insensitive identity of a normalized value. Used only as a dedup
