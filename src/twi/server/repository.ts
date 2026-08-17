@@ -46,6 +46,8 @@ import {
   type PublishCandidatesOutcome,
   type PublishCandidatesResult,
   type RegisterAssetInput,
+  type RegisterAssetOutcome,
+  type RegisterAssetResult,
   type RetryCheckpoint,
   type SaveSpecInput,
   type TransitionJobOptions,
@@ -101,6 +103,8 @@ export type {
   PublishCandidatesOutcome,
   PublishCandidatesResult,
   RegisterAssetInput,
+  RegisterAssetOutcome,
+  RegisterAssetResult,
   RetryCheckpoint,
   SaveSpecInput,
   TransitionJobOptions,
@@ -320,7 +324,7 @@ export class D1TwiRepository implements TwiRepository {
     return this.finishCost(false, input, startedAt);
   }
 
-  async registerAsset(input: RegisterAssetInput): Promise<AssetRecord> {
+  async registerAsset(input: RegisterAssetInput): Promise<RegisterAssetResult> {
     const startedAt = Date.now();
     validateAssetInput(input);
     const existingById = await findAssetById(this.env.DB, input.id);
@@ -458,7 +462,11 @@ export class D1TwiRepository implements TwiRepository {
     return { inserted };
   }
 
-  private finishAsset(asset: AssetRecord, outcome: string, startedAt: number): AssetRecord {
+  private finishAsset(
+    asset: AssetRecord,
+    outcome: RegisterAssetOutcome,
+    startedAt: number,
+  ): RegisterAssetResult {
     this.emit({
       op: 'registerAsset',
       jobId: asset.jobId ?? undefined,
@@ -466,7 +474,7 @@ export class D1TwiRepository implements TwiRepository {
       outcome,
       durationMs: Date.now() - startedAt,
     });
-    return asset;
+    return { asset, outcome };
   }
 
   private finishPublication(

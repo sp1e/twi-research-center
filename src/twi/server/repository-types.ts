@@ -207,6 +207,22 @@ export interface AppendCostResult {
   inserted: boolean;
 }
 
+/**
+ * Why a `registerAsset` call returned the asset it did.
+ *
+ * - `inserted`   — this call performed the insert.
+ * - `replayed`   — a matching asset already existed (by id or by `r2Key`)
+ *                  before this call ran; nothing was written.
+ * - `reconciled` — the insert lost a race and a matching committed row was
+ *                  found afterward; nothing was written by this call.
+ */
+export type RegisterAssetOutcome = 'inserted' | 'replayed' | 'reconciled';
+
+export interface RegisterAssetResult {
+  asset: AssetRecord;
+  outcome: RegisterAssetOutcome;
+}
+
 export interface RegisterAssetInput {
   id: string;
   projectId: string;
@@ -286,7 +302,12 @@ export interface TwiRepository {
    * duplicated row cannot inflate the total.
    */
   appendCost(input: AppendCostInput): Promise<AppendCostResult>;
-  registerAsset(input: RegisterAssetInput): Promise<AssetRecord>;
+  /**
+   * Inserts an asset row, deduplicating on `id` and on `r2Key`. Inspect
+   * `result.outcome` — a resolved promise does not mean this call wrote
+   * anything.
+   */
+  registerAsset(input: RegisterAssetInput): Promise<RegisterAssetResult>;
   /**
    * Flips the eight provisional candidate assets to `active`, stores the output
    * manifest and completes the job — all or nothing. This is the only writer
