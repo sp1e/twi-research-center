@@ -305,6 +305,64 @@ there is no count of theirs to record here and the floor lives only in the runne
 `composition` are the six `node --test` processes, which is a different thing and was being read as
 the same one.
 
+## Added in v1.6.0 — `API-51` to `API-73` (Task 6, image-reference ingestion)
+
+Task 6 is the first task to add a route since the gate settled into equalities, and the first to
+write bytes to R2. Twenty-three mutants were **applied and reverted**, not transcribed:
+**23/23 killed**, measured on `feat/twi-task6-asset-ingestion` (base `e602840`) after reproducing
+that tree's eight-suite baseline first.
+
+Read three things about this set before using it.
+
+- **None of them is a former survivor, and that is a different claim from the earlier sets'.** Every
+  previous `API-*` entry records a guard being beaten and then closed. These were written by the
+  round that wrote the code, so what they measure is whether the tests shipped *alongside* an
+  implementation can detect that implementation being wrong. That is weaker evidence than an
+  adversarial round's, and it is the honest description of it.
+- **Two of the behaviours are ORDERS, not values, and a status assertion cannot see them.** The
+  10 MiB cap must precede the byte read (`API-54`), and the declared-length refusal must precede
+  `request.formData()` (`API-56`). Under both mutations the request is *still refused with the same
+  status* — it just costs the memory or the parse first. The kill signal is a test double that
+  refuses to produce the expensive thing: a file whose `slice()`/`arrayBuffer()` throw, and a
+  `Request` whose `formData()` counts its calls. If those doubles are ever replaced with real
+  `File`s "for realism", both mutants revert to survivors with every assertion green. Both are also
+  killed independently by `scripts/twi-contract-check.mjs`, which compares the two positions in a
+  comment-free canonical AST rendering — measured separately, not assumed.
+- **`API-62` exists because mutation testing found a gap, and the gap is the interesting part.**
+  `registerAsset` returns `{ asset, outcome }`; discarding the outcome and answering `201`
+  unconditionally left the **whole suite green**, because the `outcome` field in the body was still
+  correct and no test drove a replay through the route. Reading an outcome is not using it. A test
+  was added (`answers 200, not 201, when the registration was a replay rather than a write`) and the
+  mutant then died.
+
+Two further notes, both recorded in the JSON rather than only here:
+
+- **A measurement was corrected.** The first harness kept its backup as a `.mutbak` sidecar beside
+  the file it mutated — which, under `FUNCTIONS_REGISTRY`, is an undeclared file under `functions/`.
+  The registry refused it, exactly as designed, and two registry checks therefore appeared in the
+  kill lists of `API-70` and `API-72` with no causal relation to either mutation. Both were
+  re-measured with the backup outside the repository and the spurious checks are **not** recorded.
+  Rule 9 of the working agreement warns that a mutation which fails to apply looks like a kill; this
+  is the same error in the other direction, and it inflates a guard rather than hiding a hole.
+- **`appliesAtCommit` carries a branch name, not a sha.** These entries ship in the *same* commit as
+  the code they target, so the sha did not exist when they were written — a first for this manifest.
+
+Registering `API-70` and `API-72` also grew `test:twi:structure` from **58 to 60 tests** with no edit
+to that suite: its corpus is this file's own `exact-from-source` route mutations, so a new route-file
+entry whose `killedBy` names a structural check becomes an executed assertion automatically.
+
+`measuredInTask6` in the JSON holds this round's numbers. **Do not add it to `measuredInThisRound`
+or `measuredInFixRound2`.** And 23/23 is not a coverage claim about Task 6: it says these 23
+behaviours have a discriminating test, not that every behaviour does. The known limitation is in
+`.superpowers/sdd/2026-08-16-twi-creation-core/task-6-report.md` — the upload endpoint does not cap
+how many image references a project may accumulate, because counting them needs a repository read and
+`src/twi/server/repository.ts` belongs to Task 7.
+
+**One thing this round did not fix:** the README already had a `Changed in v1.5.0` section, but that
+round left `manifestVersion` at `1.4.0` and added no `revisions` entry. Rather than claim to be
+v1.5.0 or renumber another round's work, this one took `1.6.0` and recorded the gap in
+`revisions[].versionNote`. The missing 1.5.0 entry is an open item.
+
 ## No runner, deliberately
 
 The owner chose a manifest, not an executable suite. One qualification since v1.3.0:

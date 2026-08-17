@@ -15,6 +15,7 @@ import { onRequest, type TwiRouteContext } from '../../../functions/api/twi/[[ro
 
 import { creationCoreCapabilities } from './capabilities';
 import type { D1DatabaseLike, D1PreparedStatementLike } from './d1-types';
+import type { R2BucketLike, R2ObjectLike, R2PutOptionsLike, R2PutValue } from './r2-types';
 import { SqliteD1 } from './repository.harness';
 
 const SESSIONS_TABLE = `CREATE TABLE sessions (
@@ -29,15 +30,35 @@ interface CallOptions {
   method?: string;
   cookie?: string;
   origin?: string | null;
-  body?: string;
+  body?: string | FormData;
   db?: D1DatabaseLike;
+}
+
+/**
+ * The R2 binding, recorded. Task 6 added `FILES` to `TwiEnv`, so the dispatch table
+ * cannot be driven without one — and every gate assertion below is also an assertion
+ * that nothing was written to it.
+ */
+class RecordingBucket implements R2BucketLike {
+  readonly calls: string[] = [];
+
+  async put(key: string, _value: R2PutValue, _options?: R2PutOptionsLike): Promise<R2ObjectLike | null> {
+    this.calls.push(`put:${key}`);
+    return { key, size: 0, etag: 'etag' };
+  }
+
+  async delete(keys: string | string[]): Promise<void> {
+    for (const key of Array.isArray(keys) ? keys : [keys]) this.calls.push(`delete:${key}`);
+  }
 }
 
 describe('/api/twi/* dispatch', () => {
   let db: SqliteD1;
+  let files: RecordingBucket;
 
   beforeEach(() => {
     db = new SqliteD1();
+    files = new RecordingBucket();
     db.exec(SESSIONS_TABLE);
     db.exec(
       'INSERT INTO sessions (token, expires_at) VALUES (?, ?)',
@@ -56,14 +77,24 @@ describe('/api/twi/* dispatch', () => {
     const headers = new Headers();
     if (cookie) headers.set('Cookie', cookie);
     if (origin) headers.set('Origin', origin);
-    if (body !== undefined) headers.set('Content-Type', 'application/json');
+    // FormData sets its own multipart Content-Type, boundary included; overriding it
+    // would make the body unparseable.
+    if (typeof body === 'string') headers.set('Content-Type', 'application/json');
 
     const request = new Request(`https://sp1e.se/api/twi/${route.join('/')}`, { method, headers, body });
-    const context: TwiRouteContext = { request, env: { DB: database ?? db }, params: { route } };
+    const context: TwiRouteContext = { request, env: { DB: database ?? db, FILES: files }, params: { route } };
     return onRequest(context);
   };
 
   const projectCount = () => db.value<number>('SELECT COUNT(*) FROM twi_projects');
+  const assetCount = () => db.value<number>('SELECT COUNT(*) FROM twi_assets');
+
+  /** A four-byte JPEG. The bytes are what `validateImageReference` reads; the name is not. */
+  const imageForm = (): FormData => {
+    const form = new FormData();
+    form.set('file', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'mood.jpg', { type: 'image/jpeg' }));
+    return form;
+  };
 
   describe('the owner gate', () => {
     const everyRoute: Array<[string, CallOptions]> = [
@@ -71,6 +102,10 @@ describe('/api/twi/* dispatch', () => {
       ['projects', {}],
       ['projects', { method: 'POST', origin: 'https://sp1e.se', body: '{"name":"Nocturne"}' }],
       ['projects/some-id', {}],
+      // Task 6's upload route. Added here rather than only to its own suite because
+      // this is the parametrised list that proves a route is BEHIND the gate, and a
+      // route absent from it is a route nobody checked.
+      ['projects/some-id/assets', { method: 'POST', origin: 'https://sp1e.se', body: imageForm() }],
       ['unknown-resource', {}],
     ];
 
@@ -80,6 +115,7 @@ describe('/api/twi/* dispatch', () => {
       expect(response.status).toBe(401);
       expect(await response.json()).toEqual({ error: 'Unauthorized', code: 'unauthorized' });
       expect(projectCount()).toBe(0);
+      expect(files.calls).toEqual([]);
     });
 
     it('answers 401 when the session has expired', async () => {
@@ -206,6 +242,113 @@ describe('/api/twi/* dispatch', () => {
         const body = await (await call(['projects', project.id, sub], { cookie: OWNER_COOKIE })).text();
         expect(body, sub).not.toContain('Nocturne');
       }
+    });
+  });
+
+  describe('POST /api/twi/projects/:projectId/assets', () => {
+    const owningProject = async (): Promise<string> => {
+      const created = await call(['projects'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: '{"name":"Nocturne"}',
+      });
+      return ((await created.json()) as { project: { id: string } }).project.id;
+    };
+
+    it('stores an image reference and answers 201 with the record', async () => {
+      const projectId = await owningProject();
+
+      const response = await call(['projects', projectId, 'assets'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: imageForm(),
+      });
+
+      expect(response.status).toBe(201);
+      const body = (await response.json()) as { asset: { r2Key: string; contentType: string }; outcome: string };
+      expect(body.outcome).toBe('inserted');
+      expect(body.asset.contentType).toBe('image/jpeg');
+      expect(body.asset.r2Key).toMatch(new RegExp(`^twi/${projectId}/assets/[0-9a-f-]{36}/source\\.jpg$`));
+      expect(files.calls).toEqual([`put:${body.asset.r2Key}`]);
+      expect(assetCount()).toBe(1);
+    });
+
+    it('discloses neither the binding name nor the bucket name', async () => {
+      const projectId = await owningProject();
+
+      const text = await (
+        await call(['projects', projectId, 'assets'], {
+          method: 'POST',
+          cookie: OWNER_COOKIE,
+          origin: 'https://sp1e.se',
+          body: imageForm(),
+        })
+      ).text();
+
+      expect(text).not.toContain('FILES');
+      expect(text).not.toContain('sp1e-files');
+    });
+
+    it('refuses an upload with no Origin header and writes nothing anywhere', async () => {
+      const projectId = await owningProject();
+
+      const response = await call(['projects', projectId, 'assets'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        body: imageForm(),
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: 'origin mismatch', code: 'forbidden' });
+      expect(files.calls).toEqual([]);
+      expect(assetCount()).toBe(0);
+    });
+
+    it('is POST only — a GET on the same path is the table fallthrough', async () => {
+      const projectId = await owningProject();
+
+      const response = await call(['projects', projectId, 'assets'], { cookie: OWNER_COOKIE });
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: 'not found', code: 'not_found' });
+    });
+
+    it('does not claim a fourth segment', async () => {
+      const projectId = await owningProject();
+
+      const response = await call(['projects', projectId, 'assets', 'anything'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: imageForm(),
+      });
+
+      expect(response.status).toBe(404);
+      expect(files.calls).toEqual([]);
+      expect(assetCount()).toBe(0);
+    });
+
+    it('maps a rejected upload through the error envelope rather than Pages own 500', async () => {
+      const projectId = await owningProject();
+      const form = new FormData();
+      form.set('file', new File([new Uint8Array([0x4d, 0x5a, 0x90, 0x00])], 'mood.jpg', { type: 'image/jpeg' }));
+
+      const response = await call(['projects', projectId, 'assets'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: form,
+      });
+
+      expect(response.status).toBe(415);
+      expect(await response.json()).toEqual({
+        error: 'image reference must be a JPEG, PNG or WebP image',
+        code: 'unsupported_image',
+      });
+      expect(files.calls).toEqual([]);
+      expect(assetCount()).toBe(0);
     });
   });
 

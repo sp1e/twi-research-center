@@ -85,6 +85,7 @@
  * a deploy-time failure. The contract check asserts that too.
  */
 
+import { uploadImageReference } from '../../../src/twi/server/assets';
 import { requireOwnerSession } from '../../../src/twi/server/auth';
 import { creationCoreCapabilities } from '../../../src/twi/server/capabilities';
 import type { TwiEnv } from '../../../src/twi/server/env';
@@ -143,6 +144,13 @@ export const onRequest = async (ctx: TwiRouteContext): Promise<Response> => {
     if (resource === 'projects' && !id && method === 'GET') return await listProjects(repo);
     if (resource === 'projects' && !id && method === 'POST') return await createProject(request, repo);
     if (resource === 'projects' && id && !sub && method === 'GET') return await getProject(id, repo);
+    // The R2 binding is passed as an argument and never further: nothing below puts
+    // it, its bucket name or any part of it into a response. `segments.length === 3`
+    // keeps /projects/:id/assets/anything a 404 rather than a fourth-segment alias
+    // for this route.
+    if (resource === 'projects' && id && sub === 'assets' && segments.length === 3 && method === 'POST') {
+      return await uploadImageReference(request, id, { bucket: env.FILES, repo });
+    }
 
     return json({ error: 'not found', code: 'not_found' }, 404);
   } catch (error) {
