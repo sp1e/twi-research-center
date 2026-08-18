@@ -32,7 +32,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { draft } from '../domain/spec.fixture';
 
 import { creationCoreCapabilities } from './capabilities';
-import { RIGHTS_ASSERTION_VERSION, cancelJob, retryJob, submitJob, type JobDeps } from './jobs';
+import { RIGHTS_ASSERTION_VERSION, submitJob, type JobDeps } from './jobs';
+import { cancelJob, retryJob } from './jobs-cancel-retry';
 import { FIXED_NOW, OWNER_PROJECT_ID, jobsWorld, jsonRequest, readJson, repoWith, type JobsWorld } from './jobs.harness';
 import type { JobRecord } from './repository-types';
 

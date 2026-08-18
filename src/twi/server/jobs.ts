@@ -1,4 +1,3 @@
-import { canTransition } from '../domain/job-state';
 import { estimateRequestSchema, submitJobSchema } from '../domain/schemas';
 import type { CostEstimate, JobStatus } from '../domain/types';
 
@@ -19,7 +18,17 @@ import type {
 } from './repository-types';
 
 /**
- * The creation-job use cases: estimate, submit, poll, cancel, retry.
+ * The creation-job use cases that decide whether money is spent: estimate, submit, poll.
+ *
+ * `cancelJob` and `retryJob` live in `./jobs-cancel-retry` (gate 2's M7 — this module was
+ * 595 lines carrying five use cases). They act on a job whose estimate row is already
+ * written and may create nothing, which is why the boundary is drawn there and not
+ * elsewhere. Six helpers below are `export`ed for that one consumer and for the tests:
+ * `requireJob`, `dispatch`, `startPayload`, `failDispatch`, `clockOf` and `eventKey`. They
+ * are shared, not duplicated — nothing in this project has two copies of the event-key
+ * helper — and the export is the price of not copying them. Section 13 of the contract
+ * check reads BOTH modules as one corpus, so an order or absence assertion cannot be
+ * emptied by moving a function across the boundary.
  *
  * This is the money path. Every request below either costs the owner real provider
  * money or acts on a job that already did, so the properties that matter are not
@@ -102,13 +111,13 @@ interface ReplayLookup {
   specSha256: string;
 }
 
-const clockOf = (deps: JobDeps): ProjectIdentityClock => deps.clock ?? systemIdentityClock;
+export const clockOf = (deps: JobDeps): ProjectIdentityClock => deps.clock ?? systemIdentityClock;
 
 const policyOf = (deps: JobDeps): EstimatePolicy =>
   creationCoreEstimatePolicy(deps.providerEstimateUsd ?? null);
 
 /** `${jobId}:${attempt}:${to}` — unique per attempt, which is the whole point. */
-const eventKey = (jobId: string, attempt: number, to: JobStatus): string => `${jobId}:${attempt}:${to}`;
+export const eventKey = (jobId: string, attempt: number, to: JobStatus): string => `${jobId}:${attempt}:${to}`;
 
 const costKey = (jobId: string, attempt: number): string => `${jobId}:${attempt}:estimate`;
 
@@ -185,7 +194,7 @@ const requireProject = async (projectId: string, repo: TwiRepository): Promise<v
 };
 
 /** A blank id is a request for a job that cannot exist, not a server fault. */
-const requireJob = async (jobId: string, repo: TwiRepository): Promise<JobRecord> => {
+export const requireJob = async (jobId: string, repo: TwiRepository): Promise<JobRecord> => {
   const job = jobId.trim().length === 0 ? null : await repo.findJobById(jobId);
   if (!job) throw new HttpError(404, 'job not found');
   return job;
@@ -284,7 +293,7 @@ const replayLostRace = async (
  * from its own row, so the lyrics the owner typed are not copied into a second place
  * on every submission.
  */
-const dispatch = async (deps: JobDeps, url: string, payload: Record<string, unknown>): Promise<boolean> => {
+export const dispatch = async (deps: JobDeps, url: string, payload: Record<string, unknown>): Promise<boolean> => {
   try {
     const response = await deps.orchestrator.fetch(url, {
       method: 'POST',
@@ -303,7 +312,7 @@ const dispatch = async (deps: JobDeps, url: string, payload: Record<string, unkn
   }
 };
 
-const startPayload = (job: JobRecord, attempt: number, estimate: CostEstimate | null): Record<string, unknown> => ({
+export const startPayload = (job: JobRecord, attempt: number, estimate: CostEstimate | null): Record<string, unknown> => ({
   schemaVersion: 1,
   jobId: job.id,
   projectId: job.projectId,
@@ -327,7 +336,7 @@ const startPayload = (job: JobRecord, attempt: number, estimate: CostEstimate | 
  * Both events are written under the same attempt ordinal, so the audit trail shows the
  * attempt and its outcome rather than hiding one of them. The domain is not modified.
  */
-const failDispatch = async (
+export const failDispatch = async (
   deps: JobDeps,
   job: JobRecord,
   attempt: number,
@@ -501,95 +510,4 @@ export async function listJobs(request: Request, repo: TwiRepository): Promise<R
 
 export async function getJob(jobId: string, repo: TwiRepository): Promise<Response> {
   return json({ job: await requireJob(jobId, repo) });
-}
-
-// ---------------------------------------------------------------------------
-// POST /api/twi/jobs/:id/cancel
-// ---------------------------------------------------------------------------
-
-export async function cancelJob(jobId: string, deps: JobDeps): Promise<Response> {
-  const job = await requireJob(jobId, deps.repo);
-  // The state machine decides which statuses can be cancelled — `validating` cannot,
-  // because a render that is already being checked has nothing left to stop.
-  if (!canTransition(job.status, 'cancelling')) {
-    throw new HttpError(409, `a job in ${job.status} cannot be cancelled`, 'cancel_not_allowed');
-  }
-  const attempt = await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' });
-
-  const stopped = await dispatch(deps, `${ORCHESTRATOR_ORIGIN}/cancel/${encodeURIComponent(job.id)}`, {
-    schemaVersion: 1,
-    jobId: job.id,
-    projectId: job.projectId,
-    attempt,
-  });
-  if (!stopped) {
-    // Deliberately NOT transitioned. The render is still going, and a job reported
-    // `cancelling` that nothing was ever told to stop is worse than a refusal: the
-    // owner stops watching a job that keeps spending.
-    return json({ job, outcome: 'not_cancelled', transition: null }, 502);
-  }
-
-  const cancelling = await deps.repo.transitionJob(job.id, 'cancelling', {
-    fromStatus: job.status,
-    phase: 'cancelling',
-    retryCheckpoint: null,
-    now: clockOf(deps).now(),
-    eventKey: eventKey(job.id, attempt, 'cancelling'),
-    detailJson: JSON.stringify({ schemaVersion: 1, attempt, requestedFrom: job.status }),
-  });
-  return json({ job: cancelling.job, outcome: 'cancelling', transition: cancelling.outcome }, 200);
-}
-
-// ---------------------------------------------------------------------------
-// POST /api/twi/jobs/:id/retry
-// ---------------------------------------------------------------------------
-
-/**
- * Resumes a failed job on its ORIGINAL frozen spec and idempotency key.
- *
- * Nothing here calls `saveSpec` or `createEstimatedJob`: the specification, the job row
- * and the estimate cost row are the ones the submission already wrote, so a retry
- * cannot become a second paid submission however many times it is pressed. The only
- * new rows are job events, and their keys carry the attempt ordinal.
- */
-export async function retryJob(jobId: string, deps: JobDeps): Promise<Response> {
-  const job = await requireJob(jobId, deps.repo);
-  if (job.status !== 'error') {
-    throw new HttpError(409, `only a failed job can be retried; this one is ${job.status}`, 'retry_not_allowed');
-  }
-
-  const clock = clockOf(deps);
-  // The ordinal comes from the job's own history, so it advances across retries even
-  // across isolates. Attempt 0 is the submission, so the first retry is 1.
-  const attempt = (await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' })) + 1;
-
-  const retrying = await deps.repo.transitionJob(job.id, 'retrying', {
-    fromStatus: 'error',
-    phase: 'retrying',
-    retryCheckpoint: job.retryCheckpoint ?? DEFAULT_RETRY_CHECKPOINT,
-    now: clock.now(),
-    eventKey: eventKey(job.id, attempt, 'retrying'),
-    detailJson: JSON.stringify({ schemaVersion: 1, attempt, resumedFrom: job.retryCheckpoint }),
-  });
-  // Anything but `applied` means this call did not claim the attempt — another retry
-  // did — so dispatching would start a second render against one paid job.
-  if (retrying.outcome !== 'applied') {
-    return json({ job: retrying.job, attempt, transition: retrying.outcome }, 200);
-  }
-
-  const started = await dispatch(deps, `${ORCHESTRATOR_ORIGIN}/start`, startPayload(job, attempt, job.estimate as CostEstimate | null));
-  if (!started) {
-    const failure = await failDispatch(deps, job, attempt, 'retrying');
-    return json({ job: failure.job, attempt, transition: failure.transition }, 502);
-  }
-
-  const queued = await deps.repo.transitionJob(job.id, 'queued', {
-    fromStatus: 'retrying',
-    phase: 'queued',
-    retryCheckpoint: null,
-    now: clock.now(),
-    eventKey: eventKey(job.id, attempt, 'queued'),
-    detailJson: JSON.stringify({ schemaVersion: 1, attempt, dispatched: 'start', accepted: true }),
-  });
-  return json({ job: queued.job, attempt, transition: queued.outcome }, 200);
 }
