@@ -1318,6 +1318,28 @@ Every timestamp this task writes must be JS-generated `YYYY-MM-DDTHH:MM:SS.sssZ`
 rejects anything else at its boundary and the schema rejects it again. `transitionJob` cannot write
 `complete` — only `publishCandidates` can.
 
+**Shipped-state note — step 8's `estimated → error` DOES NOT EXIST in the state machine, and the
+shipped code takes the two-edge legal path instead.** `src/twi/domain/job-state.ts` models
+`estimated: ['queued']`. That is the *only* edge out of `estimated`, so `assertTransition('estimated',
+'error')` throws and step 8 as written above is unreachable. `src/twi/domain/*` is closed to this
+task, and widening it would be the wrong fix anyway: `estimated → error` would make "failed" reachable
+without ever recording that a dispatch was attempted, which is precisely the audit fact a money path
+must not lose.
+
+The job nevertheless *has* to end in `error`, because `retryJob` is allowed only from `error` — a
+submission whose dispatch failed would otherwise be stranded in `estimated` with a paid estimate row
+and no route able to resume it. So `failDispatch` in `src/twi/server/jobs.ts` writes **two**
+transitions under **one** attempt ordinal: `estimated → queued` (which is what the dispatch attempt
+*was*, recorded with `accepted: false` in its `detail_json`), then `queued → error` with
+`orchestrator_unavailable` and a `retryCheckpoint` of `queued`. Both events are written, so the trail
+shows the attempt *and* its outcome rather than hiding one of them, and the second transition's
+precondition is read back off the first result rather than assumed, so a concurrent writer cannot
+make it fail silently. From `retrying` — the retry path — it stays a single transition, because
+`retrying → error` is modelled.
+
+Read step 8 as "**land the job in `error`**", not as a literal edge. This note is authoritative over
+the numbered item above it.
+
 - [ ] **Step 5: Add exact routes**
 
 ```text

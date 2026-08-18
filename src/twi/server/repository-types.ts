@@ -126,6 +126,43 @@ export interface FindJobByIdempotencyKeyInput {
   specSha256: string;
 }
 
+export interface ListJobsInput {
+  /** `null` lists every project's jobs; a value narrows to one project. */
+  projectId: string | null;
+  /**
+   * Hard page bound, decided by the caller and never by a query string. An unbounded
+   * list over a table the Workflow appends to is a slow leak, not a feature.
+   */
+  limit: number;
+}
+
+/**
+ * How many of `assetIds` are ACTIVE assets of `projectId`, optionally of one kind.
+ *
+ * A count rather than a fetch because the answer needed is a number: the submit path
+ * compares it against the number of references the specification asked for. `kind:
+ * null` answers "in this project at all", and the narrowed form answers "and of the one
+ * kind this provider accepts" — two questions the caller must be able to tell apart,
+ * because one is the owner's typo and the other is a capability the provider lacks.
+ */
+export interface CountProjectAssetsInput {
+  projectId: string;
+  assetIds: readonly string[];
+  kind: AssetKind | null;
+}
+
+/**
+ * How many events this job has recorded arriving at `toStatus`.
+ *
+ * The retry route's attempt ordinal, read off the job's own history rather than kept in
+ * memory: `event_key` must include it (`${jobId}:${attempt}:${to}`) or the first retry
+ * loop reuses a key and the transition is a silent no-op replay.
+ */
+export interface CountJobEventsInput {
+  jobId: string;
+  toStatus: JobStatus;
+}
+
 export interface CreateEstimatedJobInput {
   id: string;
   projectId: string;
@@ -313,6 +350,18 @@ export interface TwiRepository {
    * `src/twi/server/assets.ts` is that caller.
    */
   findAssetById(assetId: string): Promise<AssetRecord | null>;
+  /** Reads one job by id, or `null`. The polling route and every job action start here. */
+  findJobById(jobId: string): Promise<JobRecord | null>;
+  /** Newest first, bounded by `input.limit`. Ties break on `id` so the order is total. */
+  listJobs(input: ListJobsInput): Promise<JobRecord[]>;
+  /**
+   * Counts a project's ACTIVE assets among `assetIds`. See
+   * {@link CountProjectAssetsInput} for why the kind filter is optional rather than
+   * two methods.
+   */
+  countProjectAssets(input: CountProjectAssetsInput): Promise<number>;
+  /** The attempt ordinal source. See {@link CountJobEventsInput}. */
+  countJobEvents(input: CountJobEventsInput): Promise<number>;
   /**
    * Inserts the job, its `estimated` event and its estimate cost row atomically.
    * A concurrent submission of the same `idempotencyKey` is reconciled rather

@@ -1,12 +1,14 @@
 import { assertTransition } from '../domain/job-state';
 import type { JobStatus } from '../domain/types';
 
-import { assertNonBlank, assertTimestamp } from './assertions';
+import { assertEnum, assertNonBlank, assertNullableNonBlank, assertTimestamp } from './assertions';
 import type { D1ResultLike, TwiRepositoryEnv } from './d1-types';
 import { collision, conflict, validation } from './errors';
 import { mapJob, mapProject } from './mappers';
 import {
   costStatements,
+  countJobEvents,
+  countProjectAssets,
   estimatedJobStatements,
   findAssetById,
   findAssetByR2Key,
@@ -19,6 +21,7 @@ import {
   publicationStatements,
   selectActiveProjects,
   selectJobRowByKey,
+  selectJobs,
   selectProject,
   transitionStatements,
 } from './queries';
@@ -30,16 +33,21 @@ import {
   reconcileTransition,
 } from './reconciliation';
 import {
+  ASSET_KINDS,
+  JOB_STATUSES,
   RETRY_CHECKPOINTS,
   type AppendCostInput,
   type AppendCostResult,
   type AssetRecord,
+  type CountJobEventsInput,
+  type CountProjectAssetsInput,
   type CreateEstimatedJobInput,
   type CreateEstimatedJobResult,
   type CreateProjectInput,
   type FindJobByIdempotencyKeyInput,
   type GenerationSpecRecord,
   type JobRecord,
+  type ListJobsInput,
   type ProjectRecord,
   type PublishCandidatesInput,
   type PublishCandidatesOutcome,
@@ -89,6 +97,8 @@ export type {
   CandidatePublicationEntry,
   CandidatePublicationManifest,
   CostCategory,
+  CountJobEventsInput,
+  CountProjectAssetsInput,
   CreateEstimatedJobInput,
   CreateEstimatedJobOutcome,
   CreateEstimatedJobResult,
@@ -97,6 +107,7 @@ export type {
   GenerationSpecRecord,
   JobKind,
   JobRecord,
+  ListJobsInput,
   ProjectLifecycleState,
   ProjectRecord,
   PublishCandidatesInput,
@@ -218,6 +229,39 @@ export class D1TwiRepository implements TwiRepository {
   async findAssetById(assetId: string): Promise<AssetRecord | null> {
     assertNonBlank('assetId', assetId);
     return findAssetById(this.env.DB, assetId);
+  }
+
+  async findJobById(jobId: string): Promise<JobRecord | null> {
+    assertNonBlank('jobId', jobId);
+    return findJobById(this.env.DB, jobId);
+  }
+
+  async listJobs(input: ListJobsInput): Promise<JobRecord[]> {
+    assertNullableNonBlank('jobs.projectId', input.projectId);
+    if (!Number.isSafeInteger(input.limit) || input.limit <= 0) {
+      validation('jobs.limit must be a positive safe integer', { limit: input.limit });
+    }
+    const result = await selectJobs(this.env.DB, input);
+    return result.results.map(mapJob);
+  }
+
+  /**
+   * Zero ids is answered WITHOUT a query, and that is a correctness guard rather than
+   * an optimisation: the statement builds its placeholder list from the array, so an
+   * empty list would send `id IN ()` — which SQLite refuses outright.
+   */
+  async countProjectAssets(input: CountProjectAssetsInput): Promise<number> {
+    assertNonBlank('assets.projectId', input.projectId);
+    if (input.kind !== null) assertEnum('assets.kind', input.kind, ASSET_KINDS);
+    if (input.assetIds.length === 0) return 0;
+    input.assetIds.forEach((assetId, index) => assertNonBlank(`assets.assetIds[${index}]`, assetId));
+    return countProjectAssets(this.env.DB, input);
+  }
+
+  async countJobEvents(input: CountJobEventsInput): Promise<number> {
+    assertNonBlank('events.jobId', input.jobId);
+    assertEnum('events.toStatus', input.toStatus, JOB_STATUSES);
+    return countJobEvents(this.env.DB, input);
   }
 
   async createEstimatedJob(input: CreateEstimatedJobInput): Promise<CreateEstimatedJobResult> {
