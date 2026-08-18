@@ -1458,7 +1458,7 @@ class_name = "TwiRenderWorkflow"
 `index.ts` exposes internal `/start`, `/status/:id`, `/cancel/:id`, and `/callback/modal`. `/start` calls:
 
 ```ts
-await env.TWI_RENDER_WORKFLOW.create({ id: body.jobId, params: body });
+await env.TWI_RENDER_WORKFLOW.create({ id: `${body.jobId}:${body.attempt}`, params: body });
 ```
 
 `workflow.ts` must execute named steps `load-job`, `generate-A`, `generate-B`, `persist-raw`, `finish`, `validate`, and `publish`. Each generation step writes raw audio to R2 inside the same `step.do` callback and returns only a small manifest; no base64 audio crosses a Workflow step boundary.
@@ -1467,7 +1467,41 @@ The fake-provider path skips Modal finishing and writes the same deterministic W
 
 - [ ] **Step 6: Test atomic publication and duplicate start**
 
-The Workflow test must prove assets remain `provisional` until both candidates validate, both become `active` in one D1 batch, and a second `/start` using the same job ID returns the existing Workflow rather than running generation again.
+The Workflow test must prove assets remain `provisional` until both candidates validate, both become `active` in one D1 batch, and that a second `/start` for the same job id AND the same attempt returns the existing Workflow rather than running generation again — while a `/start` for the same job id at a HIGHER attempt starts a NEW run. See the amendment below.
+
+**AMENDMENT, 2026-08-19 — the instance id must carry the attempt, or retry cannot run.**
+
+Three facts, each verified in the shipped code rather than reasoned about:
+
+1. `src/twi/server/jobs.ts:461` dispatches a SUBMIT to `/start` with `SUBMIT_ATTEMPT`, which is `0`
+   (`jobs.ts:71`).
+2. `src/twi/server/jobs.ts:580` dispatches a RETRY to the SAME `/start`, with `attempt` derived as the
+   count of `retrying` events plus one — so 1, then 2, and so on.
+3. Step 5 above originally keyed the Workflow instance on `body.jobId` alone, and Step 6 originally
+   required that a second `/start` for the same job id return the existing Workflow.
+
+Taken together those three made every retry UNREACHABLE. Attempt 1 arrives at `/start`, finds the
+instance already created for that job id, and is handed back the FAILED first run — so the
+duplicate-start protection would have swallowed the retry it was never written to see, and a paid
+retry would have quietly resolved to the old outcome. Nothing would have reported an error.
+
+Neither package could have caught it alone, which is the point. `twi-orchestrator` has its own
+package, its own vitest and its own fakes, so its suite would assert "a duplicate start returns the
+existing run" as a FEATURE and pass. The Pages side counts dispatches against a fake binding and
+passes too. The defect lives in the SEAM between them, which is why this task also owes a
+cross-package check pinning the envelope the Worker accepts against the keys `startPayload` actually
+emits: `schemaVersion`, `jobId`, `projectId`, `specId`, `specSha256`, `idempotencyKey`, `attempt`,
+`estimate`. Two suites can stay green while those two shapes drift apart.
+
+So duplicate detection is scoped to the PAIR (job id, attempt): the same job at the same attempt
+collapses to one run, and the same job at a higher attempt starts a new one. `/cancel/:id` already
+receives `attempt` in its POST body, so it can resolve the instance for the attempt being cancelled
+instead of guessing which run is current.
+
+The id builder must REJECT a missing or non-integer `attempt` rather than interpolating it. An
+absent field would otherwise produce a stable, plausible-looking id that every malformed call
+collides on — a worse failure than the one this amendment removes, because it would look like
+working idempotency.
 
 - [ ] **Step 7: Verify Worker tests/typecheck**
 
