@@ -2,6 +2,14 @@
 
 Working state of the TWI Research Center Creation Core build. Written 2026-08-17, at tip `1da7968`.
 
+> **STALE as of 2026-08-18 — Tasks 6 and 7 have since landed, so the "Task 6 is next" heading below
+> is WRONG.** The tip is now `00ebaae`, and every count in §2 has moved (twi 523 tests, contracts 79
+> checks, structure 60 tests). A full refresh is queued behind the Task 7 fix round. The
+> authoritative record of what happened in between is the working ledger at
+> `.superpowers/sdd/2026-08-16-twi-creation-core/progress.md`, which is gitignored and therefore
+> exists only on the machine that built it. Sections 4, 5, 7 and 8 still hold as written, and §4
+> item 15 is the standing two-repository rule.
+
 This file is **in the repository on purpose**. Every controller ledger and gate report for this
 project lives in `.superpowers/`, which is gitignored — none of it ships. When an earlier session's
 process exited mid-flight, the resuming session had no committed record of what had been built or
@@ -265,6 +273,17 @@ original session's self-assessment did not. Keep it.
     did not converge; two closed-set equalities did (§7). When an assertion of the form "nothing bad
     appears here" has been falsified three times, the shape is the problem, not the diligence. State
     the cost of the narrowing rather than hiding it.
+15. **Every landing updates BOTH repositories.** Standing instruction, 2026-08-18, in force until
+    this project is finished. The TWI work is published twice: it ships from `sp1e.se` and it is
+    mirrored to the TWI Research Center repository, and a landing is not done until both carry it.
+    The procedure is `npm run sync:twi-mirror`, run after the source branch is pushed and green. It
+    re-derives the extraction from `scripts/twi-mirror-paths.txt` rather than trusting a remembered
+    argument list, refuses to publish commits that are not on origin, refuses to force-push, and
+    re-checks coverage on every run because a path enumeration decays silently. Never hand-copy
+    files into the mirror: the merge that script performs is what keeps every future sync a
+    fast-forward instead of a rewrite of published history. Both guards are proven to fire rather
+    than merely present, in a sandbox: the coverage check names an uncovered TWI path, and the
+    leakage check names unrelated documents dragged in by a widened spec.
 
 ---
 
