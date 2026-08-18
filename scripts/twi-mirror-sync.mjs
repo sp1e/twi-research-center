@@ -51,6 +51,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
 const SPEC_PATH = 'scripts/twi-mirror-paths.txt'
@@ -88,7 +89,7 @@ const argValue = (name) => {
 }
 
 const SOURCE_BRANCH = argValue('--branch') ?? DEFAULT_SOURCE_BRANCH
-const scriptDir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 const source = path.resolve(scriptDir, '..')
 const mirror = path.resolve(argValue('--mirror') ?? path.join(source, '..', MIRROR_SLUG))
 
