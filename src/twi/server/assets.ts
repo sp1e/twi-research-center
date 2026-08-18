@@ -27,10 +27,18 @@ import type { AssetRecord, RegisterAssetOutcome } from './repository-types';
  *        · the body stream is then read under a HARD bound of
  *          {@link MAX_MULTIPART_BODY_BYTES} and the parser is handed those bytes
  *          rather than the socket, so a body that declares no length, declares a
- *          non-numeric one or understates it can still only cost that bound. This
- *          bound exists because measurement showed the earlier claim was false:
- *          `formData()` buffers an undeclared body IN FULL first, and the only
- *          ceiling on it was Cloudflare's own request limit;
+ *          non-numeric one or understates it costs that bound PLUS AT MOST THE LARGEST
+ *          CHUNK the producer hands over — the bound is checked once per chunk, and a
+ *          chunk is already in the isolate by the time its length can be added up.
+ *          Measured over an HTTP request that is 114,688 bytes (the chunk that crossed
+ *          the bound plus one chunk of read-ahead); measured over a hand-built stream
+ *          that hands over one 48 MiB chunk it is 50,331,648, because that is what
+ *          `read()` resolved with. Not reachable over HTTP, where the socket bounds the
+ *          chunk and Cloudflare's request limit is the outer ceiling, and not fixable
+ *          here — the allocation precedes `read()` returning. This bound exists at all
+ *          because measurement showed the earlier claim was false: `formData()` buffers
+ *          an undeclared body IN FULL first, and the only ceiling on it was
+ *          Cloudflare's own request limit;
  *        · `validateImageReference` measures `file.size` before reading a byte of
  *          content and then reads only the 16-byte probe window.
  *      The third is the verdict on the image; the first two bound what the isolate
@@ -47,6 +55,13 @@ import type { AssetRecord, RegisterAssetOutcome } from './repository-types';
  *      brief orphan object rather than a row pointing at nothing: a row whose object
  *      is absent is a broken reference the wizard cannot render, while an object
  *      whose row is absent is invisible and is deleted here anyway.
+ *      TWO THINGS MAKE THAT TRUE UNDER CONCURRENCY, and both exist because property 4
+ *      made the object key SHARED: the put is conditional on nothing being stored
+ *      there yet, and the rollback deletes only an object NO COMMITTED ROW NAMES. The
+ *      lesson is worth keeping: while the key carried a fresh UUID, "clean up my own
+ *      orphan" and "delete whatever is at this key" were the same sentence, and the
+ *      compensating delete was correct. Deriving the key changed what the sentence
+ *      described while leaving the argument for it word for word intact.
  *   4. THE UPLOAD'S IDENTITY COMES FROM THE CLIENT, NOT FROM A FRESH UUID. A 10 MiB
  *      upload is the request most likely to be retried after a timeout, and an
  *      identity minted per call makes every retry a second object and a second row
@@ -55,7 +70,13 @@ import type { AssetRecord, RegisterAssetOutcome } from './repository-types';
  *      site serves, and the asset id is DERIVED from it (see
  *      {@link deriveImageAssetId}). Deriving the identity from the CONTENT instead
  *      would mean buffering the whole upload before the deduplication decision could
- *      be taken — the cost property 1 exists to refuse.
+ *      be taken — the cost property 1 exists to refuse. THE CLIENT OWNS ONE HALF OF
+ *      THIS CONTRACT: reusing a key for DIFFERENT bytes is answered as a replay of the
+ *      first upload — 200, the first asset's record, the second payload never stored —
+ *      because comparing payloads would cost exactly that buffering. The answer carries
+ *      `sha256`, `bytes` and `contentType`, so detecting such a mismatch is one
+ *      comparison, and it is the CLIENT's to make: a client that does not compare is
+ *      told 200 and will believe bytes were stored that were not.
  *
  * The public shape is `AssetRecord`. The binding never leaves this module — it
  * arrives as a parameter, is used, and is not put in any response.
@@ -130,8 +151,13 @@ export const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
  * Prefixed so the same key can never derive the same value in a different context —
  * a bare `sha256(projectId + key)` would collide with any other feature that hashes
  * the same two strings.
+ *
+ * `v2` because the PREIMAGE changed shape, not just its content: v1 delimited the two
+ * variable-length fields with a newline, which is ambiguous (see
+ * {@link deriveImageAssetId}), and a domain constant that survived the change would
+ * have described two different constructions.
  */
-const ASSET_IDENTITY_DOMAIN = 'twi/image-reference/identity/v1';
+const ASSET_IDENTITY_DOMAIN = 'twi/image-reference/identity/v2';
 
 export type ImageExtension = 'jpg' | 'png' | 'webp';
 
@@ -275,11 +301,29 @@ const uuidNibble = (byte: number, index: number): number => {
  * It is a digest of a short string, so it costs nothing and — unlike a digest of the
  * upload itself — it is available BEFORE the body is read. That is the whole point:
  * the deduplication decision is taken while the request is still cheap.
+ *
+ * THE PREIMAGE IS LENGTH-PREFIXED, NOT MERELY DELIMITED, and that is a correctness
+ * property rather than a style. Concatenating two variable-length fields around a
+ * separator is ambiguous the moment either field can contain the separator: measured,
+ * the earlier `DOMAIN\n{projectId}\n{key}` gave
+ * `derive(id + '\nEXTRA', 'key') === derive(id, 'EXTRA\nkey')` —
+ * both `d06e617a-b115-86df-a075-fd8b340ab9b8`. Nothing in this function required an
+ * LF-free `projectId`. The three things that in fact supplied one all live OUTSIDE it:
+ * the HTTP runtime refuses LF in a header value, `getProject` matches byte-exactly
+ * against server-minted UUIDs, and {@link imageReferenceR2Key}'s segment rule — which
+ * the replay path returns BEFORE reaching. A second caller inherits none of the three,
+ * so the invariant belongs to the primitive that needs it. `{length}:{value}` makes the
+ * decomposition unique for every pair of well-formed inputs, so distinct
+ * `(projectId, key)` pairs cannot share a digest. ("Well-formed" is the one honest
+ * qualifier: `TextEncoder` maps an unpaired surrogate to U+FFFD, so two strings that
+ * differ only in unpaired surrogates encode identically — unreachable through a header
+ * or a UUID, and stated rather than glossed.)
  */
 export async function deriveImageAssetId(projectId: string, idempotencyKey: string): Promise<string> {
+  const field = (value: string): string => `${value.length}:${value}`;
   const digest = await crypto.subtle.digest(
     'SHA-256',
-    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\n${projectId}\n${idempotencyKey}`),
+    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\n${field(projectId)}\n${field(idempotencyKey)}`),
   );
   const hex = [...new Uint8Array(digest).slice(0, 16)]
     .map(uuidNibble)
@@ -296,10 +340,18 @@ export async function deriveImageAssetId(projectId: string, idempotencyKey: stri
  * `request.formData()`, which is what happened for every body before this existed.
  *
  * The bound is enforced as the bytes arrive and the stream is CANCELLED at the first
- * chunk that crosses it, so an oversize body costs the bound and not its own size.
- * That is the honest version of a claim this module used to make: `formData()` on a
- * body with no `Content-Length` buffers all of it before anyone can measure it, which
- * was measured at 10,485,885 bytes pulled for a body the endpoint then refused.
+ * chunk that crosses it, so an oversize body costs `limit` plus at most ONE CHUNK
+ * rather than its own size. Per chunk is the honest unit: `value` is already in the
+ * isolate when its length is added to `seen`, so the guaranteed ceiling is
+ * `limit + max(chunk)` and the chunk size is the producer's choice. Measured over HTTP
+ * that is 10,616,832 pulled against a 10,502,144 bound — 114,688 over, being the
+ * crossing chunk plus one chunk of undici read-ahead; measured against a stream built
+ * to hand over a single 48 MiB chunk it is 50,331,648. The second shape is not
+ * reachable over HTTP and not fixable in code, which is why it is stated rather than
+ * claimed away. Either way this is the honest version of a claim this module used to
+ * make: `formData()` on a body with no `Content-Length` buffers all of it before anyone
+ * can measure it, which was measured at 10,485,885 bytes pulled for a body the endpoint
+ * then refused.
  */
 const readBoundedBody = async (request: Request, limit: number): Promise<ArrayBuffer | null> => {
   const stream = request.body;
@@ -431,8 +483,12 @@ export function imageReferenceR2Key(projectId: string, assetId: string, extensio
  * replay, instead of reporting a creation that did not happen.
  *
  * `input.assetId` is the identity the caller decided, which makes `registerAsset`'s
- * deduplication reachable for the first time — and makes one failure mode reachable
- * with it, handled in the catch below: a second writer holding the same identity.
+ * deduplication reachable for the first time — and makes a SHARED OBJECT KEY reachable
+ * with it. Three places below exist for that one consequence, and each one is answered
+ * where it surfaces rather than by assuming the race away: the put is conditional so a
+ * second writer cannot overwrite the first's bytes, a `registerAsset` collision is
+ * answered 409 without deleting anything, and the compensating delete first asks whether
+ * a committed row names this key.
  */
 export async function createImageAsset(
   input: CreateImageAssetInput,
@@ -454,7 +510,24 @@ export async function createImageAsset(
   }
 
   const sha256 = await sha256Hex(body);
-  await bucket.put(r2Key, body, { httpMetadata: { contentType: descriptor.contentType } });
+  // CONDITIONAL, because the key is shared by every concurrent writer of one idempotency
+  // key. An unconditional put let the second writer overwrite the first writer's object
+  // while the first writer's row kept its own `sha256` and `bytes` — measured: row 8
+  // bytes / 9720c604…, object 10 bytes / df5aa251…. A row whose digest does not describe
+  // the object it names is a false provenance record in a subsystem whose whole purpose
+  // is provenance, and nothing downstream would ever notice. `null` means the key was
+  // already taken, which is the same situation the collision branch below answers.
+  const stored = await bucket.put(r2Key, body, {
+    httpMetadata: { contentType: descriptor.contentType },
+    onlyIf: { etagDoesNotMatch: '*' },
+  });
+  if (stored === null) {
+    throw new HttpError(
+      409,
+      `${IDEMPOTENCY_KEY_HEADER} is already held by another upload of this project`,
+      'idempotency_key_in_flight',
+    );
+  }
 
   try {
     // Timestamps are minted in JS, never by SQLite: `datetime('now')` emits no
@@ -492,16 +565,40 @@ export async function createImageAsset(
         'idempotency_key_in_flight',
       );
     }
-    // Compensate, then rethrow the ORIGINAL failure. A delete that also fails must
-    // not replace the diagnosis with its own: the caller needs to know why the row
-    // was refused, and the orphan is a storage cost, not a correctness one.
+    // Compensate ONLY for an object no committed row names, then rethrow the ORIGINAL
+    // failure. The re-read is what makes the delete safe: `r2Key` is derived, so it is
+    // SHARED with every concurrent writer of this idempotency key, and "clean up the
+    // orphan I just made" and "delete whatever is at this key" stopped being the same
+    // sentence the moment the key stopped carrying a fresh UUID. Measured before this
+    // guard existed: a losing writer whose insert failed for a NON-collision reason
+    // deleted the winner's committed object, leaving one row pointing at absent bytes
+    // and a retry answering 200 for an asset that was no longer stored. The collision
+    // branch above closed one arm of exactly this reasoning; this is the rest of it.
+    let committedKey: string | null;
     try {
-      await bucket.delete(r2Key);
-    } catch (cleanupError) {
-      console.error('[twi] orphaned R2 object after a failed asset insert', {
+      committedKey = (await repo.findAssetById(assetId))?.r2Key ?? null;
+    } catch (lookupError) {
+      // Cannot tell whose object this is. Keeping it costs storage; deleting a committed
+      // row's bytes costs correctness — the same trade property 3 above is chosen for —
+      // so the unknown case keeps the object and says so.
+      committedKey = r2Key;
+      console.error('[twi] kept a possibly orphaned R2 object: the owner lookup failed', {
         r2Key,
-        error: cleanupError instanceof Error ? cleanupError.name : typeof cleanupError,
+        error: lookupError instanceof Error ? lookupError.name : typeof lookupError,
       });
+    }
+    if (committedKey !== r2Key) {
+      // A delete that also fails must not replace the diagnosis with its own: the caller
+      // needs to know why the row was refused, and the orphan is a storage cost, not a
+      // correctness one.
+      try {
+        await bucket.delete(r2Key);
+      } catch (cleanupError) {
+        console.error('[twi] orphaned R2 object after a failed asset insert', {
+          r2Key,
+          error: cleanupError instanceof Error ? cleanupError.name : typeof cleanupError,
+        });
+      }
     }
     throw error;
   }
