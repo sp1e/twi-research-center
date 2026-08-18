@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.8.0",
+  "manifestVersion": "1.9.0",
   "recordedAt": "2026-08-18",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -82,6 +82,15 @@
       "why": "Task 7 is the first task whose every route either spends provider money or acts on a job that already did, and it was inherited from an implementer whose process died before the mutation round it owed. Four of the 27 are measured SURVIVORS of the suite that implementer left behind \u2014 the list page bound, the estimate amount actually charged, and a cancel from two of its four legal states \u2014 so this round records a guard being beaten, not merely tests agreeing with the code they shipped beside.",
       "scopeNote": "measuredInTask7 carries the numbers: 23/27 killed against the inherited suite, 27/27 after the four survivors were closed by 13 added tests. Neither figure may be added to measuredInTask6, measuredInThisRound or measuredInFixRound2 \u2014 each was measured on a different commit against a suite of a different size.",
       "mergeNote": "This entry and the task-6-fix-round2 entry above it BOTH took version 1.8.0: they were written concurrently on two branches off 8e6f289 and landed in the same merge of feat/twi-task7-submit into codex/twi-research-center-design. Neither was renumbered — renumbering another round’s account is the thing v1.6.0’s versionNote refused to do — so 1.8.0 names two rounds and the `round` field is the discriminator. Each `what` above states the total against ITS OWN base of 176, so 181 and 203 are both correct and NEITHER is the post-merge total: the union is 208 entries (176 + Task 7’s 27 + fix round 2’s 5, id ranges disjoint by construction) with sets[api].liveCount 120. The 208 and the 120 were counted from the resolved data, not added up from the two sides’ figures. Fix round 2’s six anchor repairs (DOM-09 site 2, DOM-32R, API-21, API-60, API-61, API-80) survive the merge intact; Task 7 edited no existing entry, so nothing about them was contested."
+    },
+    {
+      "version": "1.9.0",
+      "round": "task-7-fix-round1",
+      "at": "fix/twi-task7-hardening, base 1e5d4c3",
+      "what": "Added API-116 to API-119 and API-125 to API-136 (16 entries). The api set goes 120 -> 136 live and total entries 208 -> 224. No entry retired, no id reused. Two existing entries edited and neither weakened: API-20's killedBy citation follows the section 6 check RENAME (predicate unchanged, re-measured under the mutant), and the api set's liveCount and provenanceRounds record this round.",
+      "why": "Gate 2 BLOCKED Task 7 with three Importants and an 8-survivor ledger of its own. The two that matter are behavioural: two concurrent submits of one Idempotency-Key answered 500 internal_error rather than replaying, so the branch the module header calls contract 3 was unreachable in production and its only test supplied the outcome through a repoWith override; and every post-lookup failure leaked a twi_generation_specs row containing the lyrics the owner typed, measured as specs = 2, jobs = 1. The rest are coverage: five facts the change's own comments call load-bearing, each with a mutation that survived all 523 tests, all 79 contract checks and typecheck:twi.",
+      "scopeNote": "The 15/16 kill figure was measured against the four job suites at 86 tests on this branch, and must not be added to measuredInTask7, measuredInTask6, measuredInThisRound, measuredInFixRound2 or measuredInTask6FixRound2 \u2014 each was measured on a different commit against a suite of a different size. API-119, API-125, API-126, API-127, API-128, API-129, API-130, API-131 and API-132 were measured SURVIVORS at 1e5d4c3 by gate 2 (its HUNT-A/B/F/K/L/I/M/N/G) and are killed only because this round added the tests; their provenance says so rather than presenting them as tests agreeing with code shipped beside them.",
+      "idNote": "API-116..API-119 were RESERVED-BY-GAP at Task 6 fix round 2 for Task 7 and never spent; this round spends them and then continues at API-125, the first id the reservation left free above Task 6 fix round 2's API-120..API-124. The gap between 119 and 125 is now closed and no id was reused."
     }
   ],
 
@@ -159,20 +168,20 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "the working tree on top of parent commit b84a0a0, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
+      "measuredAt": "the working tree on top of parent commit 1e5d4c3, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (8/8), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 523, "files": 23 },
+        "test:twi": { "tests": 541, "files": 25 },
         "test:twi:schema": { "tests": 39 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
         "test:twi:contracts": { "checks": 79, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added. Zero check names have ever been removed." },
         "test:migrations": { "tests": 10 },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "909 tests plus 87 script checks",
+      "totals": "927 tests plus 87 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 208-entry set against any single commit (the figure read 138 while the manifest was v1.4.0 and was not revised as the set grew; corrected in v1.8.0, and corrected again to 208 when the two concurrent v1.8.0 rounds merged — the two sides carried 181 and 203, each true against its own base of 176, and 208 is the union COUNTED from the resolved entries). This block records the suite the mutants would be measured against, not a score."
@@ -1934,7 +1943,7 @@
       "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it. Fix round 2 widens this sharply: API-30 to API-50 are ALL text-only facts and only TWO of them (API-31, API-32) are visible to test:twi at all. API-30 \u2014 a resource-scoped gate exemption \u2014 is simultaneously green on test:twi, typecheck:twi AND fix round 1\u2019s 29-check contract check, which is precisely why the contract check must not delegate this class to the unit suite: those 401 tests enumerate the resources that EXIST.",
       "historicalNumbering": "M1-M21 from task-5-report.md, plus M22 published in the same section as \"Gap 3\". Gate 2 added one probe (its spot-check 4) and re-verified three of the 21. Fix round 1 added six. The API-* ids are this manifest\u2019s and are one-to-one with those labels via historicalLabels.",
       "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase. A SECOND kind of collision appeared at Task 6 fix round 2, and the answer is a reserved gap rather than a rule: Task 7's salvage was adding API-* entries to this same file at the same time, and both rounds would otherwise have taken API-89 next. Fix round 2 therefore took API-120..API-124 and RESERVED API-89..API-119 for Task 7, so the two sets cannot overlap whichever merges first. A gap in the numbering is not a deletion — retiredCount stays 0 and 'only ever increase' is preserved — and a concurrent round should reserve forward the same way rather than negotiate for the next free id. THE RESERVATION HELD: Task 7 landed in the merge that brought both rounds together and took API-89..API-115 out of the reserved range, so the two sets are disjoint and no id was renumbered on either side. API-116..API-119 were never spent and stay a gap — again not a deletion, retiredCount is still 0 — and the next free id is API-125.",
-      "liveCount": 120,
+      "liveCount": 136,
       "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response. Task 6 fix round 1 added API-75 to API-88 (14 entries) and fix round 2 added API-120 to API-124 (5); the latter skip API-89..API-119 deliberately — see idCollisionAvoidance. Fix round 2's five numbers live in measuredInTask6FixRound2 and belong to none of the blocks above. Task 7 verification added API-89 to API-115 (27 entries) for the creation-job money path \u2014 estimate, idempotent submit, poll, cancel and retry. FOUR of them (API-102, API-112, API-114, API-115) are MEASURED SURVIVORS of the suite that task\u2019s original implementer left behind, each now killed by a test added in the same round; the other 23 were killed on first application. Its numbers live in `measuredInTask7` and belong to none of the blocks above. Those two rounds were concurrent, which is why the id ranges are not contiguous: API-89..API-115 (Task 7) and API-120..API-124 (fix round 2), with API-116..API-119 reserved and unspent. liveCount 120 is the COUNT of entries in this set after the merge, not 93 + 115 and not either side’s figure.",
       "retiredCount": 0,
       "provenanceRounds": [
@@ -1944,7 +1953,8 @@
         "task-5-fix-round1-report.md (API-24-API-29; closed API-23 and API-27-API-29; re-measured API-05/11/14)",
         "task-5-rereview-round1.md (15 constructions against fix round 1\u2019s guard; ELEVEN beat it \u2014 contributed API-30 to API-39)",
         "task-5-fix-round2-report.md (API-40 to API-50, invented while attacking round 2\u2019s own guard; closed API-30 to API-39)",
-        "task-7-report.md (API-89 to API-115, the money-path round: 27 applied and reverted, 23/27 killed against the inherited suite, 27/27 after four survivors were closed)"
+        "task-7-report.md (API-89 to API-115, the money-path round: 27 applied and reverted, 23/27 killed against the inherited suite, 27/27 after four survivors were closed)",
+        "task-7-fix-round1-report.md (API-116 to API-119 \u2014 the reserved unspent gap \u2014 and API-125 to API-136: the concurrent-submit replay, the orphan specification reap, and the five load-bearing claims gate 2 found unpinned. 16 applied and reverted, 15 killed, 1 recorded as a known equivalent survivor. API-20 re-measured after the section 6 check was RENAMED, and still killed by exactly that check.)"
       ],
       "methodNote": "ALL 29 were applied for real in fix round 1, one at a time, and reverted \u2014 not transcribed. Anchor uniqueness was checked mechanically before each application (the driver aborts the mutant rather than half-applying it), and every target file was verified byte-identical to an in-memory pristine copy afterwards. Anchors were chosen to sit in CODE, never in a comment, so the two comment edits fix round 1 made to the route file cannot invalidate them.",
       "measuredInTask7": {
@@ -2748,10 +2758,12 @@
             {
               "suite": "test:twi:contracts",
               "file": "scripts/twi-contract-check.mjs",
-              "test": "the TWI Pages Function graph exists and imports no npm package",
+              "test": "the 8 enumerated TWI Pages Function modules exist and import no npm package",
               "measured": true
             }
           ],
+          "checkRenamedIn": "task-7-fix-round1 (fix/twi-task7-hardening, base 1e5d4c3). The check that kills this mutant was called \"the TWI Pages Function graph exists and imports no npm package\" up to and including 1e5d4c3. That NAME became false when Task 7 made src/twi/domain/schemas.ts reachable from the route file: the real graph reaches `zod`, while the check covers an ENUMERATED subset of eight modules that excludes src/twi/server/jobs.ts. Section 13's walked check reported `npm packages zod` in the same run, so two checks in one output made opposite claims and the weaker, false one printed first (gate 1 finding I-3). The PREDICATE is unchanged \u2014 offenders over the same eight files \u2014 and the name now states the scope. The check count is unchanged at 79 and the other 78 names are byte-identical in the same order, verified by EXECUTING the script before and after and diffing the printed names: exactly one removed, exactly one added, positional diff `25c25`. Re-measured after the rename: this mutant is still killed by exactly one check, and it is this one.",
+          "notKilledByWalk": "The section 13 walked check does NOT kill this mutant and cannot replace this one. `ADMITTED_PACKAGES` contains `zod`, so a bare `import { z } from 'zod'` placed directly in the route file leaves `strayPackages` empty and the walk green. Removing or loosening the enumerated check would therefore retire this mutant's ONLY kill signal, which is why fix round 1 corrected the name instead of dropping the check.",
           "provenance": { "introducedIn": "task-5-report.md", "section": "\u00a76 mutation table, M20", "originalVerdict": "killed \u2014 contracts" },
           "killSuiteWarning": "Text-only, and the failure it models is INVISIBLE to every runtime suite: a bare-module import resolves fine under vitest and fails only at deploy, because Cloudflare Pages builds this project with no build command (wrangler.toml sets pages_build_output_dir = \".\"). A green test:twi under this mutant is expected.",
           "spotChecked": {
@@ -8909,6 +8921,672 @@
             "observed": "1 failed / 440 passed (441), Test Files 1 failed / 20 passed (21); `npm run typecheck:twi` exit 0 under the mutation \u2014 it compiles cleanly, which is why only a behavioural assertion can see it. What fails: the compensation deletes on a failed lookup \u2014 `expected [ Array(1) ] to deeply equal []`."
           },
           "idNote": "Numbered in the API-120..API-124 block, not API-89..API-93, on purpose: Task 7's salvage was adding API-* entries to this same file concurrently and would have taken the next free ids. API-89..API-119 are RESERVED-BY-GAP for it, so the two rounds cannot collide whichever merges first. The gap is not a deletion \u2014 see sets[api].idCollisionAvoidance."
+        },
+        {
+          "id": "API-116",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "THE MONEY BUG this round exists to close: two concurrent submits of one Idempotency-Key answered 500 internal_error instead of a replay, and the outcome === ‘replayed’ branch was unreachable in production",
+          "appliesAtCommit": "fix/twi-task7-hardening",
+          "appliesAtCommitNote": "A branch name rather than a sha: this entry ships in the SAME commit as the code it targets, so the sha did not exist when it was written. Resolve it to the commit that adds `replayLostRace` to src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the catch around createEstimatedJob in submitJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  } catch (error) {\n    // A concurrent submission of this key won. That is a REPLAY, not a server fault.\n    created = await replayLostRace(deps, error, { projectId, specId }, lookup);\n  }",
+            "replace": "  } catch (error) {\n    throw error;\n  }",
+            "anchorUnique": true,
+            "isThePreFixCode": "YES in effect. At 1e5d4c3 there was no try/catch at all around `createEstimatedJob`, so a lost UNIQUE(idempotency_key) race raised TwiRepositoryCollisionError — not an HttpError — and the route mapped it to 500 internal_error. The mutation reproduces that exact behaviour while keeping the surrounding shape, which is why it is a revert-proof rather than a hypothetical."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs — two genuinely concurrent submits of one idempotency key > answers the loser with a REPLAY of the winner, not a 500 — one job, one charge, one start",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs — two genuinely concurrent submits of one idempotency key > leaves no orphan specification row behind — the loser reaps the copy of the lyrics it wrote",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs — two genuinely concurrent submits of one idempotency key > refuses the loser 409 when the two racing submits carry DIFFERENT specs, and still reaps its spec row",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "ONLY a genuinely concurrent test can see this. `estimatedJobMatchesInput` (src/twi/server/validation.ts) requires the same job id AND the same spec id, and submitJob mints both per request, so the repository’s own reconciliation never matches a concurrent sibling — the defect is invisible to every sequential submit. A `repoWith` override that SUPPLIES outcome: ‘replayed’ makes the branch look tested and is what hid this for a whole round; the killing tests instead run two overlapping submits over one real D1TwiRepository and one real node:sqlite with a barrier holding the REAL replay lookup until both have missed.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "killed — 3 of the 4 new concurrency tests",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 3 failed / 83 passed (86) across jobs.test.ts + jobs-lifecycle.test.ts + jobs-dispatch.test.ts. The loser rejects with TwiRepositoryCollisionError, so `expected [ ‘fulfilled’, ‘rejected’ ] to deeply equal [ ‘fulfilled’, ‘fulfilled’ ]`."
+          },
+          "idNote": "Takes the first of the four ids RESERVED-BY-GAP at Task 6 fix round 2 (API-116..API-119) and never spent by Task 7. The gap existed so a concurrent round could not collide; this round is the one that spends it. See sets[api].idCollisionAvoidance."
+        },
+        {
+          "id": "API-117",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an orphaned twi_generation_specs row containing the lyrics the owner typed, left by the spec_digest_mismatch path, with nothing to reap it",
+          "appliesAtCommit": "fix/twi-task7-hardening",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the compensating reap on the digest-mismatch exit of submitJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    await discardUnreferencedSpec(deps, projectId, specId);\n    // Unreachable while both values come from",
+            "replace": "    // Unreachable while both values come from",
+            "anchorUnique": true,
+            "isThePreFixCode": "YES. At 1e5d4c3 this exit threw without reaping, leaving the row it had just written."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs — two genuinely concurrent submits of one idempotency key > reaps the specification row when the stored digest disagrees, rather than leaving the lyrics behind",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "The sibling test `refuses to continue if the stored digest disagrees with the fingerprint it looked up` CANNOT see this: its saveSpec override fabricates a record without inserting, so there is no row to leak. The killing test makes the insert REAL and injects only the returned digest.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "killed — 1 test",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86). `expected 1 to be +0`: the specification row the request wrote is still there."
+          }
+        },
+        {
+          "id": "API-118",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the same orphan on the LOST-RACE path — measured at 1e5d4c3 as specs = 2, jobs = 1 for one duplicate submission",
+          "appliesAtCommit": "fix/twi-task7-hardening",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "replayLostRace's finally block"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  } finally {\n    await discardUnreferencedSpec(deps, spec.projectId, spec.specId);\n  }",
+            "replace": "  } finally {\n    void spec;\n  }",
+            "anchorUnique": true,
+            "isThePreFixCode": "YES in effect: there was no such function at 1e5d4c3 and no reap anywhere. `void spec;` keeps the parameter used so the mutation fails on BEHAVIOUR rather than on typecheck — a mutant that only breaks the build proves nothing about the suite."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs — two genuinely concurrent submits of one idempotency key > leaves no orphan specification row behind — the loser reaps the copy of the lyrics it wrote",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs — two genuinely concurrent submits of one idempotency key > refuses the loser 409 when the two racing submits carry DIFFERENT specs, and still reaps its spec row",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "killed — 2 tests",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 2 failed / 84 passed (86). `expected 2 to be 1` on twi_generation_specs, which is the gate’s own measured number."
+          }
+        },
+        {
+          "id": "API-119",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "THE FIFTH SINGLE-INPUT BRANCH: the attempt ordinal was pinned inside twi_job_events.event_key and UNPINNED on the wire — the one field Task 8 uses to tell a retry from the original submission",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "The live code is CORRECT at 1e5d4c3; what was missing was any test. This mutant survived all 523 tests, all 79 contract checks and `typecheck:twi` at that tree (gate 2 §2, HUNT-A), because the only test reading a dispatch payload asserted four fields and ran only on submit, where the ordinal genuinely is 0.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "startPayload's attempt field"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  idempotencyKey: job.idempotencyKey,\n  attempt,",
+            "replace": "  idempotencyKey: job.idempotencyKey,\n  attempt: 0,",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — this is a coverage defect, not a behavioural one. The mutation is what nothing could see."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-dispatch.test.ts",
+              "test": "the attempt ordinal on the wire > is 0 on the submission, then 1 and 2 across two retries — in the PAYLOAD, not only the event key",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-dispatch.test.ts",
+              "test": "the attempt ordinal on the wire > carries the ORIGINAL identity and the paid estimate on a retry, never a second spec",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR at 1e5d4c3 (gate 2 HUNT-A); killed after this round added src/twi/server/jobs-dispatch.test.ts",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 2 failed / 84 passed (86) after the fix round’s tests exist. Measured as a SURVIVOR at 1e5d4c3 by gate 2: 523/523 + 79 contracts + typecheck all green."
+          }
+        },
+        {
+          "id": "API-125",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "cancelJob's ordinal: with it pinned to 0, a cancel of a RETRIED job reuses …:0:cancelling — a key that already exists — so transitionJob replays it and the route reports `cancelling` while nothing moved, AFTER the stop request was sent",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "Live code correct at 1e5d4c3; survived 523/523 + 79 contracts + typecheck (gate 2 HUNT-B). No test cancelled a job after a retry.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "cancelJob's attempt ordinal"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const attempt = await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' });",
+            "replace": "  const attempt = 0;",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — a coverage defect."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-dispatch.test.ts",
+              "test": "the attempt ordinal on the wire > cancels a RETRIED job under its OWN ordinal, so the cancel cannot replay attempt 0",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR at 1e5d4c3 (gate 2 HUNT-B); killed by this round",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86). Two independent assertions fail: payload().attempt is 0 not 1, and the written key is …:0:cancelling."
+          },
+          "idNote": "First id in the API-125+ range, which the brief declares free. API-120..API-124 belong to Task 6 fix round 2."
+        },
+        {
+          "id": "API-126",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "cost attribution: the provider bound into BOTH the job row and the estimate cost row becomes null, and no test noticed",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "Live code correct at 1e5d4c3; survived the 68-test job suite (gate 2 HUNT-F / I3).",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the provider bound into createEstimatedJob's input"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    provider: creationCoreCapabilities.provider,",
+            "replace": "    provider: null,",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — a coverage defect."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-dispatch.test.ts",
+              "test": "what the audit trail and the cost row record > attributes the provider on BOTH the job row and the estimate cost row",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "One value reaches TWO columns (src/twi/server/queries.ts binds it into twi_jobs and into twi_cost_events), so the test asserts both. Asserting only the job row would leave a cost row nobody can attribute.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR at 1e5d4c3 (gate 2 HUNT-F); killed by this round",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86)."
+          }
+        },
+        {
+          "id": "API-127",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the audit marker: a REFUSED dispatch recorded as accepted: true, so the trail shows the attempt but lies about its outcome",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "Live code correct at 1e5d4c3; survived the 68-test job suite (gate 2 HUNT-K / I3).",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "failDispatch's detail_json for the estimated -> queued transition"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "dispatched: 'start', accepted: false }",
+            "replace": "dispatched: 'start', accepted: true }",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — a coverage defect."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-dispatch.test.ts",
+              "test": "what the audit trail and the cost row record > records a refused dispatch as accepted: false and an accepted one as true",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "The caller’s detailJson is nested under `detail` inside the repository’s transition fingerprint (src/twi/server/validation.ts), so a test reading twi_job_events.detail_json at the top level asserts the wrong object and passes vacuously. The killing test reads the nested object, and asserts BOTH values (false on the refused row, true on an accepted one) so the marker cannot be a constant either way.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR at 1e5d4c3 (gate 2 HUNT-K); killed by this round",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86)."
+          }
+        },
+        {
+          "id": "API-128",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "failDispatch reads the stored status back so the second transition’s precondition matches reality; with the literal, a concurrent writer turns a refused dispatch into a 500 with the job stranded OUTSIDE error — unreachable by the retry route, paid estimate lost",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "Live code correct at 1e5d4c3; survived the 68-test job suite (gate 2 HUNT-L / I3) because no test ever had a concurrent writer get there first.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "failDispatch's read-back of the first transition's status"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    from = queued.job.status;",
+            "replace": "    from = 'queued';",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — a coverage defect."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-dispatch.test.ts",
+              "test": "what the audit trail and the cost row record > takes the failure transition from the STORED status, so a concurrent writer does not strand the job",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "Needs a writer that really moves the row between failDispatch’s two transitions. The killing test’s override performs the REAL estimated -> queued transition and then advances queued -> generating through the real repository, the way the orchestrator would if it picked the job up in between; the assertion is on the stored from_status of the …:0:error event.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR at 1e5d4c3 (gate 2 HUNT-L); killed by this round",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86). Under the mutant the repository raises `job transition precondition failed` and submitJob rejects instead of answering 502."
+          }
+        },
+        {
+          "id": "API-129",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "only the first schema issue is echoed, so a multi-error refusal tells the owner about one field",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "Survived at 1e5d4c3 (gate 2 HUNT-I / M4): every refusal the suite drove happened to carry one short issue.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "MAX_REPORTED_ISSUES"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const MAX_REPORTED_ISSUES = 5;",
+            "replace": "const MAX_REPORTED_ISSUES = 1;",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — a coverage defect."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs — validation > reports SEVERAL schema issues rather than only the first, and bounds how many",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR at 1e5d4c3 (gate 2 HUNT-I); killed by this round",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86)."
+          }
+        },
+        {
+          "id": "API-130",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the bound that exists to stop a hostile payload being echoed back is raised to 40000",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "Survived at 1e5d4c3 (gate 2 HUNT-M / M4).",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "MAX_ISSUE_TEXT"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const MAX_ISSUE_TEXT = 400;",
+            "replace": "const MAX_ISSUE_TEXT = 40000;",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — a coverage defect."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs — validation > truncates a hostile refusal detail instead of echoing it whole",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "Nothing else in the suite produces an issue string long enough for the bound to fire. The killing test sends one absurdly long unknown key, because zod’s unrecognized_keys message quotes the key names.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR at 1e5d4c3 (gate 2 HUNT-M); killed by this round",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86)."
+          }
+        },
+        {
+          "id": "API-131",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "?projectId=%20 becomes a 500 internal_error instead of a list, because the untrimmed blank reaches assertNullableNonBlank in the repository",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "Survived at 1e5d4c3 (gate 2 HUNT-N / M4): nothing drove a whitespace-only parameter.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "listJobs' projectId normalisation"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const projectId = requested !== null && requested.trim().length > 0 ? requested.trim() : null;",
+            "replace": "  const projectId = requested !== null && requested.length > 0 ? requested : null;",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — a coverage defect."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > treats a whitespace-only projectId as no filter at all, rather than as a 500",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR at 1e5d4c3 (gate 2 HUNT-N); killed by this round",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86)."
+          }
+        },
+        {
+          "id": "API-132",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the job id is pasted into the internal cancel URL unencoded, so a stored id decides the path",
+          "appliesAtCommit": "1e5d4c3",
+          "appliesAtCommitNote": "Survived at 1e5d4c3 (gate 2 HUNT-G / M4), where it was judged an EQUIVALENT mutant because every id the suite mints is a UUID. It is no longer equivalent to the suite: twi_jobs.id carries no format CHECK and cancelJob takes the id straight from a URL segment, so the round wrote a job whose id needs encoding through the real repository rather than leaving the claim to the shape of the fixtures.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the cancel URL built in cancelJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "/cancel/${encodeURIComponent(job.id)}`",
+            "replace": "/cancel/${job.id}`",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — a coverage defect."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-dispatch.test.ts",
+              "test": "the attempt ordinal on the wire > percent-encodes the job id in the cancel URL rather than pasting it into the path",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "SURVIVOR (equivalent) at 1e5d4c3 (gate 2 HUNT-G); killed by this round",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86)."
+          }
+        },
+        {
+          "id": "API-133",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "REGRESSION GUARD for gate 1 M-1: a deployment that sets TWI_LYRIA_ESTIMATE_USD=0 was told, in owner-facing confirmation text on a money path, that the variable \"is unset\"",
+          "appliesAtCommit": "fix/twi-task7-hardening",
+          "appliesAtCommitNote": "The mutation IS the code as shipped at 1e5d4c3: the provider label was derived from the AMOUNT, which cannot distinguish an absent variable from a configured zero.",
+          "target": {
+            "file": "src/twi/server/estimates.ts",
+            "construct": "estimateView's provider status"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const status: ProviderEstimateStatus = providerConfigured ? 'estimated' : 'unavailable';",
+            "replace": "  const status: ProviderEstimateStatus = estimate.provider === 0 ? 'unavailable' : 'estimated';\n  void providerConfigured;",
+            "anchorUnique": true,
+            "isThePreFixCode": "YES — verbatim, apart from the `void` that keeps the now-unused parameter from failing the typecheck instead of the assertion."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs/estimate > quotes a configured rate of 0 as FREE, and does not claim the variable is unset",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "a zero provider component is labelled unavailable, and the confirmation promises the actual cost is recorded",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "Two signals, measured separately. The contract check’s form of this assertion was itself re-pinned this round: it used to require `estimate.provider === 0 ? ‘unavailable’ : ‘estimated’` — i.e. it pinned the defect — and now requires the label to come from configuredness and forbids the amount form. The check NAME is unchanged.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "killed — 1 test and 1 contract check, measured independently",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86); and separately `FAIL a zero provider component is labelled unavailable, and the confirmation promises the actual cost is recorded`, 1 of 79 checks failing."
+          }
+        },
+        {
+          "id": "API-134",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the compensating reap loses its NOT EXISTS guard and can collect a specification a job references — a direct breach of the lifecycle rule that nothing referenced by a retained revision, job, export or profile may be garbage-collected",
+          "appliesAtCommit": "fix/twi-task7-hardening",
+          "target": {
+            "file": "src/twi/server/queries.ts",
+            "construct": "deleteUnreferencedSpec's NOT EXISTS guard"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "         WHERE project_id = ? AND id = ?\n           AND NOT EXISTS (\n             SELECT 1 FROM twi_jobs WHERE project_id = ? AND spec_id = ?\n           )`,\n    )\n    .bind(input.projectId, input.id, input.projectId, input.id);",
+            "replace": "         WHERE project_id = ? AND id = ?`,\n    )\n    .bind(input.projectId, input.id);",
+            "anchorUnique": true,
+            "isThePreFixCode": "No — neither the statement nor the guard existed at 1e5d4c3. The mutant exists so the guard is defended rather than merely present."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs — two genuinely concurrent submits of one idempotency key > never removes a specification row a job DOES reference, even asked directly",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "The killing test asks the repository to reap a REFERENCED row directly, because no use-case path does — that is the point of putting the guard in the SQL rather than in the caller. Under the mutant the call either removes the row or raises the FK violation; either way it stops answering `false`.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "killed — 1 test",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86)."
+          }
+        },
+        {
+          "id": "API-135",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the list answer stops admitting it may be truncated, so a UI mistakes the first MAX_JOB_PAGE jobs for all of them",
+          "appliesAtCommit": "fix/twi-task7-hardening",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "listJobs' mayHaveMore"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return json({ jobs, limit: MAX_JOB_PAGE, mayHaveMore: jobs.length === MAX_JOB_PAGE });",
+            "replace": "  return json({ jobs, limit: MAX_JOB_PAGE, mayHaveMore: false });",
+            "anchorUnique": true,
+            "isThePreFixCode": "Partly: at 1e5d4c3 the answer was `json({ jobs })` — the cap was applied silently and there was nothing to falsify."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > truncates at MAX_JOB_PAGE and SAYS so, and the hidden job is still reachable by id",
+              "measured": true
+            }
+          ],
+          "killSuiteWarning": "Needs MAX_JOB_PAGE + 1 real submissions: the fact is about what happens ON the bound, and the pre-existing tests fit three jobs under any limit, which is how API-102 survived in the first place.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "killed — 1 test",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-task7-hardening, base 1e5d4c3",
+            "byRound": "task-7-fix-round1",
+            "result": "killed",
+            "observed": "killed — 1 failed / 85 passed (86)."
+          }
+        },
+        {
+          "id": "API-136",
+          "status": "known-survivor",
+          "expected": "known-survivor",
+          "severity": "none today — recorded so the claim is not lost",
+          "appliesAtCommit": "1e5d4c3",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "costKey, which carries the attempt ordinal"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const costKey = (jobId: string, attempt: number): string => `${jobId}:${attempt}:estimate`;",
+            "replace": "const costKey = (jobId: string): string => `${jobId}:estimate`;",
+            "anchorUnique": true,
+            "describedAs": "Drop the attempt ordinal from the estimate cost key. The `replace` also needs the two call sites updated to match the arity, so a runner should treat this as described-and-mechanical rather than a single literal swap.",
+            "isThePreFixCode": "No."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [],
+          "notKilledBy": "Nothing, and correctly so. It is an EQUIVALENT mutant at this tree: exactly one estimate cost row is ever written per job — retryJob writes none, verified by costCount() === 1 after two retries — and twi_cost_events is UNIQUE (job_id, idempotency_key), so no observable behaviour changes. The ordinal is forward-compatibility for a re-estimate that does not exist yet.",
+          "whenItBecomesKillable": "The moment any path writes a SECOND estimate cost row for one job (a re-quote, a re-estimate after a spec edit). At that point the mutant collides on ${jobId}:estimate and the second row is silently dropped — a charge that vanishes — and a test asserting two distinct cost keys for one job kills it. Whoever adds that path owes this test.",
+          "provenance": {
+            "introducedIn": "task-7-fix-round1-report.md",
+            "section": "§2 mutation ledger",
+            "originalVerdict": "survivor (equivalent) at 1e5d4c3, gate 2 HUNT-C / M5; recorded rather than closed",
+            "closedBy": null
+          }
         }
       ]
     }

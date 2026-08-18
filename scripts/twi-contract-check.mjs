@@ -31,10 +31,27 @@
  *      `npm test` green with this script's check count unchanged.
  *
  *   2. DEPLOY REACHABILITY. Cloudflare Pages builds this project with NO build
- *      command (wrangler.toml sets pages_build_output_dir = "."), and no Pages
- *      Function in this repo has ever imported an npm package. The TWI function
- *      graph therefore stays free of bare-module imports; a stray `import { z }
- *      from 'zod'` would resolve locally under vitest and fail at deploy.
+ *      command (wrangler.toml sets pages_build_output_dir = "."), so a bare-module
+ *      import resolves locally under vitest and fails at deploy. Until Task 7 no
+ *      Pages Function in this repo imported an npm package at all; Task 7's graph
+ *      reaches EXACTLY ONE, `zod`, because src/twi/domain/schemas.ts is the single
+ *      validator for a creation specification and the brief mandates parsing
+ *      through it. That is asserted twice, by two checks that answer different
+ *      questions and must not be collapsed into one:
+ *
+ *        - section 6 refuses ANY npm import in an ENUMERATED list of modules (this
+ *          route file, http, auth, capabilities, projects, assets, r2-types, env).
+ *          Its name says "enumerated" for a reason: since Task 7 that list is a
+ *          strict SUBSET of the real graph, and the older name claimed the whole
+ *          graph was package-free while section 13 reported `zod` in the same run.
+ *          It is the sole kill signal for mutant API-20 — `import { z } from 'zod'`
+ *          written directly into the route file;
+ *        - section 13 WALKS the graph from the route file and bounds what it finds
+ *          against `ADMITTED_PACKAGES`, which contains `zod`. A stray `zod` import
+ *          in the route file therefore passes the walk and fails section 6, while a
+ *          stray SECOND package anywhere in the graph fails the walk. Every package
+ *          the walk finds must also be pinned exactly in both package.json and
+ *          package-lock.json.
  *
  *   3. _redirects ORDERING. Cloudflare's rule is that "redirects are always
  *      followed, regardless of whether or not an asset matches the incoming

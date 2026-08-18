@@ -130,11 +130,51 @@ describe('GET /api/twi/jobs', () => {
     expect(body.jobs.map((job) => job.id)).toEqual([mine.id]);
   });
 
-  it('answers an empty list for a project with no jobs, not a 404', async () => {
+  it('treats a whitespace-only projectId as no filter at all, rather than as a 500', async () => {
+    // Without the `trim()` in `listJobs`, `?projectId=%20` is a non-empty string that
+    // reaches `assertNullableNonBlank` inside the repository and surfaces as an
+    // `internal_error`. Nothing ever drove a whitespace-only parameter, so removing the trim
+    // was indistinguishable — the same single-input shape as the other survivors.
+    const mine = await queuedJob(FIRST_KEY);
+
+    const response = await listJobs(new Request(`${SUBMIT_URL}?projectId=%20`), world.repo);
+
+    expect(response.status).toBe(200);
+    expect((await readJson<{ jobs: JobRecord[] }>(response)).jobs.map((job) => job.id)).toEqual([mine.id]);
+  });
+
+  it('answers an empty list for a project with no jobs, not a 404 — and names the page bound', async () => {
     const response = await listJobs(new Request(`${SUBMIT_URL}?projectId=${OTHER_PROJECT_ID}`), world.repo);
 
     expect(response.status).toBe(200);
-    expect(await readJson<{ jobs: JobRecord[] }>(response)).toEqual({ jobs: [] });
+    // The bound is STATED, not applied silently: there is no cursor yet, so a caller has to
+    // be able to tell "the first MAX_JOB_PAGE" from "all of them".
+    expect(await readJson<unknown>(response)).toEqual({ jobs: [], limit: MAX_JOB_PAGE, mayHaveMore: false });
+  });
+
+  it('truncates at MAX_JOB_PAGE and SAYS so, and the hidden job is still reachable by id', async () => {
+    // MAX_JOB_PAGE + 1 real submissions through the real route, because the fact under test
+    // is what happens ON the bound and a shorter list cannot reach it. This is also the only
+    // place the cap is proven end to end rather than as "the route asked for 50".
+    const submitted: JobRecord[] = [];
+    for (let index = 0; index <= MAX_JOB_PAGE; index += 1) {
+      submitted.push(await queuedJob(`22222222-2222-4222-8222-${index.toString().padStart(12, '0')}`));
+    }
+
+    const body = await readJson<{ jobs: JobRecord[]; limit: number; mayHaveMore: boolean }>(
+      await listJobs(new Request(SUBMIT_URL), world.repo),
+    );
+
+    expect(world.jobCount()).toBe(MAX_JOB_PAGE + 1);
+    expect(body.jobs).toHaveLength(MAX_JOB_PAGE);
+    expect(body.limit).toBe(MAX_JOB_PAGE);
+    expect(body.mayHaveMore).toBe(true);
+
+    // The oldest submission is off the page — and answered individually, so the history is
+    // truncated in the VIEW only. There is no cursor yet; see `listJobs`.
+    const oldest = submitted[0] as JobRecord;
+    expect(body.jobs.map((job) => job.id)).not.toContain(oldest.id);
+    expect((await readJson<JobBody>(await getJob(oldest.id, world.repo))).job.id).toBe(oldest.id);
   });
 
   // The page bound had NO discriminating test: raising it to Number.MAX_SAFE_INTEGER

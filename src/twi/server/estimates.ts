@@ -41,6 +41,11 @@ export const PROVIDER_ESTIMATE_VARIABLE = 'TWI_LYRIA_ESTIMATE_USD';
 export type ProviderEstimateStatus = 'estimated' | 'unavailable';
 
 export interface EstimatePolicy {
+  /**
+   * Whether the deployment configured a provider rate AT ALL — which is a different
+   * question from whether that rate is zero. See {@link providerRateConfigured}.
+   */
+  readonly providerConfigured: boolean;
   estimate(spec: GenerationSpec): Promise<CostEstimate>;
 }
 
@@ -85,6 +90,21 @@ export function providerEstimateUsd(raw: string | null | undefined): number {
 }
 
 /**
+ * Whether a provider rate was CONFIGURED — not whether it is non-zero.
+ *
+ * This is the distinction {@link JobEstimateView.provider} exists to draw, and reading it
+ * off the AMOUNT could not draw it: `providerEstimateUsd` answers `0` both for an absent
+ * variable and for a deliberate `TWI_LYRIA_ESTIMATE_USD=0`, so a deployment that priced the
+ * provider component at zero was told, in owner-facing confirmation text on a money path,
+ * that the variable "is unset". That is a specific falsehood about the deployment's own
+ * configuration. Presence is the only thing that separates the two, so presence is what is
+ * tested here: absent, `undefined` and blank are unconfigured; `'0'` is configured, and
+ * therefore FREE rather than unpriced.
+ */
+export const providerRateConfigured = (raw: string | null | undefined): boolean =>
+  typeof raw === 'string' && raw.trim().length > 0;
+
+/**
  * The policy, built around whatever the deployment configured.
  *
  * `total` is COMPUTED from the components rather than written as a literal, so the
@@ -93,6 +113,7 @@ export function providerEstimateUsd(raw: string | null | undefined): number {
  */
 export function creationCoreEstimatePolicy(raw: string | null | undefined): EstimatePolicy {
   return {
+    providerConfigured: providerRateConfigured(raw),
     async estimate(): Promise<CostEstimate> {
       const provider = providerEstimateUsd(raw);
       return {
@@ -110,9 +131,16 @@ export function creationCoreEstimatePolicy(raw: string | null | undefined): Esti
 /** The unconfigured policy: everything but the unpriced provider component. */
 export const fixedCreationCoreEstimate: EstimatePolicy = creationCoreEstimatePolicy(null);
 
-/** The wire shape, with the provider component labelled and the promise stated. */
-export function estimateView(estimate: CostEstimate): JobEstimateView {
-  const status: ProviderEstimateStatus = estimate.provider === 0 ? 'unavailable' : 'estimated';
+/**
+ * The wire shape, with the provider component labelled and the promise stated.
+ *
+ * The label comes from whether the rate was CONFIGURED, never from the amount: a configured
+ * `0` is `estimated` at `amountUsd: 0` — "free" — while an absent variable is `unavailable`,
+ * and the confirmation sentence about the variable being unset is then true whenever it is
+ * shown. Deriving the label from `estimate.provider === 0` collapsed those two.
+ */
+export function estimateView(estimate: CostEstimate, providerConfigured: boolean): JobEstimateView {
+  const status: ProviderEstimateStatus = providerConfigured ? 'estimated' : 'unavailable';
   return {
     estimate,
     provider: { status, amountUsd: estimate.provider },

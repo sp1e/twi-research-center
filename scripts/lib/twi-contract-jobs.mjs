@@ -343,7 +343,7 @@ export const checkJobApi = (context, check) => {
         !/createEstimatedJob\(/.test(estimate) &&
         !/transitionJob\(/.test(estimate) &&
         !/dispatch\(/.test(estimate) &&
-        /estimateView\(await policyOf\(deps\)\.estimate\(spec\)\)/.test(estimate)
+        /estimateView\(await policy\.estimate\(spec\), policy\.providerConfigured\)/.test(estimate)
       );
     })(),
   );
@@ -360,10 +360,21 @@ export const checkJobApi = (context, check) => {
    * says `unavailable` means "not priced". The wizard has to be able to tell those apart
    * before the owner authorises a paid render, and the confirmation text has to say that
    * the actual provider cost is recorded regardless.
+   *
+   * The label is asserted to come from whether the rate was CONFIGURED, never from the
+   * amount. That is strictly stronger than the previous form of this check, which pinned
+   * `estimate.provider === 0 ? 'unavailable' : 'estimated'` — and pinned with it the defect
+   * that a deployment setting `TWI_LYRIA_ESTIMATE_USD=0` was told the variable "is unset" in
+   * owner-facing text on a money path. Both halves are named here so the amount cannot creep
+   * back in as the source of the label.
    */
   check(
     'a zero provider component is labelled unavailable, and the confirmation promises the actual cost is recorded',
-    /estimate\.provider === 0 \? 'unavailable' : 'estimated'/.test(estimatesCanonical) &&
+    /providerConfigured \? 'estimated' : 'unavailable'/.test(estimatesCanonical) &&
+      !/estimate\.provider === 0 \?/.test(estimatesCanonical) &&
+      /export const providerRateConfigured = \(raw: string \| null \| undefined\): boolean => typeof raw === 'string' && raw\.trim\(\)\.length > 0/.test(
+        estimatesCanonical,
+      ) &&
       /actual provider cost is measured after the render and recorded against this job/i.test(estimates) &&
       /export const PROVIDER_ESTIMATE_VARIABLE = 'TWI_LYRIA_ESTIMATE_USD'/.test(estimates),
   );
