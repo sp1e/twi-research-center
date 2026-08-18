@@ -20,6 +20,7 @@ import type {
   CountProjectAssetsInput,
   CreateEstimatedJobInput,
   CreateProjectInput,
+  DiscardUnreferencedSpecInput,
   JobEventRow,
   JobRecord,
   JobRow,
@@ -82,6 +83,31 @@ export const insertSpec = (
       input.rightsAssertionVersion,
       input.createdAt,
     );
+
+/**
+ * Removes a specification row NO job references — and, by construction, only such a row.
+ *
+ * The `NOT EXISTS` is the guard, not an optimisation. `twi_jobs` carries
+ * `FOREIGN KEY (project_id, spec_id) REFERENCES twi_generation_specs(project_id, id)`, so a
+ * submission has to write the specification BEFORE the insert that establishes uniqueness,
+ * and the compensating delete for a failure between those two runs while other writers are
+ * live. This feature's retention rule is that nothing a retained revision, job, export or
+ * profile references may be collected, so the statement is written so that it CANNOT remove
+ * a referenced row even if a caller asks it to.
+ */
+export const deleteUnreferencedSpec = (
+  db: D1DatabaseLike,
+  input: DiscardUnreferencedSpecInput,
+): D1PreparedStatementLike =>
+  db
+    .prepare(
+      `DELETE FROM twi_generation_specs
+         WHERE project_id = ? AND id = ?
+           AND NOT EXISTS (
+             SELECT 1 FROM twi_jobs WHERE project_id = ? AND spec_id = ?
+           )`,
+    )
+    .bind(input.projectId, input.id, input.projectId, input.id);
 
 export const insertAsset = (db: D1DatabaseLike, input: RegisterAssetInput): D1PreparedStatementLike =>
   db

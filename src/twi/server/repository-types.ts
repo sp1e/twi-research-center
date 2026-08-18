@@ -94,6 +94,18 @@ export interface CreateProjectInput {
   now: string;
 }
 
+/**
+ * The specification row to reap, named by BOTH halves of its primary key.
+ *
+ * `project_id` is part of the identity rather than decoration: `twi_jobs`' foreign key is
+ * the composite `(project_id, spec_id)`, so a reap keyed on `id` alone would be a
+ * different statement from the reference it has to respect.
+ */
+export interface DiscardUnreferencedSpecInput {
+  projectId: string;
+  id: string;
+}
+
 export interface SaveSpecInput {
   id: string;
   projectId: string;
@@ -316,7 +328,15 @@ export interface PublishCandidatesInput {
 
 /** Terminal outcome of a repository write, for the optional telemetry sink. */
 export interface TwiRepositoryEvent {
-  op: 'createProject' | 'saveSpec' | 'createEstimatedJob' | 'transitionJob' | 'appendCost' | 'registerAsset' | 'publishCandidates';
+  op:
+    | 'createProject'
+    | 'saveSpec'
+    | 'discardUnreferencedSpec'
+    | 'createEstimatedJob'
+    | 'transitionJob'
+    | 'appendCost'
+    | 'registerAsset'
+    | 'publishCandidates';
   jobId?: string;
   projectId?: string;
   outcome: string;
@@ -339,6 +359,18 @@ export interface TwiRepository {
   createProject(input: CreateProjectInput): Promise<ProjectRecord>;
   getProject(projectId: string): Promise<ProjectRecord | null>;
   saveSpec(input: SaveSpecInput): Promise<GenerationSpecRecord>;
+  /**
+   * `saveSpec`'s compensating half: removes a specification row no job references.
+   *
+   * It exists because the write ORDER is forced. `twi_jobs` references
+   * `twi_generation_specs(project_id, id)`, so a submission must store the specification
+   * before the insert that establishes idempotency — and every failure between the two,
+   * including a lost concurrent race, otherwise leaves a full copy of the lyrics the owner
+   * typed in a row no code path will read again. Returns whether a row was removed; a
+   * referenced row is RETAINED rather than refused, so the caller cannot collect one by
+   * mistake.
+   */
+  discardUnreferencedSpec(input: DiscardUnreferencedSpecInput): Promise<boolean>;
   findJobByIdempotencyKey(input: FindJobByIdempotencyKeyInput): Promise<JobRecord | null>;
   /**
    * Reads one asset by id, or `null`.

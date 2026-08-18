@@ -79,10 +79,33 @@
  * live in src/twi/server/*, which is unit-tested without a Workers runtime
  * (src/twi/server/route-dispatch.test.ts drives this table itself).
  *
- * NO npm IMPORTS in this graph. Pages builds this project with no build command
- * (wrangler.toml: pages_build_output_dir = "."), and no Pages Function here has
- * ever imported a package. A bare-module import resolves fine under vitest and is
- * a deploy-time failure. The contract check asserts that too.
+ * EXACTLY ONE npm PACKAGE IN THIS GRAPH, AND IT IS `zod`. Pages builds this
+ * project with no build command (wrangler.toml: pages_build_output_dir = "."), so
+ * a bare-module import resolves fine under vitest and is a deploy-time failure —
+ * which is why, until Task 7, no Pages Function here imported a package at all.
+ * Task 7 changed that, and the change is bounded rather than blessed:
+ *
+ *   - the reach is real and one hop deep in the graph, not in this file. This
+ *     module imports src/twi/server/jobs.ts, which parses through
+ *     src/twi/domain/schemas.ts, which imports `zod`. That schema is the single
+ *     validator for a creation specification and the only place the branded
+ *     `NormalizedGenerationSpec` can be minted, so a server-side substitute would
+ *     be a SECOND validator able to disagree with the wizard's on the money path;
+ *   - the set is closed. scripts/lib/twi-contract-jobs.mjs WALKS the graph from
+ *     this file and fails on any package outside `ADMITTED_PACKAGES` (`['zod']`),
+ *     and on any package that is not a runtime dependency;
+ *   - the version is pinned exactly in package.json AND package-lock.json, and a
+ *     check compares the two — a caret on a graph edge would let the next
+ *     `npm install` move the version inside the Function unobserved;
+ *   - the modules enumerated by section 6 of the contract check — this file,
+ *     http, auth, capabilities, projects, assets, r2-types, env — must still
+ *     import NO package. That is a narrower claim than the walk and a stronger
+ *     one about those files: a bare `zod` import written directly HERE would pass
+ *     the walk, which admits `zod`, and fail section 6.
+ *
+ * Whether Cloudflare Pages resolves that package at deploy with no build command
+ * is a deploy-time fact this repository cannot settle. It is recorded as open,
+ * not assumed.
  */
 
 import { uploadImageReference } from '../../../src/twi/server/assets';
