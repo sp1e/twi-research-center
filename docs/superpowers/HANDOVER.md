@@ -756,6 +756,18 @@ redirect ordering.
 - Prompt/spec checksum, if it is ever shown in the UI (plan Task 14 Step 4), must be computed as hex
   SHA-256 of the **stored** `spec_json` — reading the row and hashing it gives the right value, which
   is precisely what was false before `e3ba46d`.
+- **M7 remains open, and the recorded reason for skipping it was FALSE.** Task 7 fix round 1 argued
+  that moving `cancelJob`/`retryJob` out of `jobs.ts` would silently empty section-13 order assertions
+  in `scripts/lib/twi-contract-jobs.mjs`. It would not: `jobFunction` returns the empty string on a
+  miss and every consumer is `precedes` or `.test()`, both false on it, so the check **fails closed** —
+  which is exactly what the comment above `jobFunction` already claims. The re-review renamed both
+  declarations and the contract check failed with two named failures. The split is therefore **safe**;
+  it is merely work that needs a round owning those checks. `jobs.ts` is now 595 lines.
+- **The race instrument is asserted in only one of three racing tests.** `missed()` is what stops a
+  concurrency test from quietly degenerating into a sequential one, and `jobs-concurrency.test.ts`
+  asserts it in one test of the three. Cheap hardening, not done.
+- **The spec reap is best-effort and its residual is unmeasured.** Nothing counts orphaned `spec_json`
+  rows outside a test helper, and nothing sweeps orphans that already exist in a deployed database.
 
 Items that appeared on the previous version of this list are **done**, and are recorded here so nobody
 re-opens them: **Task 5's closure** (§1); the **manifest `baselines` block**, fixed in v1.4.0 (§5);
