@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.7.0",
+  "manifestVersion": "1.8.0",
   "recordedAt": "2026-08-17",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -63,7 +63,16 @@
       "what": "Added API-75 to API-88 (14 entries) for the classes gate 2 recorded as uncovered: a real request stream, the malformed-multipart path, retry/duplication, the degenerate-size guard, and WEAKENING rather than removal (startsWith -> includes, toLowerCase dropped, a bound widened rather than deleted). Total entries 162 -> 176; sets[api].liveCount 74 -> 88. One existing entry was edited: API-62's anchor was re-pinned because the statement it names moved into a helper, and it was re-measured at this tree rather than re-pinned on paper. Two prose corrections to the v1.6.0 revision entry (liveCount 50 -> 73 read 73 where the data says 74; scopeNote said 23/23 where the score says 24/24). No id was removed or renumbered.",
       "why": "Gate 2 approved Task 6 and then named exactly what its 24 mutants could not see: nothing exercised a real request stream, so no entry could tell 'refused cheaply' from 'refused after buffering 10 MB'; no entry touched the malformed-multipart path, which answered 500 for a client mistake; nothing probed retry/duplication, because with a per-call UUID identity a retry really did duplicate; the degenerate-size guard had no test; and no entry WEAKENED a guard rather than deleting it, which is how a byte validator quietly stops being strict.",
       "scopeNote": "14/14 killed, 0 survivors, 0 ambiguous anchors, measured at this tree. Do not add this score to measuredInTask6, measuredInThisRound or measuredInFixRound2. Three of the fourteen (API-75, API-77, API-78) are not hypothetical: the mutation IS the code as shipped at e9280b6, and gate 2 measured its behaviour. Twelve of the fourteen are invisible to test:twi:contracts and one (API-88) is killed by it \u2014 the same 'neither suite is sufficient' shape this set's testCommandWarning already records.",
-      "alsoRecorded": "Three anchors elsewhere in this file were ALREADY stale at e9280b6 and are not this round's doing: DOM-09 and DOM-32R against src/twi/domain/schemas.ts, and API-21 against scripts/run-tests.mjs. Verified by running the same uniqueness check against the base commit's own blobs, which reports the same three. Repairing them belongs to a round that owns those files."
+      "alsoRecorded": "Three anchors elsewhere in this file were ALREADY stale at e9280b6 and are not this round's doing: DOM-09 and DOM-32R against src/twi/domain/schemas.ts, and API-21 against scripts/run-tests.mjs. Verified by running the same uniqueness check against the base commit's own blobs, which reports the same three. Repairing them belongs to a round that owns those files. FIX ROUND 2 REPAIRED ALL THREE; see revisions[1.8.0]."
+    },
+    {
+      "version": "1.8.0",
+      "round": "task-6-fix-round2",
+      "at": "fix/twi-asset-race, base 8e6f289",
+      "what": "Added API-120 to API-124 (5 entries) for the three Importants the scoped re-review of fix round 1 raised, all three of them concurrency or identity defects in src/twi/server/assets.ts: the compensating delete stripping a racing winner\u2019s committed object (API-120), an unconditional put letting a loser\u2019s bytes replace the winner\u2019s while the surviving row keeps its own digest (API-121, and API-123 for the refusal being ignored), and an ambiguous identity preimage (API-122), plus API-124 for the unknown-owner case the new guard has to answer for. Total entries 176 -> 181; sets[api].liveCount 88 -> 93. FIVE existing anchors were repaired, every one RE-MEASURED rather than re-pinned on paper: the three this file recorded as already-stale at e9280b6 (DOM-09 site 2, DOM-32R, API-21) and two that fix round 2\u2019s own source change broke (API-60, whose compensating delete moved one nesting level deeper, and API-61, whose put became conditional). API-80 was re-anchored for the same reason. No id was removed or renumbered.",
+      "why": "The re-review found that every test in src/twi/server/asset-ingestion.test.ts was single-writer, and that this was not a gap in coverage but a gap in KIND: a single writer\u2019s compensating delete can only ever touch its own object, so no single-writer test can see the consequence of the object key becoming shared. Two of the five new entries therefore depend on a genuinely concurrent test, which the file now has. The five anchor repairs are here because a stale anchor is a mutant that cannot be applied \u2014 a kill signal the manifest claims and does not have. API-21 was the sharpest case: it was the only mutant covering contract-check sections 10 and 11, so while its anchor was dead that section had no applicable kill signal at all.",
+      "scopeNote": "5/5 new entries killed, 0 survivors, 0 ambiguous anchors, measured with `npx vitest run --config vitest.twi.config.ts` at 441/21 with `npm run typecheck:twi` exit 0 under each. Do not add this score to measuredInTask6, measuredInThisRound, measuredInFixRound2 or the v1.7.0 block. Three of the five (API-120, API-121, API-122) are the code as shipped at 8e6f289, and each one\u2019s measured consequence is recorded in mutation.isThePreFixCode. A full anchor audit was run over every anchored site in this file, against the base blobs and against the working tree, and is the evidence for the repair list: 161 sites / 3 stale at 8e6f289, 166 sites / 0 stale after.",
+      "alsoRecorded": "The whole-file anchor audit this round ran is cheap and belongs in the runner: read every mutation.find (multi-site aware) and count occurrences in target.file. It is what found API-60 and API-61, which no test, typecheck or contract check can see \u2014 a stale anchor fails silently by definition. futureRunner.stillNeeded already asks for it as an ANCHOR-UNIQUENESS PRECHECK; this round\u2019s experience is that it is also needed as a REGRESSION check on every round that edits a target file, not only at apply time. Separately OUT OF SCOPE here and recorded so it is not lost: test:twi:structure executes this manifest\u2019s anchors as a corpus for the ROUTE FILE only, so anchors on the other target files (src/twi/server/assets.ts, src/twi/domain/schemas.ts, scripts/run-tests.mjs, _redirects, tsconfig.twi.json and the rest) rot with nothing watching."
     }
   ],
 
@@ -141,20 +150,20 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "the working tree on top of parent commit e9280b6, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
+      "measuredAt": "the working tree on top of parent commit 8e6f289, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (8/8), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 435, "files": 21 },
+        "test:twi": { "tests": 441, "files": 21 },
         "test:twi:schema": { "tests": 39 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
         "test:twi:contracts": { "checks": 52, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3. Zero check names have ever been removed." },
         "test:migrations": { "tests": 10 },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "821 tests plus 60 script checks",
+      "totals": "827 tests plus 60 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 138-entry set against 1da7968, or against any single commit. This block records the suite the mutants would be measured against, not a score."
@@ -451,12 +460,8 @@
           "target": { "file": "src/twi/domain/schemas.ts", "construct": ".strict() on the composition / sound / performance objects" },
           "mutation": {
             "kind": "multi-site",
-            "sites": [
-              { "find": "    arrangement: singleLine(2_000),\n  }).strict(),", "replace": "    arrangement: singleLine(2_000),\n  }),", "anchorUnique": true },
-              { "find": "    imageAssetIds: z.array(uuid).max(10),\n  }).strict(),", "replace": "    imageAssetIds: z.array(uuid).max(10),\n  }),", "anchorUnique": true },
-              { "find": "    delivery: singleLine(300),\n  }).strict(),", "replace": "    delivery: singleLine(300),\n  }),", "anchorUnique": true }
-            ],
-            "note": "`}).strict(),` alone occurs four times, so each site is anchored on the preceding field line. All three sites are part of one mutant, as the round ran it."
+            "sites": [{"find": "    arrangement: singleLine(2_000),\n  }).strict(),", "replace": "    arrangement: singleLine(2_000),\n  }),", "anchorUnique": true}, {"find": "    imageAssetIds: boundedArray(uuid, 10),\n  }).strict(),", "replace": "    imageAssetIds: boundedArray(uuid, 10),\n  }),", "anchorUnique": true, "anchorRepinnedIn": "task-6-fix-round2 (fix/twi-asset-race, base 8e6f289). Site 2 only. `sound.imageAssetIds` stopped being `z.array(uuid).max(10)` at b69678b and became `boundedArray(uuid, 10)` \u2014 the pre-bound restructure DOM-39R records \u2014 so the field line this site anchors on changed while the `}).strict(),` it guards did not. Stale at e9280b6 AND at 8e6f289, i.e. pre-existing and not this round's doing; repaired here because a stale anchor is a kill signal the manifest claims and does not have. RE-MEASURED, not re-pinned on paper: 1 failed / 440 passed (441), `npm run typecheck:twi` exit 0, and the failing test is `sound rejects unknown keys` \u2014 which is the first of the two tests already in killedBy."}, {"find": "    delivery: singleLine(300),\n  }).strict(),", "replace": "    delivery: singleLine(300),\n  }),", "anchorUnique": true}],
+            "note": "`}).strict(),` alone occurs four times, so each site is anchored on the preceding field line \u2014 which is exactly why site 2 went stale when that field line was rewritten by an unrelated round. All three sites are part of one mutant, as the round ran it."
           },
           "substantiation": "exact-from-source",
           "killedBy": [
@@ -926,12 +931,14 @@
           "historicalLabels": [{ "round": "raw-bound", "label": "M32", "publishedIn": "raw-bound-report.md" }, { "round": "raw-prebound", "label": "R32", "publishedIn": "raw-prebound-report.md", "note": "the same mutant, relabelled by the later round to escape the M29 collision" }],
           "status": "killed",
           "expected": "killed",
-          "target": { "file": "src/twi/domain/schemas.ts", "construct": "normalizedList(), raw entry-count bound (schemas.ts:34)" },
+          "target": { "file": "src/twi/domain/schemas.ts", "construct": "normalizedList(), raw entry-count bound \u2014 the array stage's .max() at ac034a4 (schemas.ts:34), the piped-ahead rawEntryCountBound() from b69678b onward (schemas.ts:72 at 8e6f289)" },
           "mutation": {
             "kind": "replace",
-            "find": "  .max(maximumEntries * RAW_ENTRY_SLACK)\n  .transform(cleanList)",
-            "replace": "  .transform(cleanList)",
-            "anchorUnique": true
+            "find": "const normalizedList = (maximumEntries: number, maximumItemLength: number, minimumEntries = 0) => rawEntryCountBound(maximumEntries * RAW_ENTRY_SLACK)\n  .pipe(z\n    .array(z.string().max(maximumItemLength * RAW_LENGTH_SLACK))\n    .transform(cleanList)\n    .pipe(z.array(z.string().max(maximumItemLength)).min(minimumEntries).max(maximumEntries)));",
+            "replace": "const normalizedList = (maximumEntries: number, maximumItemLength: number, minimumEntries = 0) => z\n  .array(z.string().max(maximumItemLength * RAW_LENGTH_SLACK))\n  .transform(cleanList)\n  .pipe(z.array(z.string().max(maximumItemLength)).min(minimumEntries).max(maximumEntries));",
+            "anchorUnique": true,
+            "anchorRepinnedIn": "task-6-fix-round2 (fix/twi-asset-race, base 8e6f289). The anchor named the array-stage `.max(maximumEntries * RAW_ENTRY_SLACK)` that b69678b LIFTED out in front of the array via rawEntryCountBound().pipe(), so it had been dead since that restructure \u2014 stale at e9280b6 and at 8e6f289 alike, pre-existing. variantAtCommit called the post-restructure edit not-recoverable on the ground that guessing might record DOM-37R twice under two ids. That objection is now SETTLED BY MEASUREMENT rather than by argument: this anchor removes the pre-bound from normalizedList ALONE, leaving boundedArray's intact, and gives 15 failed / 426 passed (441); DOM-37R defeats the shared predicate for every caller and gives 19 failed / 422 passed (441). Different edits, 4 tests apart \u2014 and the 4 are the boundedArray/imageAssetIds arm this one does not touch. `npm run typecheck:twi` exit 0 under both.",
+            "overlapWarning": "Its find spans the whole of normalizedList, which is also DOM-38R's anchor (the ORDERING reverted). Different replacements, same lines: never apply both."
           },
           "substantiation": "exact-from-source",
           "killedBy": [
@@ -943,9 +950,9 @@
           "variantAtCommit": {
             "commit": "b69678b",
             "whatChanged": "The raw entry-count bound MOVED: at ac034a4 it is `.max(maximumEntries * RAW_ENTRY_SLACK)` on the array stage; at b69678b it is the predicate inside `rawEntryCountBound`, piped AHEAD of the array stage. The mutant transferred across the restructure rather than being retired \u2014 raw-prebound-report.md \u00a76 records it as 'killed, 18 failures' after.",
-            "mutation": { "kind": "not-recoverable", "find": null, "replace": null, "describedAs": "raw entry-count bound removed (transferred: the array stage's .max() before, the pre-bound's predicate after)" },
+            "mutation": { "kind": "superseded", "find": null, "replace": null, "describedAs": "raw entry-count bound removed (transferred: the array stage's .max() before, the pre-bound's predicate after). The top-level mutation above now carries the b69678b-onward text; this block is kept for the history of the move." },
             "substantiation": "described-only",
-            "whyNotRecoverable": "At b69678b this mutant and DOM-37R both amount to 'the pre-bound stops rejecting', yet they are recorded with materially different verdicts (18 failures vs 146). So they are different edits, and neither edit's text is given. Guessing would risk recording DOM-37R twice under two ids."
+            "whyNotRecoverable": "RECOVERED at task-6-fix-round2 and promoted to the top-level `mutation` above, which is now the b69678b-onward form. The old objection was that this mutant and DOM-37R both amount to 'the pre-bound stops rejecting' while being recorded with materially different verdicts (18 failures vs 146), so guessing risked recording DOM-37R twice under two ids. What settles it is a measurement, not a reading: removing the pre-bound from normalizedList ALONE (this entry) gives 15 failed / 426 passed (441) and leaves boundedArray's pre-bound intact; defeating the shared predicate (DOM-37R) gives 19 failed / 422 passed (441). Four tests apart, and the four are exactly the boundedArray/imageAssetIds arm \u2014 so they are demonstrably different edits and the top-level anchor is not a duplicate of DOM-37R's."
           },
           "equivalenceHazard": {
             "lesson": "THIS MUTANT NEARLY BECAME AN EQUIVALENT MUTANT, AND THAT IS WHY THE `became-equivalent` RETIREMENT KIND EXISTS.",
@@ -1917,9 +1924,9 @@
       "fullSuiteCommand": "npm test",
       "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it. Fix round 2 widens this sharply: API-30 to API-50 are ALL text-only facts and only TWO of them (API-31, API-32) are visible to test:twi at all. API-30 \u2014 a resource-scoped gate exemption \u2014 is simultaneously green on test:twi, typecheck:twi AND fix round 1\u2019s 29-check contract check, which is precisely why the contract check must not delegate this class to the unit suite: those 401 tests enumerate the resources that EXIST.",
       "historicalNumbering": "M1-M21 from task-5-report.md, plus M22 published in the same section as \"Gap 3\". Gate 2 added one probe (its spot-check 4) and re-verified three of the 21. Fix round 1 added six. The API-* ids are this manifest\u2019s and are one-to-one with those labels via historicalLabels.",
-      "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase.",
-      "liveCount": 88,
-      "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response.",
+      "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase. A SECOND kind of collision appeared at Task 6 fix round 2, and the answer is a reserved gap rather than a rule: Task 7's salvage was adding API-* entries to this same file at the same time, and both rounds would otherwise have taken API-89 next. Fix round 2 therefore took API-120..API-124 and RESERVED API-89..API-119 for Task 7, so the two sets cannot overlap whichever merges first. A gap in the numbering is not a deletion — retiredCount stays 0 and 'only ever increase' is preserved — and a concurrent round should reserve forward the same way rather than negotiate for the next free id.",
+      "liveCount": 93,
+      "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response. Task 6 fix round 1 added API-75 to API-88 (14 entries) and fix round 2 added API-120 to API-124 (5); the latter skip API-89..API-119 deliberately — see idCollisionAvoidance. Fix round 2's five numbers live in measuredInTask6FixRound2 and belong to none of the blocks above.",
       "retiredCount": 0,
       "provenanceRounds": [
         "task-5-report.md (M1-M21 plus M22 as Gap 3; M10 and M11 recorded there as survivors it closed)",
@@ -1963,6 +1970,17 @@
         "killedByIsMeasuredNotTranscribed": "Every `killedBy` list in this set is the MEASURED failure set at this round\u2019s tree, with `measured: true` on each entry \u2014 not the introducing report\u2019s claim. Four lists came out broader than the reports implied (API-01, API-08, API-13, API-15), the same way spot-checking DOM-03 corrected its list upward. Note that four of these kill signals are assertions added in this round, so the lists are measured AT THIS TREE and are not what the introducing round would have observed.",
         "survivorsClosed": "Four mutants were measured as survivors against the suite as Task 5 left it, then killed: API-23 (published by gate 2), API-24, API-25, API-26 (found here). Three more (API-27 in seven of its eight spellings, API-28, API-29) survived Task 5\u2019s contract check and are killed by the assertions added in this round.",
         "notCommitted": "The driver lives in a session scratchpad and is deliberately NOT committed, per the README\u2019s \"No runner, deliberately\". It does implement three of the four things `futureRunner` asks for \u2014 anchor-uniqueness precheck, green-baseline gate, per-mutant kill suites \u2014 and not the fourth (a syntax gate), which is why API-20\u2019s and API-28\u2019s appended payloads were also eyeballed for parseability."
+      },
+      "measuredInTask6FixRound2": {
+        "round": "task-6-fix-round2",
+        "at": "fix/twi-asset-race, base 8e6f289",
+        "scope": "API-120 to API-124 only, plus the RE-MEASUREMENT of six repaired anchors (API-21, API-60, API-61, API-80, DOM-09 site 2, DOM-32R). Do not add this score to measuredInTask6, measuredInThisRound or measuredInFixRound2.",
+        "baselineFirst": "npm ci plain, exit 0. The eight-suite baseline was reproduced before any mutant was applied: legacy 128 [35, 6, 1, 78, 4, 4] plus 199 script checks, sp1epacker 149/8, twi 441/21 (435/21 at base, +6 in this round), schema 39, structure 60, contracts 52, migrations 10, bundle 8.",
+        "suitesRun": "`npx vitest run --config vitest.twi.config.ts` (441 tests / 21 files) plus `npm run typecheck:twi` for all five new entries and for every re-anchor; `node scripts/twi-contract-check.mjs` and `npm test` additionally for API-21, which no vitest suite can see.",
+        "denominatorNote": "Every count below is against 441/21 from that command. RR-7 of the re-review asked for exactly this: a number that does not name its measurement is not a measurement.",
+        "score": "5/5 new entries killed, 0 survivors, 0 ambiguous anchors. Re-anchors re-measured: API-21 killed (1 of 52 contract checks, by name), API-60 2/439, API-61 11/430, API-80 2/439, DOM-09 1/440, DOM-32R 15/426.",
+        "anchorAudit": "A whole-file audit was run twice, at the base blobs and at the working tree, counting occurrences of every mutation.find (multi-site aware) in its target.file. AT 8e6f289: 161 sites, 3 stale \u2014 DOM-09 site 2, DOM-32R, API-21, exactly the three the re-review named. AFTER this round: 166 sites, 0 stale. The audit is the only instrument that sees this class: a stale anchor keeps every test, typecheck and contract check green, which is how API-60 and API-61 were broken by this round\u2019s own source change and nearly shipped that way.",
+        "backups": "Kept OUTSIDE the repository (session scratchpad), the mistake v1.6.0 records. Anchor uniqueness was asserted before each application (every one reported exactly 1 occurrence) and every target was verified byte-identical to its pristine copy afterwards, sha256 equal on every run, with `git status --porcelain` checked between them."
       },
       "mutants": [
         {
@@ -2730,9 +2748,12 @@
           "target": { "file": "scripts/run-tests.mjs", "construct": "the SUITES entry that makes `npm test` run the contract check" },
           "mutation": {
             "kind": "replace",
-            "find": "  ['test:twi:contracts', 'TWI API route placement, _redirects order, deploy reachability'],\n",
+            "find": "  {\n    script: 'test:twi:contracts',\n    blurb: 'TWI API route placement, _redirects order, deploy reachability',\n    shape: 'checks',\n    // 38 \u2192 52 at Task 6: section 12, image-reference ingestion. Zero names removed\n    // (extracted and diffed mechanically, the way fix round 3 did it).\n    floor: { checks: 52 },\n  },\n",
             "replace": "",
-            "anchorUnique": true
+            "anchorUnique": true,
+            "anchorRepinnedIn": "task-6-fix-round2 (fix/twi-asset-race, base 8e6f289). The old anchor named the `['test:twi:contracts', '<blurb>'],` TUPLE that scripts/run-tests.mjs stopped using when SUITES became objects carrying `shape` and `floor`. Two independent audits found it dead at e9280b6 AND at 8e6f289 \u2014 pre-existing, not fix round 1's doing even though that round edited this file. It was also the ONLY mutant covering contract-check sections 10 and 11, so while the anchor was dead that section had no applicable kill signal at all, which is why repairing it was worth a round that does not otherwise own scripts/run-tests.mjs. RE-MEASURED, not re-pinned on paper.",
+            "anchorNote": "COMMENT-INCLUSIVE BY NECESSITY, because REMOVING the entry is the mutation and the entry carries its own comment. That is exactly how the previous anchor died, so read `mechanicalRule` first: a runner should prefer it and treat `find` as the exact-from-source witness for the tree named in anchorRepinnedIn. If the comment on the contracts suite changes, move this anchor with it.",
+            "mechanicalRule": "Delete the one element of the SUITES array in scripts/run-tests.mjs whose `script` is 'test:twi:contracts', comments and all: from the line matching /^  \\{$/ that precedes /^    script: 'test:twi:contracts',$/ through the following /^  \\},$/ inclusive. Comment-independent, and equivalent to `find` at 8e6f289."
           },
           "substantiation": "exact-from-source",
           "killedBy": [
@@ -2744,12 +2765,18 @@
             }
           ],
           "provenance": { "introducedIn": "task-5-report.md", "section": "\u00a76 mutation table, M21", "originalVerdict": "killed \u2014 contracts (the self-wiring check)" },
-          "killSuiteWarning": "The mutant orphans the very suite that kills it, so `npm test` goes GREEN under it while `npm run test:twi:contracts` goes red. Run the check directly \u2014 a runner that only looks at `npm test` will record a false survivor here, which is precisely the failure the check exists to prevent.",
+          "killSuiteWarning": "The mutant orphans the very suite that kills it, so `npm run test:twi:contracts` is the signal that NAMES the defect and is the one to run. HISTORICALLY `npm test` went GREEN under it, and a runner that only looked at `npm test` would record a false survivor \u2014 precisely the failure the check exists to prevent. RE-MEASURED at 8e6f289 after the re-anchor, and that first half no longer holds: `npm test` exits 1 too, because the manifest baseline gate added in fix round 3 compares the suite ROSTER in both directions and reports the dropped suite as MANIFEST BASELINE DRIFT (3) \u2014 suites[\"test:twi:contracts\"] recorded / measured 'npm test does not run it'; npmTest (8/8) -> (7/7); totals 60 -> 8 script checks \u2014 and it refuses to auto-apply a dropped suite. Both signals are real; only the contract check tells you WHAT is wrong, so the instruction is unchanged even though the reason it mattered has weakened.",
           "spotChecked": {
             "at": "fix/twi-task5-gate-hardening (base f24cc24)",
             "byRound": "task-5-fix-round1",
             "result": "killed",
             "observed": "killed \u2014 1 failing check(s)/test(s), listed in killedBy with measured: true"
+          },
+          "spotCheckedAtReAnchor": {
+            "at": "fix/twi-asset-race, base 8e6f289",
+            "byRound": "task-6-fix-round2",
+            "result": "killed",
+            "observed": "`node scripts/twi-contract-check.mjs` -> FAIL `npm test is the suite runner, and the runner lists test:twi:contracts`, 1 of 52 checks failed. `npm test` -> exit 1 on MANIFEST BASELINE DRIFT (3), with every suite that DID run still green (twi 441/21, sp1epacker 149/8, legacy 128, schema 39, structure 60, migrations 10, bundle 8). Measured against UPDATED baselines, so the three drift items are the mutation's own effect and nothing else. scripts/run-tests.mjs restored byte-identical afterwards."
           }
         },
         {
@@ -5109,9 +5136,10 @@
           },
           "mutation": {
             "kind": "replace",
-            "find": "    try {\n      await bucket.delete(r2Key);\n    } catch (cleanupError) {",
-            "replace": "    try {\n      // delete removed\n    } catch (cleanupError) {",
-            "anchorUnique": true
+            "find": "      try {\n        await bucket.delete(r2Key);\n      } catch (cleanupError) {",
+            "replace": "      try {\n        // delete removed\n      } catch (cleanupError) {",
+            "anchorUnique": true,
+            "anchorRepinnedIn": "task-6-fix-round2 (fix/twi-asset-race, base 8e6f289). RR-1 put the compensating delete inside an ownership guard, so the same three lines moved one nesting level deeper and the 4-space anchor stopped matching. Nothing about the mutation changed. RE-MEASURED rather than re-pinned on paper: 2 failed / 439 passed (441) with `npx vitest run --config vitest.twi.config.ts`, `npm run typecheck:twi` exit 0 \u2014 and the two failures are the two tests the killedBy list already named."
           },
           "substantiation": "exact-from-source",
           "killedBy": [
@@ -5155,9 +5183,11 @@
           },
           "mutation": {
             "kind": "replace",
-            "find": "  await bucket.put(r2Key, body, { httpMetadata: { contentType: descriptor.contentType } });\n\n  try {",
+            "find": "  const stored = await bucket.put(r2Key, body, {\n    httpMetadata: { contentType: descriptor.contentType },\n    onlyIf: { etagDoesNotMatch: '*' },\n  });\n  if (stored === null) {\n    throw new HttpError(\n      409,\n      `${IDEMPOTENCY_KEY_HEADER} is already held by another upload of this project`,\n      'idempotency_key_in_flight',\n    );\n  }\n\n  try {",
             "replace": "  try {",
-            "anchorUnique": true
+            "anchorUnique": true,
+            "anchorRepinnedIn": "task-6-fix-round2 (fix/twi-asset-race, base 8e6f289). RR-2 made the put CONDITIONAL, so the one-line put became a four-line call followed by the guard that interprets its result, and the anchor now spans both. It has to: with no put there is no result to interpret, so removing the put alone would not compile. The mutation still means exactly what it meant \u2014 no object written before the row is inserted. RE-MEASURED: 11 failed / 430 passed (441), `npm run typecheck:twi` exit 0.",
+            "overlapWarning": "Spans the lines API-121 and API-123 target. Never apply two of the three together: this one removes the put outright, API-121 removes only its precondition, API-123 removes only the interpretation of its result."
           },
           "substantiation": "exact-from-source",
           "killedBy": [
@@ -6190,9 +6220,11 @@
           },
           "mutation": {
             "kind": "replace",
-            "find": "    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\\n${projectId}\\n${idempotencyKey}`),",
-            "replace": "    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\\n${idempotencyKey}`),",
-            "anchorUnique": true
+            "find": "    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\\n${field(projectId)}\\n${field(idempotencyKey)}`),",
+            "replace": "    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\\n${field(idempotencyKey)}`),",
+            "anchorUnique": true,
+            "anchorRepinnedIn": "task-6-fix-round2 (fix/twi-asset-race, base 8e6f289). RR-3 length-prefixed both fields of the preimage, so the project scoping now drops as ${field(idempotencyKey)} rather than ${idempotencyKey}. NOTE THE ESCAPING: the source holds the two characters backslash and n inside a template literal, so JSON must spell it with a DOUBLED backslash. A first attempt at this repair wrote the single form, which decodes to a real newline and matches nothing \u2014 measured 0 occurrences, while claiming a re-measurement it therefore cannot have made. RE-MEASURED after the fix: 2 failed / 439 passed (441), one more failure than before, because the new preimage test detects the dropped project scoping too.",
+            "overlapWarning": "Shares its single line with API-122. Never apply both: API-80 drops the project field, API-122 drops the length prefixes."
           },
           "substantiation": "exact-from-source",
           "killedBy": [
@@ -6201,6 +6233,13 @@
               "file": "src/twi/server/asset-ingestion.test.ts",
               "test": "the upload endpoint, over real requests > scopes the identity to the project, so one key in two projects is two assets",
               "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > the identity preimage is UNAMBIGUOUS: a separator inside one field cannot be shifted into the other",
+              "measured": true,
+              "addedIn": "task-6-fix-round2. This test did not exist at fix round 1, and it detects the dropped project scoping as well as the ambiguity it was written for — which is why the re-measured count is 2 rather than 1."
             }
           ],
           "provenance": {
@@ -6641,6 +6680,276 @@
             "dependsOn": "the contract check reading a comment-free canonical rendering of uploadImageReference for `createImageAsset(`",
             "claim": "The guard is the layer meant to survive a refactor. The two behaviour tests that also fail do so only because the inlined copy drops the rollback; a version that copied the rollback too would be invisible to them and visible to the check."
           }
+        },
+        {
+          "id": "API-120",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round2",
+              "label": "F2-M1",
+              "publishedIn": "task-6-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the compensating delete stops asking who owns the object, so a racing loser strips the winner's committed bytes and leaves a live row pointing at nothing",
+          "appliesAtCommit": "fix/twi-asset-race",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds the conditional put to src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the ownership guard on the compensating bucket.delete inside createImageAsset"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    if (committedKey !== r2Key) {",
+            "replace": "    if (true) {",
+            "anchorUnique": true,
+            "isThePreFixCode": "Yes. At 8e6f289 the delete was unconditional, and RR-1 measured the consequence: two concurrent uploads of one Idempotency-Key, the loser's insert failing on a D1 transient, committed rows 1, winner's object ABSENT, and the retry answering 200 for an object that no longer existed."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > a racing loser does NOT delete the winner\u2019s committed object",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > keeps the object when the owner lookup itself fails, rather than guessing",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round2-report.md",
+            "section": "mutants added for RR-1, RR-2 and RR-3",
+            "originalVerdict": "killed on first application, measured with `npx vitest run --config vitest.twi.config.ts` at a 441/21 baseline (the denominator is named because a bare '2 failed / 439 passed' is unreadable without it \u2014 RR-7's lesson). Three of the five (API-89, API-90, API-91) are NOT hypothetical: the mutation IS the code as shipped at 8e6f289, and the re-review measured each consequence \u2014 the winner's object deleted, the row's sha256/bytes describing bytes that were not stored, and two distinct (projectId, key) pairs deriving one uuid.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-asset-race, base 8e6f289",
+            "byRound": "task-6-fix-round2",
+            "result": "killed",
+            "observed": "2 failed / 439 passed (441), Test Files 1 failed / 20 passed (21); `npm run typecheck:twi` exit 0 under the mutation \u2014 it compiles cleanly, which is why only a behavioural assertion can see it. What fails: the winner\u2019s object is gone \u2014 `expected false to be true` on `bucket.objects.has(committedRow.r2Key)` \u2014 and the unknown-owner test additionally records a delete that must not have happened."
+          },
+          "premise": {
+            "dependsOn": "a test that is genuinely CONCURRENT",
+            "claim": "Every test in this file before fix round 2 was single-writer, and a single writer's compensating delete can only ever touch its own object \u2014 which is why the suite could not see this defect at all. The kill needs two overlapping uploads whose replay lookups both miss, which the file produces with a barrier over one real repository rather than by stubbing the lookup to null.",
+            "failureMode": "If the concurrent test is ever simplified back to a stubbed `findAssetById: async () => null`, this reverts to a survivor."
+          },
+          "idNote": "Numbered in the API-120..API-124 block, not API-89..API-93, on purpose: Task 7's salvage was adding API-* entries to this same file concurrently and would have taken the next free ids. API-89..API-119 are RESERVED-BY-GAP for it, so the two rounds cannot collide whichever merges first. The gap is not a deletion \u2014 see sets[api].idCollisionAvoidance."
+        },
+        {
+          "id": "API-121",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round2",
+              "label": "F2-M2",
+              "publishedIn": "task-6-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the put stops being conditional, so a racing loser overwrites the winner's bytes and the surviving row's sha256 and bytes stop describing the object they name",
+          "appliesAtCommit": "fix/twi-asset-race",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds the conditional put to src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the If-None-Match precondition on the R2 put in createImageAsset"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    onlyIf: { etagDoesNotMatch: '*' },\n",
+            "replace": "",
+            "anchorUnique": true,
+            "isThePreFixCode": "Yes. At 8e6f289 the put was unconditional and RR-2 measured the divergence: row bytes 8 / sha256 9720c604\u2026 against an object of 10 bytes / df5aa251\u2026. Under this mutation the same numbers come back \u2014 the failure reads `expected 8 to be 10`.",
+            "overlapWarning": "Shares source lines with API-61 (whose anchor now spans the whole conditional put plus the null guard) and sits directly above API-123. Never apply two of the three together \u2014 API-61 removes the put entirely, this one removes only the precondition, API-123 removes only the interpretation of the result."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > a racing loser cannot overwrite the winner\u2019s bytes, so the row\u2019s sha256 and bytes stay true",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > never commits a row for bytes it did not store: an object already under the key is refused, not overwritten",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round2-report.md",
+            "section": "mutants added for RR-1, RR-2 and RR-3",
+            "originalVerdict": "killed on first application, measured with `npx vitest run --config vitest.twi.config.ts` at a 441/21 baseline (the denominator is named because a bare '2 failed / 439 passed' is unreadable without it \u2014 RR-7's lesson). Three of the five (API-89, API-90, API-91) are NOT hypothetical: the mutation IS the code as shipped at 8e6f289, and the re-review measured each consequence \u2014 the winner's object deleted, the row's sha256/bytes describing bytes that were not stored, and two distinct (projectId, key) pairs deriving one uuid.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-asset-race, base 8e6f289",
+            "byRound": "task-6-fix-round2",
+            "result": "killed",
+            "observed": "2 failed / 439 passed (441), Test Files 1 failed / 20 passed (21); `npm run typecheck:twi` exit 0 under the mutation \u2014 it compiles cleanly, which is why only a behavioural assertion can see it. What fails: the divergence itself, reported as `expected 10 to be 8`: the object holds the loser\u2019s 10 bytes while the surviving row records the winner\u2019s 8; plus a 201 for an upload whose bytes were never stored."
+          },
+          "premise": {
+            "dependsOn": "a bucket double that honours the precondition ONLY when it is asked to",
+            "claim": "`ConditionalBucket` in asset-ingestion.test.ts returns null for a put whose `onlyIf.etagDoesNotMatch === '*'` finds the key occupied, and overwrites otherwise. That asymmetry is the kill signal: a permissive double (RecordingBucket, kept deliberately) cannot tell a conditional put from an unconditional one.",
+            "failureMode": "A double that refuses every second put regardless of options would keep this green while the option was gone. Whether the DEPLOYED bucket honours the precondition is a deploy-time fact, filed as one in r2-types.ts."
+          },
+          "idNote": "Numbered in the API-120..API-124 block, not API-89..API-93, on purpose: Task 7's salvage was adding API-* entries to this same file concurrently and would have taken the next free ids. API-89..API-119 are RESERVED-BY-GAP for it, so the two rounds cannot collide whichever merges first. The gap is not a deletion \u2014 see sets[api].idCollisionAvoidance."
+        },
+        {
+          "id": "API-122",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round2",
+              "label": "F2-M3",
+              "publishedIn": "task-6-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the identity preimage goes back to newline-delimited fields, so a separator inside projectId can be shifted into the key and two distinct pairs derive one asset id",
+          "appliesAtCommit": "fix/twi-asset-race",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds the conditional put to src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the length-prefixed preimage inside deriveImageAssetId"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\\n${field(projectId)}\\n${field(idempotencyKey)}`),",
+            "replace": "    new TextEncoder().encode(`${ASSET_IDENTITY_DOMAIN}\\n${projectId}\\n${idempotencyKey}`),",
+            "anchorUnique": true,
+            "isThePreFixCode": "Yes, exactly \u2014 with the domain constant still reading v2. At 8e6f289 this construction gave derive(uuid + '\\nEXTRA', 'key') === derive(uuid, 'EXTRA\\nkey') = d06e617a-b115-86df-a075-fd8b340ab9b8, and the replay path returns before the object-key segment rule, so with an LF-bearing project row present the route answered 200 with ANOTHER project's asset record.",
+            "overlapWarning": "Shares its single line with API-80: API-80 drops the project field, this one drops the length prefixes. Never apply both."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > the identity preimage is UNAMBIGUOUS: a separator inside one field cannot be shifted into the other",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round2-report.md",
+            "section": "mutants added for RR-1, RR-2 and RR-3",
+            "originalVerdict": "killed on first application, measured with `npx vitest run --config vitest.twi.config.ts` at a 441/21 baseline (the denominator is named because a bare '2 failed / 439 passed' is unreadable without it \u2014 RR-7's lesson). Three of the five (API-89, API-90, API-91) are NOT hypothetical: the mutation IS the code as shipped at 8e6f289, and the re-review measured each consequence \u2014 the winner's object deleted, the row's sha256/bytes describing bytes that were not stored, and two distinct (projectId, key) pairs deriving one uuid.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-asset-race, base 8e6f289",
+            "byRound": "task-6-fix-round2",
+            "result": "killed",
+            "observed": "1 failed / 440 passed (441), Test Files 1 failed / 20 passed (21); `npm run typecheck:twi` exit 0 under the mutation \u2014 it compiles cleanly, which is why only a behavioural assertion can see it. What fails: the two pairs collide again \u2014 `expected 'a1e0189c-fc48-89e6-880e-b1ceb27af703' not to be 'a1e0189c-fc48-89e6-880e-b1ceb27af703'`. The uuid differs from the re-review's d06e617a\u2026 only because the domain constant now reads v2; the collision is the same one."
+          },
+          "idNote": "Numbered in the API-120..API-124 block, not API-89..API-93, on purpose: Task 7's salvage was adding API-* entries to this same file concurrently and would have taken the next free ids. API-89..API-119 are RESERVED-BY-GAP for it, so the two rounds cannot collide whichever merges first. The gap is not a deletion \u2014 see sets[api].idCollisionAvoidance."
+        },
+        {
+          "id": "API-123",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round2",
+              "label": "F2-M4",
+              "publishedIn": "task-6-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a REFUSED conditional put is treated as a success, so a row is committed whose sha256 and bytes describe bytes this call never managed to store",
+          "appliesAtCommit": "fix/twi-asset-race",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds the conditional put to src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the null-result branch after the conditional put"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (stored === null) {",
+            "replace": "  if (false) {",
+            "anchorUnique": true,
+            "isThePreFixCode": "No \u2014 this branch is new in fix round 2, so the mutation measures whether the tests shipped WITH it can detect it being ignored.",
+            "overlapWarning": "Inside the block API-61's re-anchored find spans. Never apply the two together."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > never commits a row for bytes it did not store: an object already under the key is refused, not overwritten",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round2-report.md",
+            "section": "mutants added for RR-1, RR-2 and RR-3",
+            "originalVerdict": "killed on first application, measured with `npx vitest run --config vitest.twi.config.ts` at a 441/21 baseline (the denominator is named because a bare '2 failed / 439 passed' is unreadable without it \u2014 RR-7's lesson). Three of the five (API-89, API-90, API-91) are NOT hypothetical: the mutation IS the code as shipped at 8e6f289, and the re-review measured each consequence \u2014 the winner's object deleted, the row's sha256/bytes describing bytes that were not stored, and two distinct (projectId, key) pairs deriving one uuid.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-asset-race, base 8e6f289",
+            "byRound": "task-6-fix-round2",
+            "result": "killed",
+            "observed": "1 failed / 440 passed (441), Test Files 1 failed / 20 passed (21); `npm run typecheck:twi` exit 0 under the mutation \u2014 it compiles cleanly, which is why only a behavioural assertion can see it. What fails: the mutation answers 201 for an upload whose bytes are not in the bucket."
+          },
+          "premise": {
+            "dependsOn": "the SINGLE-WRITER orphan case, not the race",
+            "claim": "In the concurrent test the D1 collision backstop answers the same 409 with or without this branch, so the race alone leaves the mutant alive. What discriminates is an object under the key with NO row naming it \u2014 what an attempt whose insert and whose compensating delete both failed leaves behind: ignoring the refusal then commits a row for the earlier attempt's bytes.",
+            "failureMode": "Delete the orphan-holds-the-key test and this becomes a survivor even though the race test stays green."
+          },
+          "idNote": "Numbered in the API-120..API-124 block, not API-89..API-93, on purpose: Task 7's salvage was adding API-* entries to this same file concurrently and would have taken the next free ids. API-89..API-119 are RESERVED-BY-GAP for it, so the two rounds cannot collide whichever merges first. The gap is not a deletion \u2014 see sets[api].idCollisionAvoidance."
+        },
+        {
+          "id": "API-124",
+          "historicalLabels": [
+            {
+              "round": "task-6-fix-round2",
+              "label": "F2-M5",
+              "publishedIn": "task-6-fix-round2-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the UNKNOWN case guesses: when the owner lookup itself fails, the object is deleted anyway \u2014 which is the finding put back behind a lookup",
+          "appliesAtCommit": "fix/twi-asset-race",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds the conditional put to src/twi/server/assets.ts.",
+          "target": {
+            "file": "src/twi/server/assets.ts",
+            "construct": "the catch around the owner lookup in the compensation path"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "      committedKey = r2Key;",
+            "replace": "      committedKey = null;",
+            "anchorUnique": true,
+            "isThePreFixCode": "No \u2014 the branch is new in fix round 2. It exists because a failed lookup is a third state, and the safe answer to it is to keep the bytes."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/asset-ingestion.test.ts",
+              "test": "the upload endpoint, over real requests > keeps the object when the owner lookup itself fails, rather than guessing",
+              "measured": true
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-6-fix-round2-report.md",
+            "section": "mutants added for RR-1, RR-2 and RR-3",
+            "originalVerdict": "killed on first application, measured with `npx vitest run --config vitest.twi.config.ts` at a 441/21 baseline (the denominator is named because a bare '2 failed / 439 passed' is unreadable without it \u2014 RR-7's lesson). Three of the five (API-89, API-90, API-91) are NOT hypothetical: the mutation IS the code as shipped at 8e6f289, and the re-review measured each consequence \u2014 the winner's object deleted, the row's sha256/bytes describing bytes that were not stored, and two distinct (projectId, key) pairs deriving one uuid.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "fix/twi-asset-race, base 8e6f289",
+            "byRound": "task-6-fix-round2",
+            "result": "killed",
+            "observed": "1 failed / 440 passed (441), Test Files 1 failed / 20 passed (21); `npm run typecheck:twi` exit 0 under the mutation \u2014 it compiles cleanly, which is why only a behavioural assertion can see it. What fails: the compensation deletes on a failed lookup \u2014 `expected [ Array(1) ] to deeply equal []`."
+          },
+          "idNote": "Numbered in the API-120..API-124 block, not API-89..API-93, on purpose: Task 7's salvage was adding API-* entries to this same file concurrently and would have taken the next free ids. API-89..API-119 are RESERVED-BY-GAP for it, so the two rounds cannot collide whichever merges first. The gap is not a deletion \u2014 see sets[api].idCollisionAvoidance."
         }
       ]
     }

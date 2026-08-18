@@ -58,6 +58,35 @@ class RecordingBucket implements R2BucketLike {
 }
 
 /**
+ * The same recorder, plus R2's conditional-put semantics — and nothing else.
+ *
+ * `put` with `onlyIf: { etagDoesNotMatch: '*' }` stores the object only while the key is
+ * free and answers `null` when it is not. That is the shape `@cloudflare/workers-types`
+ * 4.20260702.1 declares by giving the conditional overload — and only it — a nullable
+ * return.
+ *
+ * It is an instrument rather than a courtesy: the precondition is honoured ONLY when the
+ * caller asks for it, so a `put` that stops passing `onlyIf` overwrites here exactly as
+ * an unconditional put overwrites in R2, and the divergence assertion below goes red.
+ * {@link RecordingBucket} deliberately keeps ignoring the option, which is what lets the
+ * delete-compensation test model a bucket that does not honour preconditions at all.
+ */
+class ConditionalBucket extends RecordingBucket {
+  async put(key: string, value: R2PutValue, options?: R2PutOptionsLike): Promise<R2ObjectLike | null> {
+    if (options?.onlyIf?.etagDoesNotMatch === '*' && this.objects.has(key)) {
+      this.calls.push(`put-refused:${key}`);
+      return null;
+    }
+    return super.put(key, value, options);
+  }
+}
+
+const sha256Of = async (bytes: Uint8Array): Promise<string> => {
+  const digest = await crypto.subtle.digest('SHA-256', bytes.slice().buffer);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+};
+
+/**
  * A multipart envelope built by hand, so the test owns the boundary.
  *
  * `FormData` picks its own, which is fine for parsing but says nothing about whether
@@ -104,12 +133,24 @@ const CHUNK_BYTES = 64 * 1024;
 /**
  * How much more than the bound a bounded read may still have pulled.
  *
- * `undici` reads ahead of the consumer, so "stopped at the bound" cannot be asserted to
- * the byte. Half a megabyte of slack keeps the assertion meaningful anyway: the case it
- * exists to catch pulls the body's ENTIRE length, which the tests below make orders of
- * magnitude larger than this.
+ * Named for what it actually is, and sized to the composition rather than to a guess.
+ * The bound is checked once per chunk, so the CHUNK THAT CROSSES it is already in the
+ * isolate before `seen` can exceed the limit, and `undici` has read one chunk ahead of
+ * the consumer on top of that — two chunks, which is therefore the DERIVED ceiling and
+ * not a margin someone chose. The bound is not chunk-aligned (10,502,144 = 160.25 × 64
+ * KiB), so the crossing chunk is partial and the measurement comes in just under: all
+ * three cases below pulled 10,616,832 B, over-bound 114,688 B = 1.75 × 64 KiB. An
+ * earlier comment here called 8 × 64 KiB "undici's read-ahead", which was both the
+ * wrong figure and the wrong mechanism.
+ *
+ * "Stopped at the bound" still cannot be asserted to the byte, and does not need to be:
+ * the case these assertions exist to catch pulls the body's ENTIRE length, orders of
+ * magnitude away. What CANNOT be asserted here at all is a ceiling in bytes: the unit is
+ * the chunk and the chunk size is the producer's choice, so a stream that hands over one
+ * 48 MiB chunk pulls 50,331,648 B against this same bound (over-bound 39,829,504).
+ * Unreachable over HTTP and unfixable in code — see `readBoundedBody`.
  */
-const READ_AHEAD_SLACK = 8 * CHUNK_BYTES;
+const CROSSING_CHUNK_AND_READ_AHEAD_SLACK = 2 * CHUNK_BYTES;
 
 const countingStream = (totalBytes: number, chunkBytes = CHUNK_BYTES) => {
   const state = { pulled: 0, cancelled: false };
@@ -146,9 +187,9 @@ describe('the upload endpoint, over real requests', () => {
 
   const assetCount = () => db.value<number>('SELECT COUNT(*) FROM twi_assets');
 
-  const jpegForm = (): FormData => {
+  const jpegForm = (trailing: number[] = []): FormData => {
     const form = new FormData();
-    form.set('file', new File([new Uint8Array(JPEG_MAGIC)], 'mood.jpg', { type: 'image/jpeg' }));
+    form.set('file', new File([new Uint8Array([...JPEG_MAGIC, ...trailing])], 'mood.jpg', { type: 'image/jpeg' }));
     return form;
   };
 
@@ -205,7 +246,7 @@ describe('the upload endpoint, over real requests', () => {
 
     // The measurement, not the status, is the assertion: before bound 2 existed the
     // status was ALSO 413 here — after `formData()` had buffered every byte.
-    expect(state.pulled).toBeLessThanOrEqual(MAX_MULTIPART_BODY_BYTES + READ_AHEAD_SLACK);
+    expect(state.pulled).toBeLessThanOrEqual(MAX_MULTIPART_BODY_BYTES + CROSSING_CHUNK_AND_READ_AHEAD_SLACK);
     expect(state.pulled).toBeLessThan(64 * 1024 * 1024);
     expect(state.cancelled).toBe(true);
     expect(bucket.calls).toEqual([]);
@@ -229,8 +270,34 @@ describe('the upload endpoint, over real requests', () => {
     });
 
     await expect(upload(req)).rejects.toMatchObject({ status: 413 });
-    expect(state.pulled).toBeLessThanOrEqual(MAX_MULTIPART_BODY_BYTES + READ_AHEAD_SLACK);
+    expect(state.pulled).toBeLessThanOrEqual(MAX_MULTIPART_BODY_BYTES + CROSSING_CHUNK_AND_READ_AHEAD_SLACK);
     expect(state.pulled).toBeLessThan(32 * 1024 * 1024);
+  });
+
+  it('bounds a body whose Content-Length UNDERSTATES its size', async () => {
+    // The third of the three shapes bound 2 exists for, and the one no committed test
+    // drove: a declared length small enough to sail through the header gate
+    // (`Number('10')` is finite and far under the bound) on a body that then hands over
+    // 32 MiB. Nothing but the streamed bound is left to refuse it.
+    const { stream, state } = countingStream(32 * 1024 * 1024);
+    const req = new Request(URL_, {
+      method: 'POST',
+      headers: {
+        Origin: 'https://sp1e.se',
+        'Content-Type': 'multipart/form-data; boundary=x',
+        'Idempotency-Key': 'understated-key',
+        'Content-Length': '10',
+      },
+      body: stream,
+      ...({ duplex: 'half' } as Record<string, string>),
+    });
+
+    await expect(upload(req)).rejects.toMatchObject({ status: 413 });
+    expect(state.pulled).toBeLessThanOrEqual(MAX_MULTIPART_BODY_BYTES + CROSSING_CHUNK_AND_READ_AHEAD_SLACK);
+    expect(state.pulled).toBeLessThan(32 * 1024 * 1024);
+    expect(state.cancelled).toBe(true);
+    expect(bucket.calls).toEqual([]);
+    expect(assetCount()).toBe(0);
   });
 
   it('accepts a real streamed body that stays inside the bound', async () => {
@@ -377,6 +444,33 @@ describe('the upload endpoint, over real requests', () => {
     expect(asset.r2Key).not.toContain('..');
   });
 
+  it('the identity preimage is UNAMBIGUOUS: a separator inside one field cannot be shifted into the other', async () => {
+    // The two inputs that collided at base. `DOMAIN\n{projectId}\n{key}` hashed the same
+    // string for both, and both derived d06e617a-b115-86df-a075-fd8b340ab9b8 — proof that
+    // "the value is scoped to the project" rested on `projectId` being LF-free, which
+    // nothing inside the derivation required. Length-prefixing the fields is what makes
+    // the claim intrinsic instead of borrowed from the three guards at the call site.
+    expect(await deriveImageAssetId(`${PROJECT_ID}\nEXTRA`, 'key')).not.toBe(
+      await deriveImageAssetId(PROJECT_ID, 'EXTRA\nkey'),
+    );
+
+    // And the collided pair is not special. Each of these decomposes to a different
+    // (projectId, key), including the two that would collide under a length prefix with no
+    // terminator, so every digest must differ.
+    const pairs: Array<[string, string]> = [
+      [`${PROJECT_ID}\nEXTRA`, 'key'],
+      [PROJECT_ID, 'EXTRA\nkey'],
+      [`${PROJECT_ID}\n`, 'EXTRA\nkey'],
+      [`${PROJECT_ID}\nEXTRA\nkey`, ''],
+      ['1', '2:x'],
+      ['12', ':x'],
+      ['1:1', 'x'],
+    ];
+    const ids = await Promise.all(pairs.map(([projectId, key]) => deriveImageAssetId(projectId, key)));
+
+    expect(new Set(ids).size).toBe(pairs.length);
+  });
+
   it('the derivation is stable and is a pure function of the two inputs', async () => {
     const once = await deriveImageAssetId(PROJECT_ID, 'stable');
     const twice = await deriveImageAssetId(PROJECT_ID, 'stable');
@@ -426,6 +520,188 @@ describe('the upload endpoint, over real requests', () => {
 
     expect(bucket.calls.filter((call) => call.startsWith('delete:'))).toHaveLength(1);
     expect(bucket.objects.size).toBe(0);
+  });
+
+  // ── TWO WRITERS AT ONCE, which every test above is structurally blind to ───
+  //
+  // Everything before this point is single-writer, and that is precisely why the suite
+  // could not see either defect below: both are consequences of the object key being
+  // SHARED between concurrent requests for one (projectId, Idempotency-Key). These two
+  // start both requests before either finishes — `Promise.all` over one real repository
+  // and one real SQLite — so both lookups really do miss, rather than being told to.
+
+  const raceRequests = (key: string, first: number[], second: number[]): [Request, Request] => [
+    withKey(key, jpegForm(first)),
+    withKey(key, jpegForm(second)),
+  ];
+
+  /**
+   * Holds every arriving caller until `parties` of them have arrived, then lets them all go.
+   *
+   * Two requests started together do overlap, but WHERE they overlap is decided by how
+   * many ticks each spends in `formData()` and the digest — and that varies with load,
+   * which is how a first draft of these tests passed alone and failed inside the full run.
+   * Pinning the interleaving is not staging the defect: the race needs both requests past
+   * the replay lookup before either insert, so the barrier makes the real condition
+   * reproducible instead of hoping the scheduler supplies it. It opens permanently, so the
+   * compensation's own later lookup passes straight through.
+   */
+  const barrier = (parties: number) => {
+    let arrived = 0;
+    let open = () => {};
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    return async () => {
+      arrived += 1;
+      if (arrived >= parties) open();
+      await gate;
+    };
+  };
+
+  /** The real lookup, delayed until every racing request has also missed. */
+  const lookupBehindBarrier = (gate: () => Promise<void>) => async (assetId: string) => {
+    const row = await repo.findAssetById(assetId);
+    await gate();
+    return row;
+  };
+
+  it('a racing loser does NOT delete the winner’s committed object', async () => {
+    // The bucket here is the PERMISSIVE recorder, on purpose: it ignores `onlyIf`, so it
+    // models a store that does not honour preconditions and this test measures the delete
+    // guard ALONE. The one injected fault is the one no test can produce otherwise — a D1
+    // transient on the second insert. Measured at base, without the guard: the winner's
+    // object was deleted by the loser and the committed row pointed at absent bytes.
+    let inserts = 0;
+    const bothPastTheLookup = barrier(2);
+    const flaky = {
+      ...repo,
+      getProject: repo.getProject.bind(repo),
+      findAssetById: lookupBehindBarrier(bothPastTheLookup),
+      registerAsset: async (input: Parameters<D1TwiRepository['registerAsset']>[0]) => {
+        inserts += 1;
+        if (inserts === 2) throw new Error('D1_ERROR: network');
+        return repo.registerAsset(input);
+      },
+    } as unknown as D1TwiRepository;
+
+    const [first, second] = raceRequests('raced', [1, 1, 1, 1], [2, 2, 2, 2]);
+    const settled = await Promise.allSettled([
+      uploadImageReference(first, PROJECT_ID, { bucket, repo: flaky }),
+      uploadImageReference(second, PROJECT_ID, { bucket, repo: flaky }),
+    ]);
+
+    // Which request wins is the scheduler's business, so nothing here depends on it.
+    // Both really reached the insert with the same identity — otherwise this test would
+    // be asserting something else entirely.
+    expect(inserts).toBe(2);
+    const winners = settled.filter((result) => result.status === 'fulfilled');
+    const losers = settled.filter((result) => result.status === 'rejected');
+    expect(winners).toHaveLength(1);
+    expect((winners[0] as PromiseFulfilledResult<Response>).value.status).toBe(201);
+    expect(String((losers[0] as PromiseRejectedResult).reason)).toContain('D1_ERROR: network');
+
+    const committed = await repo.findAssetById(await deriveImageAssetId(PROJECT_ID, 'raced'));
+    expect(assetCount()).toBe(1);
+    expect(committed).not.toBeNull();
+    // The whole finding, in one line: the row's bytes are still there.
+    expect(bucket.objects.has(committed?.r2Key ?? '')).toBe(true);
+    expect(bucket.calls.filter((call) => call.startsWith('delete:'))).toEqual([]);
+  });
+
+  it('keeps the object when the owner lookup itself fails, rather than guessing', async () => {
+    // The third state the guard has to answer for: not "mine" and not "someone else's"
+    // but UNKNOWN. Deleting on a failed lookup would put the guess back exactly where the
+    // finding was — so the object stays, at the price of storage, and the caller still
+    // gets the original diagnosis rather than the lookup's.
+    let lookups = 0;
+    const blind = {
+      ...repo,
+      getProject: repo.getProject.bind(repo),
+      findAssetById: async () => {
+        lookups += 1;
+        // The first call is the replay lookup and really does miss; the second is the
+        // compensation asking who owns the object.
+        if (lookups === 1) return null;
+        throw new Error('D1_ERROR: lookup failed');
+      },
+      registerAsset: async () => {
+        throw new Error('D1_ERROR: no such table');
+      },
+    } as unknown as D1TwiRepository;
+
+    await expect(uploadImageReference(withKey('blind'), PROJECT_ID, { bucket, repo: blind })).rejects.toThrow(
+      'D1_ERROR: no such table',
+    );
+
+    expect(lookups).toBe(2);
+    expect(bucket.calls.filter((call) => call.startsWith('delete:'))).toEqual([]);
+    expect(bucket.objects.size).toBe(1);
+  });
+
+  it('a racing loser cannot overwrite the winner’s bytes, so the row’s sha256 and bytes stay true', async () => {
+    // Same race, different consequence and a different instrument: two payloads of the
+    // SAME format (so the derived extension, and therefore the key, are identical) with
+    // different content and different lengths. Measured at base: the surviving row kept
+    // the winner's `bytes` 8 and `sha256` 9720c604… while the object held the loser's 10
+    // bytes hashing to df5aa251… — a provenance record describing bytes that were not
+    // there, in the subsystem whose entire purpose is provenance.
+    const conditional = new ConditionalBucket();
+    const bothPastTheLookup = barrier(2);
+    const raced = {
+      ...repo,
+      getProject: repo.getProject.bind(repo),
+      findAssetById: lookupBehindBarrier(bothPastTheLookup),
+      registerAsset: repo.registerAsset.bind(repo),
+    } as unknown as D1TwiRepository;
+    const [first, second] = raceRequests('shared', [0x11, 0x22, 0x33, 0x44], [0x55, 0x66, 0x77, 0x88, 0x99, 0xaa]);
+    const settled = await Promise.allSettled([
+      uploadImageReference(first, PROJECT_ID, { bucket: conditional, repo: raced }),
+      uploadImageReference(second, PROJECT_ID, { bucket: conditional, repo: raced }),
+    ]);
+
+    const winners = settled.filter((result) => result.status === 'fulfilled');
+    const losers = settled.filter((result) => result.status === 'rejected');
+    expect(winners).toHaveLength(1);
+    expect((winners[0] as PromiseFulfilledResult<Response>).value.status).toBe(201);
+    expect((losers[0] as PromiseRejectedResult).reason).toMatchObject({
+      status: 409,
+      code: 'idempotency_key_in_flight',
+    });
+
+    const committed = await repo.findAssetById(await deriveImageAssetId(PROJECT_ID, 'shared'));
+    expect(assetCount()).toBe(1);
+    const stored = conditional.objects.get(committed?.r2Key ?? '');
+    expect(stored).toBeDefined();
+    // The row describes the object it names — both fields, not just the length.
+    expect(stored?.byteLength).toBe(committed?.bytes);
+    expect(await sha256Of(stored ?? new Uint8Array(0))).toBe(committed?.sha256);
+    // A refused put is not an orphan, so nothing may be deleted either.
+    expect(conditional.calls.filter((call) => call.startsWith('delete:'))).toEqual([]);
+    expect(conditional.calls).toContain(`put-refused:${committed?.r2Key}`);
+  });
+
+  it('never commits a row for bytes it did not store: an object already under the key is refused, not overwritten', async () => {
+    // The single-writer face of the same rule, and the one that makes the rule testable
+    // without a race: an object under this identity's key with no row naming it — what an
+    // earlier attempt leaves behind when its insert failed AND its compensating delete
+    // also failed. Ignoring the refused put would commit a row whose `sha256` describes
+    // the bytes THIS call sent while the stored object holds the earlier ones, which is
+    // the same false provenance the race produces. The honest answer is 409: the key is
+    // occupied, and this endpoint will not write a record it cannot back.
+    const conditional = new ConditionalBucket();
+    const assetId = await deriveImageAssetId(PROJECT_ID, 'orphan-key');
+    const key = `twi/${PROJECT_ID}/assets/${assetId}/source.jpg`;
+    const earlier = new Uint8Array([...JPEG_MAGIC, 9, 9, 9]);
+    conditional.objects.set(key, earlier);
+
+    await expect(
+      uploadImageReference(withKey('orphan-key', jpegForm([1, 2, 3])), PROJECT_ID, { bucket: conditional, repo }),
+    ).rejects.toMatchObject({ status: 409, code: 'idempotency_key_in_flight' });
+
+    expect(assetCount()).toBe(0);
+    expect(conditional.calls).toEqual([`put-refused:${key}`]);
+    expect([...(conditional.objects.get(key) ?? [])]).toEqual([...earlier]);
   });
 
   // ── The degenerate sizes no test drove before ──────────────────────────────

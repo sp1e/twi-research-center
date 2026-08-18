@@ -358,6 +358,11 @@ describe('createImageAsset', () => {
     const boom = new Error('D1_ERROR: no such table (secret-connection-string)');
     const failing = {
       ...repo,
+      // The REAL lookup, bound: the compensating delete asks whether a committed row
+      // names this object before removing it, and here nothing was inserted, so the
+      // honest answer is "no row" and the delete must happen. A stub returning null
+      // would assert the same thing while proving less.
+      findAssetById: repo.findAssetById.bind(repo),
       registerAsset: async () => {
         throw boom;
       },
@@ -382,6 +387,11 @@ describe('createImageAsset', () => {
     bucket.deleteRejection = new Error('R2 down');
     const failing = {
       ...repo,
+      // Bound for the same reason as above — and here it is load-bearing twice over: if
+      // the compensation could not establish that no row owns the object, the delete
+      // would be skipped, `deleteRejection` would never fire, and this test would pass
+      // without exercising the failure it is named for.
+      findAssetById: repo.findAssetById.bind(repo),
       registerAsset: async () => {
         throw boom;
       },

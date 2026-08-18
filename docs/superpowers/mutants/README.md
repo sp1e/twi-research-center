@@ -412,7 +412,98 @@ contract checks. `mutation.anchorRepinnedIn` records it.
 `DOM-09` and `DOM-32R` against `src/twi/domain/schemas.ts`, and `API-21` against
 `scripts/run-tests.mjs`. The same uniqueness check run against the base commit's own blobs reports
 the same three. They are recorded in `revisions[1.7.0].alsoRecorded` rather than quietly fixed:
-repairing them means re-measuring against files this round does not own.
+repairing them means re-measuring against files this round does not own. **All three were repaired
+in v1.8.0**, each re-measured; see that section for the numbers.
+
+## Added in v1.8.0 - `API-120` to `API-124` (Task 6 fix round 2, the concurrency the suite could not see)
+
+The scoped re-review of fix round 1 confirmed all four earlier findings closed and then raised three
+new Importants, all three in `src/twi/server/assets.ts` and all three consequences of one change:
+deriving the asset id from the client's `Idempotency-Key` made the R2 object key **shared** between
+concurrent requests. **5/5 killed**, applied and reverted at `fix/twi-asset-race` (base `8e6f289`),
+backups outside the repository, each target verified byte-identical afterwards.
+
+| Entry | What it does | Result (`npx vitest run --config vitest.twi.config.ts`, 441/21) |
+|---|---|---|
+| `API-120` | the compensating delete stops asking who owns the object | KILLED 2 failed / 439 passed |
+| `API-121` | the put stops being conditional (`onlyIf` dropped) | KILLED 2 failed / 439 passed |
+| `API-122` | the identity preimage goes back to newline-delimited fields | KILLED 1 failed / 440 passed |
+| `API-123` | a refused conditional put is treated as a success | KILLED 1 failed / 440 passed |
+| `API-124` | the unknown-owner case (a failed lookup) deletes anyway | KILLED 1 failed / 440 passed |
+
+**Why the numbering jumps from `API-88` to `API-120`.** Task 7's salvage was adding `API-*` entries to
+this same file at the same time, and both rounds would otherwise have claimed `API-89`. `API-89` to
+`API-119` are **reserved by gap** for it, so the two sets cannot overlap whichever merges first. The
+gap is not a deletion - `retiredCount` is still 0 - and `sets[api].idCollisionAvoidance` records the
+convention: a concurrent round reserves forward rather than negotiating for the next free id.
+
+All five typecheck clean (`npm run typecheck:twi` exit 0 under each), which is the point: none of them
+is visible to anything but a behavioural assertion. Three things worth reading before using the set.
+
+- **The suite could not see any of this, and the reason is a KIND rather than a gap.** Every test in
+  `src/twi/server/asset-ingestion.test.ts` was single-writer, and a single writer's compensating delete
+  can only ever touch its own object. `API-120` and `API-121` therefore depend on a genuinely concurrent
+  test - two overlapping uploads over one real repository, held at a barrier so both replay lookups
+  really miss rather than being stubbed to. Both entries carry that in `premise`.
+- **`API-120`, `API-121` and `API-122` are the code as shipped at `8e6f289`.** Each one's
+  `mutation.isThePreFixCode` records the measured consequence: the winner's object deleted and one row
+  left pointing at absent bytes; a surviving row whose `sha256`/`bytes` (8 bytes, `9720c604...`) describe
+  an object that holds 10 bytes hashing to `df5aa251...`; and two distinct `(projectId, key)` pairs
+  deriving one uuid. The re-review measured that uuid as `d06e617a-b115-86df-a075-fd8b340ab9b8`; under
+  `API-122` it comes back as `a1e0189c-fc48-89e6-880e-b1ceb27af703`, because the fix also bumped the
+  identity domain constant to `v2`. Same collision, different domain string - worth knowing before
+  matching a uuid against the re-review by eye.
+- **`API-123` needs the SINGLE-writer orphan case, not the race.** In the race the D1 collision backstop
+  answers the same 409 either way, so the race alone leaves it alive; what discriminates is an object
+  under the key with no row naming it. Recorded in its `premise`, because it is the one entry here whose
+  kill signal is not the obvious test.
+
+**SIX existing anchors were repaired, and every one was RE-MEASURED rather than re-pinned on paper.**
+Three were the pre-existing stale anchors the v1.7.0 entry recorded; three more were broken by this
+round's own source change, two of those without anyone noticing until the audit below ran.
+
+| Anchor | Why it went stale | Re-measured |
+|---|---|---|
+| `API-21` | named the `['test:twi:contracts', '<blurb>'],` tuple `scripts/run-tests.mjs` stopped using when `SUITES` became objects with `shape` and `floor`. Dead at `e9280b6` **and** `8e6f289` | contract check fails **1 of 52 by name** |
+| `DOM-09` (site 2) | `sound.imageAssetIds` became `boundedArray(uuid, 10)` at `b69678b`, so the field line the site anchors on changed while the `}).strict(),` it guards did not | **1 failed / 440 passed** |
+| `DOM-32R` | anchored the array-stage `.max()` that `b69678b` **lifted out** in front of the array | **15 failed / 426 passed** |
+| `API-60` | RR-1's ownership guard moved the compensating delete one nesting level deeper | **2 failed / 439 passed** |
+| `API-61` | RR-2 made the put conditional, so the one-line put became four lines plus a guard | **11 failed / 430 passed** |
+| `API-80` | RR-3 length-prefixed the preimage, so the line it anchors changed | **2 failed / 439 passed** |
+
+Four of those deserve a sentence each.
+
+- **`API-21` was the only mutant covering contract-check sections 10 and 11**, so while its anchor was
+  dead that section had no applicable kill signal at all - which is why repairing it was worth a round
+  that does not otherwise own `scripts/run-tests.mjs`. Its `killSuiteWarning` needed correcting too.
+  The new anchor is the whole `SUITES` entry, comments included, because **removing the entry is the
+  mutation** - and quoting a comment is exactly how the old one died, so the entry now also carries a
+  comment-independent `mechanicalRule` that a runner should prefer.
+- **`DOM-32R`'s post-restructure form was recorded as `not-recoverable`**, on the ground that guessing
+  might record `DOM-37R` twice under two ids. That objection is now settled by measurement rather than
+  by argument: removing the pre-bound from `normalizedList` alone gives 15 failed / 426, `DOM-37R`
+  defeating the shared predicate gives **19 failed / 422**, and the four tests between them are exactly
+  the `boundedArray`/`imageAssetIds` arm the scoped edit leaves intact. Demonstrably different edits.
+- **`API-80`'s repair was attempted once and got the escaping wrong.** The source holds the two
+  characters `\\` and `n` inside a template literal, so the JSON must spell it with a
+  **doubled** backslash; the single form decodes to a real newline and matches nothing. Measured: 0
+  occurrences, under an entry that claimed a re-measurement it therefore cannot have made. If you
+  hand-edit an anchor in this file, count the backslashes and then run the audit.
+- **`API-60` and `API-61` are the reason the audit exists.** A stale anchor keeps every test, every
+  typecheck and every contract check green - it fails silently by construction - so a round that edits
+  a target file can break an anchor and ship. The audit is ~30 lines: read every `mutation.find`
+  (multi-site aware) and count occurrences in `target.file`.
+
+```
+whole-file anchor audit          at 8e6f289  : 161 sites, 3 stale   (DOM-09 site 2, DOM-32R, API-21)
+                                 after v1.8.0: 166 sites, 0 stale
+```
+
+`futureRunner.stillNeeded` already asks for this as an ANCHOR-UNIQUENESS PRECHECK at apply time. The
+lesson of this round is that it is *also* needed as a regression check on every round that touches a
+target file. **`test:twi:structure` is not that check:** it executes this manifest's anchors as a
+corpus for the **route file only**, so anchors on the other target files rot with nothing watching.
+Out of scope here, recorded so it is not lost.
 
 ## No runner, deliberately
 
