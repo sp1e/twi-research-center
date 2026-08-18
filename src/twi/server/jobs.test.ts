@@ -29,7 +29,12 @@ import { draft, instrumentalDraft } from '../domain/spec.fixture';
 import type { CostEstimate } from '../domain/types';
 
 import { MAX_IMAGE_REFERENCES_PER_SPEC } from './assets';
-import { PROVIDER_ESTIMATE_VARIABLE, fixedCreationCoreEstimate, providerEstimateUsd } from './estimates';
+import {
+  PROVIDER_ESTIMATE_VARIABLE,
+  fixedCreationCoreEstimate,
+  providerEstimateUsd,
+  providerRateConfigured,
+} from './estimates';
 import { HttpError } from './http';
 import { RIGHTS_ASSERTION_VERSION, estimateJob, submitJob, type JobDeps } from './jobs';
 import {
@@ -153,6 +158,34 @@ describe('POST /api/twi/jobs/estimate', () => {
     expect(providerEstimateUsd(null)).toBe(0);
     expect(providerEstimateUsd('   ')).toBe(0);
     expect(providerEstimateUsd('0')).toBe(0);
+  });
+
+  it('separates a CONFIGURED rate from a non-zero one — presence, not amount', () => {
+    // The amount cannot tell these apart: `providerEstimateUsd` answers 0 for both an absent
+    // variable and a deliberate `TWI_LYRIA_ESTIMATE_USD=0`.
+    expect(providerRateConfigured(undefined)).toBe(false);
+    expect(providerRateConfigured(null)).toBe(false);
+    expect(providerRateConfigured('   ')).toBe(false);
+    expect(providerRateConfigured('0')).toBe(true);
+    expect(providerRateConfigured('1.25')).toBe(true);
+  });
+
+  it('quotes a configured rate of 0 as FREE, and does not claim the variable is unset', async () => {
+    // Measured before this fix: `status: 'unavailable'` plus the sentence "Provider pricing
+    // is not configured (TWI_LYRIA_ESTIMATE_USD is unset)" — a specific falsehood about the
+    // deployment's own configuration, in owner-facing confirmation text on a money path.
+    const body = await readJson<{
+      estimate: { provider: number; total: number };
+      provider: { status: string; amountUsd: number };
+      confirmation: string;
+    }>(await quote({}, { providerEstimateUsd: '0' }));
+
+    expect(body.provider).toEqual({ status: 'estimated', amountUsd: 0 });
+    expect(body.estimate.total).toBeCloseTo(0.05, 8);
+    expect(body.confirmation).not.toMatch(/is unset/i);
+    expect(body.confirmation).not.toMatch(/not configured/i);
+    // The promise that the actual cost is recorded is still made, configured or not.
+    expect(body.confirmation).toMatch(/actual provider cost/i);
   });
 
   it('writes nothing and starts nothing — an estimate is a quote, not a submission', async () => {
@@ -390,6 +423,40 @@ describe('POST /api/twi/jobs — validation', () => {
     expect(failure.code).toBe('invalid_spec');
   });
 
+  // The two bounds on the echoed refusal detail had NO discriminating test: raising
+  // MAX_REPORTED_ISSUES to 1 and MAX_ISSUE_TEXT to 40000 both left the suite green, because
+  // every refusal driven above happens to carry one short issue. They are the report's own
+  // "bounds a hostile payload" claim, so they get one assertion each.
+  it('reports SEVERAL schema issues rather than only the first, and bounds how many', async () => {
+    // Four independent failures in one body: three cleared vocal fields that must not carry
+    // values, plus a missing rights assertion.
+    const failure = await rejection(
+      submit({
+        spec: {
+          ...instrumentalDraft,
+          rightsAccepted: undefined,
+          composition: { ...instrumentalDraft.composition, lyrics: '[Verse]\nstill here' },
+          performance: { ...instrumentalDraft.performance, voiceDescription: 'a tenor', language: 'sv' },
+        },
+      }),
+    );
+
+    const reported = failure.message.split('; ').length;
+    expect(reported).toBeGreaterThan(1);
+    expect(reported).toBeLessThanOrEqual(5);
+  });
+
+  it('truncates a hostile refusal detail instead of echoing it whole', async () => {
+    // zod's `unrecognized_keys` message quotes the offending key names, so a single absurd
+    // key is enough to make the detail longer than the bound. Nothing else in this suite
+    // produces an issue string long enough for the bound to fire at all.
+    const failure = await rejection(submit({ [`x${'y'.repeat(2000)}`]: true }));
+
+    expect(failure.code).toBe('invalid_spec');
+    // The prefix is fixed and the detail is what the bound applies to.
+    expect(failure.message.length).toBeLessThan(500);
+  });
+
   it('accepts an instrumental submission with the vocal fields cleared', async () => {
     expect((await submit({ spec: instrumentalDraft })).status).toBe(201);
   });
@@ -514,11 +581,19 @@ describe('POST /api/twi/jobs — dispatch', () => {
     expect(world.orchestrator.calls).toHaveLength(1);
     expect(world.orchestrator.call().url).toBe('https://twi.internal/start');
     expect(world.orchestrator.call().method).toBe('POST');
+    // `attempt` and `estimate` are asserted too, and they are the two fields that were
+    // missing: Task 8 tells a retry from a first submission by the ordinal on the WIRE, and
+    // setting it to a literal 0 here survived all 523 tests. Submit is ordinal 0, so the
+    // range (0, 1, 2, …) is driven in jobs-dispatch.test.ts rather than only here.
     expect(world.orchestrator.payload()).toMatchObject({
+      schemaVersion: 1,
       jobId: body.job.id,
       projectId: OWNER_PROJECT_ID,
+      specId: body.job.specId,
       specSha256: body.job.specSha256,
       idempotencyKey: IDEMPOTENCY_KEY,
+      attempt: 0,
+      estimate: body.job.estimate,
     });
     expect(world.orchestrator.call().body).not.toContain('Northbound');
   });

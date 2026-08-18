@@ -554,6 +554,68 @@ Two further entries carry a `premise` worth reading before trusting them:
 Do not add `measuredInTask7`'s figures to `measuredInTask6`, `measuredInThisRound` or
 `measuredInFixRound2`. Same rule as always, same reason.
 
+## Added in v1.9.0 — `API-116` to `API-119` and `API-125` to `API-136` (Task 7 fix round 1)
+
+Gate 2 **BLOCKED** Task 7. Sixteen mutants were applied and reverted on `fix/twi-task7-hardening`
+(base `1e5d4c3`) against the four job suites (86 tests: `jobs.test.ts`, `jobs-concurrency.test.ts`, `jobs-lifecycle.test.ts`, `jobs-dispatch.test.ts`): **15 killed, 1 recorded as a known
+equivalent survivor.** Every one was restored with a byte-identical check and `git status --porcelain`
+was empty after the pass.
+
+**Ids.** `API-116`–`API-119` are the four RESERVED-BY-GAP at Task 6 fix round 2 for Task 7 and never
+spent; this round spends them and then continues at `API-125`. The gap between 119 and 125 is now
+closed and no id was reused.
+
+**Three of the sixteen are revert-proofs of behavioural fixes** — the mutation IS (or reproduces) the
+code as shipped at `1e5d4c3`:
+
+| id | the defect it restores |
+|---|---|
+| `API-116` | two concurrent submits of one `Idempotency-Key` answer **500 `internal_error`** instead of replaying, because `estimatedJobMatchesInput` requires the same job id AND spec id and `submitJob` mints both per request — so `outcome === 'replayed'`, the branch the module header calls contract 3, was **unreachable in production**, and its only test supplied the outcome through a `repoWith` override |
+| `API-117` | the `spec_digest_mismatch` exit leaves the `twi_generation_specs` row it just wrote |
+| `API-118` | the losing concurrent submit leaves the same orphan — measured at `1e5d4c3` as `specs = 2, jobs = 1`, each orphan a full copy of the lyrics the owner typed, with nothing to reap it |
+
+**Nine are coverage defects that gate 2 measured as SURVIVORS of all 523 tests, all 79 contract checks
+and `typecheck:twi`** — the live code was already correct and nothing could tell:
+
+| id | gate 2 label | the claim nothing tested |
+|---|---|---|
+| `API-119` | HUNT-A | the attempt ordinal **on the wire**, pinned inside `event_key` and unpinned in the payload Task 8 reads |
+| `API-125` | HUNT-B | `cancelJob`'s ordinal — under the mutant a cancel of a retried job reuses `…:0:cancelling` and silently replays **after** the stop request was sent |
+| `API-126` | HUNT-F | `provider` attribution, bound into the job row **and** the estimate cost row |
+| `API-127` | HUNT-K | the `accepted: false` audit marker on a refused dispatch |
+| `API-128` | HUNT-L | `failDispatch`'s read-back status, whose comment claims a concurrent writer cannot break it |
+| `API-129` | HUNT-I | `MAX_REPORTED_ISSUES` |
+| `API-130` | HUNT-M | `MAX_ISSUE_TEXT` |
+| `API-131` | HUNT-N | `listJobs`' `trim()` — `?projectId=%20` became a 500 |
+| `API-132` | HUNT-G | `encodeURIComponent` on the cancel URL (judged *equivalent* at `1e5d4c3` because every fixture id is a UUID; the round wrote a job whose id needs encoding rather than leaving the claim to the fixtures) |
+
+Their `provenance` says survivor-then-closed rather than presenting them as tests agreeing with code
+shipped beside them. **`API-133`** is a regression guard for the configured-`TWI_LYRIA_ESTIMATE_USD=0`
+falsehood and is the one entry killed by **two** independent signals, measured separately: a unit test
+and a contract check. **`API-134`** and **`API-135`** defend two constructs this round introduced — the
+reap's `NOT EXISTS` guard and the list answer's `mayHaveMore`.
+
+**`API-136` is recorded as a `known-survivor` and that is the honest verdict, not a gap.** It drops the
+attempt ordinal from `costKey`, and it is an equivalent mutant at this tree: exactly one estimate cost
+row is ever written per job and `twi_cost_events` is `UNIQUE (job_id, idempotency_key)`. Its
+`whenItBecomesKillable` names the change that makes it real — any path writing a second estimate row —
+so whoever adds that path inherits the test they owe.
+
+**One existing entry's citation was edited, and nothing was weakened.** `API-20`'s only kill signal is
+contract-check section 6, whose NAME was false after Task 7 (`the TWI Pages Function graph exists and
+imports no npm package`, while the real graph reaches `zod` and the check covers an enumerated subset
+of eight modules). The name is now `the 8 enumerated TWI Pages Function modules exist and import no
+npm package`; the **predicate is unchanged**; the check count is unchanged at 79; the other 78 names
+are byte-identical in the same order, verified by executing the script before and after and diffing
+the printed names (`25c25`, one removed, one added). The check was **not** removed, because the section
+13 walk does **not** subsume it: `ADMITTED_PACKAGES` contains `zod`, so a bare `import { z } from
+'zod'` in the route file passes the walk. `API-20` was re-applied after the rename and is still killed
+by exactly that one check.
+
+Do not add this round's 15/16 to `measuredInTask7`, `measuredInTask6`, `measuredInThisRound`,
+`measuredInFixRound2` or `measuredInTask6FixRound2`. Same rule as always, same reason: different
+commit, different suite size.
+
 ## No runner, deliberately
 
 The owner chose a manifest, not an executable suite. One qualification since v1.3.0:

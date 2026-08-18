@@ -9,6 +9,7 @@ import {
   costStatements,
   countJobEvents,
   countProjectAssets,
+  deleteUnreferencedSpec,
   estimatedJobStatements,
   findAssetById,
   findAssetByR2Key,
@@ -44,6 +45,7 @@ import {
   type CreateEstimatedJobInput,
   type CreateEstimatedJobResult,
   type CreateProjectInput,
+  type DiscardUnreferencedSpecInput,
   type FindJobByIdempotencyKeyInput,
   type GenerationSpecRecord,
   type JobRecord,
@@ -208,6 +210,30 @@ export class D1TwiRepository implements TwiRepository {
       rightsAssertionVersion: input.rightsAssertionVersion,
       createdAt: input.createdAt,
     };
+  }
+
+  /**
+   * Reaps a specification row nothing references. See {@link TwiRepository} for WHY the
+   * write order forces this to exist, and `deleteUnreferencedSpec` for why the guard is in
+   * the SQL rather than in the caller.
+   *
+   * Reports `false` for a row that is still referenced instead of raising, because the
+   * caller is compensating for a failure it has already decided to report: a reap that
+   * refused would replace the caller's diagnosis with its own.
+   */
+  async discardUnreferencedSpec(input: DiscardUnreferencedSpecInput): Promise<boolean> {
+    const startedAt = Date.now();
+    assertNonBlank('spec.projectId', input.projectId);
+    assertNonBlank('spec.id', input.id);
+    const result = await deleteUnreferencedSpec(this.env.DB, input).run();
+    const removed = result.meta.changes === 1;
+    this.emit({
+      op: 'discardUnreferencedSpec',
+      projectId: input.projectId,
+      outcome: removed ? 'removed' : 'retained',
+      durationMs: Date.now() - startedAt,
+    });
+    return removed;
   }
 
   async findJobByIdempotencyKey(input: FindJobByIdempotencyKeyInput): Promise<JobRecord | null> {

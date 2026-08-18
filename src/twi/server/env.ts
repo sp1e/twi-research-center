@@ -26,9 +26,17 @@ import type { R2BucketLike } from './r2-types';
  * missing binding is a dispatch failure the submit path already lands in `error` with
  * `orchestrator_unavailable`, which is the same outcome as an outage.
  *
+ * WHO DECLARES IT TO PAGES: not this file and not Task 8. The root `wrangler.toml`
+ * service binding belongs to TASK 15, step 4 (plan:110, plan:1846, plan:1878-1880);
+ * Task 8 creates `twi-orchestrator/wrangler.toml`, the Worker's OWN config, which is a
+ * different file. The TypeScript half of that step is the declaration below, which Task 7
+ * was forced to add and which Task 15 therefore inherits as already done.
+ *
  * `TWI_LYRIA_ESTIMATE_USD` is a plain environment variable rather than a secret and it
- * is OPTIONAL by design. Absent means the provider component of an estimate is reported
- * `unavailable`, which is a different statement from zero; see `./estimates`.
+ * is OPTIONAL by design. ABSENT (or blank) means the provider component of an estimate is
+ * reported `unavailable` — "not priced", which is a different statement from zero. Setting
+ * it to `"0"` is a CONFIGURED rate and is reported `estimated` at zero, i.e. free; the two
+ * are told apart by presence rather than by the amount. See `./estimates`.
  */
 export interface TwiEnv {
   DB: D1DatabaseLike;
