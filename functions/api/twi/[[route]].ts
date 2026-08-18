@@ -90,6 +90,7 @@ import { requireOwnerSession } from '../../../src/twi/server/auth';
 import { creationCoreCapabilities } from '../../../src/twi/server/capabilities';
 import type { TwiEnv } from '../../../src/twi/server/env';
 import { assertSameOriginMutation, cors, HttpError, json } from '../../../src/twi/server/http';
+import { cancelJob, estimateJob, getJob, listJobs, retryJob, submitJob } from '../../../src/twi/server/jobs';
 import { createProject, getProject, listProjects } from '../../../src/twi/server/projects';
 import { D1TwiRepository } from '../../../src/twi/server/repository';
 
@@ -150,6 +151,29 @@ export const onRequest = async (ctx: TwiRouteContext): Promise<Response> => {
     // for this route.
     if (resource === 'projects' && id && sub === 'assets' && segments.length === 3 && method === 'POST') {
       return await uploadImageReference(request, id, { bucket: env.FILES, repo });
+    }
+
+    // The money path. The service binding is passed as an argument and never further:
+    // nothing below puts it, its name or any part of it into a response, exactly as the
+    // R2 binding is handled above. `TWI_LYRIA_ESTIMATE_USD` travels as the raw string
+    // because src/twi/server/estimates.ts owns parsing it — an unparseable value must
+    // refuse the quote rather than silently become zero.
+    const jobs = {
+      repo,
+      orchestrator: env.TWI_ORCHESTRATOR,
+      providerEstimateUsd: env.TWI_LYRIA_ESTIMATE_USD ?? null,
+    };
+    if (resource === 'jobs' && id === 'estimate' && !sub && method === 'POST') {
+      return await estimateJob(request, jobs);
+    }
+    if (resource === 'jobs' && !id && method === 'POST') return await submitJob(request, jobs);
+    if (resource === 'jobs' && !id && method === 'GET') return await listJobs(request, repo);
+    if (resource === 'jobs' && id && !sub && method === 'GET') return await getJob(id, repo);
+    if (resource === 'jobs' && id && sub === 'cancel' && segments.length === 3 && method === 'POST') {
+      return await cancelJob(id, jobs);
+    }
+    if (resource === 'jobs' && id && sub === 'retry' && segments.length === 3 && method === 'POST') {
+      return await retryJob(id, jobs);
     }
 
     return json({ error: 'not found', code: 'not_found' }, 404);

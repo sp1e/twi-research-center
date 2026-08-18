@@ -15,6 +15,7 @@ import { onRequest, type TwiRouteContext } from '../../../functions/api/twi/[[ro
 
 import { creationCoreCapabilities } from './capabilities';
 import type { D1DatabaseLike, D1PreparedStatementLike } from './d1-types';
+import { RecordingOrchestrator } from './jobs.harness';
 import type { R2BucketLike, R2ObjectLike, R2PutOptionsLike, R2PutValue } from './r2-types';
 import { SqliteD1 } from './repository.harness';
 
@@ -61,10 +62,16 @@ class RecordingBucket implements R2BucketLike {
 describe('/api/twi/* dispatch', () => {
   let db: SqliteD1;
   let files: RecordingBucket;
+  let orchestrator: RecordingOrchestrator;
 
   beforeEach(() => {
     db = new SqliteD1();
     files = new RecordingBucket();
+    // Task 7 added `TWI_ORCHESTRATOR` to `TwiEnv`, so the dispatch table cannot be
+    // driven without one — and every gate assertion below is also an assertion that
+    // nothing was dispatched to it. A job start is the most expensive thing this API
+    // can do, so "no session ⇒ no start" is the assertion that matters most here.
+    orchestrator = new RecordingOrchestrator();
     db.exec(SESSIONS_TABLE);
     db.exec(
       'INSERT INTO sessions (token, expires_at) VALUES (?, ?)',
@@ -94,7 +101,11 @@ describe('/api/twi/* dispatch', () => {
     if (typeof body === 'string') headers.set('Content-Type', 'application/json');
 
     const request = new Request(`https://sp1e.se/api/twi/${route.join('/')}`, { method, headers, body });
-    const context: TwiRouteContext = { request, env: { DB: database ?? db, FILES: files }, params: { route } };
+    const context: TwiRouteContext = {
+      request,
+      env: { DB: database ?? db, FILES: files, TWI_ORCHESTRATOR: orchestrator },
+      params: { route },
+    };
     return onRequest(context);
   };
 
@@ -118,6 +129,15 @@ describe('/api/twi/* dispatch', () => {
       // this is the parametrised list that proves a route is BEHIND the gate, and a
       // route absent from it is a route nobody checked.
       ['projects/some-id/assets', { method: 'POST', origin: 'https://sp1e.se', body: imageForm() }],
+      // Task 7's six job routes, for the same reason: this list is what proves a route
+      // is BEHIND the gate. These are the ones that cost provider money, so an ungated
+      // one is not a disclosure, it is a stranger spending the owner's balance.
+      ['jobs/estimate', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
+      ['jobs', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
+      ['jobs', {}],
+      ['jobs/some-id', {}],
+      ['jobs/some-id/cancel', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
+      ['jobs/some-id/retry', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
       ['unknown-resource', {}],
     ];
 
@@ -128,6 +148,7 @@ describe('/api/twi/* dispatch', () => {
       expect(await response.json()).toEqual({ error: 'Unauthorized', code: 'unauthorized' });
       expect(projectCount()).toBe(0);
       expect(files.calls).toEqual([]);
+      expect(orchestrator.calls).toEqual([]);
     });
 
     it('answers 401 when the session has expired', async () => {
@@ -381,6 +402,132 @@ describe('/api/twi/* dispatch', () => {
       });
       expect(files.calls).toEqual([]);
       expect(assetCount()).toBe(0);
+    });
+  });
+
+  describe('the job routes', () => {
+    const owningProject = async (): Promise<string> => {
+      const created = await call(['projects'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: '{"name":"Nocturne"}',
+      });
+      return ((await created.json()) as { project: { id: string } }).project.id;
+    };
+
+    /** A minimal valid specification. Kept here so the route table is driven end to end. */
+    const specFor = (projectId: string, idempotencyKey: string) => ({
+      projectId,
+      idempotencyKey,
+      spec: {
+        intent: { purpose: 'album track', mood: [], narrative: '', durationSeconds: 120, instrumental: true },
+        composition: { lyrics: '', sections: [], bpm: null, key: '', meter: '', arrangement: '' },
+        sound: { styles: ['art rock'], exclusions: [], novelty: 50, imageAssetIds: [] },
+        performance: { mode: 'generic', vocalRange: '', timbre: '', delivery: '' },
+        rightsAccepted: true,
+      },
+    });
+
+    it('quotes an estimate without creating a job or starting anything', async () => {
+      const projectId = await owningProject();
+      const { projectId: _omit, idempotencyKey: _key, ...rest } = specFor(projectId, 'x');
+
+      const response = await call(['jobs', 'estimate'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: JSON.stringify({ projectId, ...rest }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ provider: { status: 'unavailable' } });
+      expect(db.value<number>('SELECT COUNT(*) FROM twi_jobs')).toBe(0);
+      expect(orchestrator.calls).toEqual([]);
+    });
+
+    it('submits, polls, lists and retries through the table', async () => {
+      const projectId = await owningProject();
+      const key = '22222222-2222-4222-8222-222222222222';
+
+      const submitted = await call(['jobs'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: JSON.stringify(specFor(projectId, key)),
+      });
+      expect(submitted.status).toBe(201);
+      const { job } = (await submitted.json()) as { job: { id: string; status: string } };
+      expect(job.status).toBe('queued');
+
+      expect((await call(['jobs', job.id], { cookie: OWNER_COOKIE })).status).toBe(200);
+      const listed = await call(['jobs'], { cookie: OWNER_COOKIE });
+      expect(await listed.json()).toMatchObject({ jobs: [{ id: job.id }] });
+
+      // Retry is refused from `queued`, through the same error envelope every other
+      // refusal uses — not through Pages' own 500.
+      const retried = await call(['jobs', job.id, 'retry'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: '{}',
+      });
+      expect(retried.status).toBe(409);
+      expect(await retried.json()).toMatchObject({ code: 'retry_not_allowed' });
+    });
+
+    it('cancels a queued job and tells the orchestrator to stop', async () => {
+      const projectId = await owningProject();
+      const submitted = await call(['jobs'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: JSON.stringify(specFor(projectId, '77777777-7777-4777-8777-777777777777')),
+      });
+      const { job } = (await submitted.json()) as { job: { id: string } };
+
+      const cancelled = await call(['jobs', job.id, 'cancel'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: '{}',
+      });
+
+      expect(cancelled.status).toBe(200);
+      expect(await cancelled.json()).toMatchObject({ job: { status: 'cancelling' } });
+      expect(orchestrator.cancels).toBe(1);
+    });
+
+    it.each([
+      [['jobs', 'estimate', 'extra'], 'POST'],
+      [['jobs', 'some-id', 'cancel', 'extra'], 'POST'],
+      [['jobs', 'some-id', 'retry', 'extra'], 'POST'],
+      [['jobs', 'some-id', 'unknown'], 'GET'],
+    ])('does not claim %s as a job route', async (route, method) => {
+      const response = await call(route, {
+        method,
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: method === 'POST' ? '{}' : undefined,
+      });
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: 'not found', code: 'not_found' });
+      expect(orchestrator.calls).toEqual([]);
+    });
+
+    it('refuses a submission with no Origin header and starts nothing', async () => {
+      const projectId = await owningProject();
+
+      const response = await call(['jobs'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        body: JSON.stringify(specFor(projectId, '99999999-9999-4999-8999-999999999999')),
+      });
+
+      expect(response.status).toBe(403);
+      expect(orchestrator.calls).toEqual([]);
+      expect(db.value<number>('SELECT COUNT(*) FROM twi_jobs')).toBe(0);
     });
   });
 

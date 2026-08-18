@@ -505,6 +505,55 @@ target file. **`test:twi:structure` is not that check:** it executes this manife
 corpus for the **route file only**, so anchors on the other target files rot with nothing watching.
 Out of scope here, recorded so it is not lost.
 
+## Added in v1.8.0 — `API-89` to `API-115` (Task 7, the creation-job money path)
+
+Task 7 is the first task whose **every** route either spends provider money or acts on a job that
+already did: estimate, idempotent submit, poll, cancel, retry. Twenty-seven mutants were **applied
+and reverted**, not transcribed, on `feat/twi-task7-submit` (base `8e6f289`) after reproducing that
+tree's eight-suite baseline first.
+
+The headline is two numbers, and they must not be collapsed into one:
+
+- **23/27 killed** against the suite as inherited (55 tests across `jobs.test.ts` and
+  `jobs-lifecycle.test.ts`).
+- **27/27 killed** after this round added 13 tests to close the four survivors.
+
+**The four survivors are the point of this set.** Unlike `API-51`–`API-88`, this round did not write
+the code — it inherited it from an implementer whose process died before the mutation round it owed,
+with the work uncommitted. So these entries record a guard actually being beaten:
+
+| id | survived because | closed by |
+|---|---|---|
+| `API-102` | the list only ever held three jobs, so raising the page bound to `Number.MAX_SAFE_INTEGER` changed nothing observable | `asks the repository for exactly MAX_JOB_PAGE, never a caller-supplied bound` |
+| `API-112` | the estimate cost row was only ever **counted**, never **valued** — charging it at `0` kept every count right | `records on the job the SAME total the estimate route quotes, before anything is dispatched` |
+| `API-114` | cancel was only ever driven from `queued`, so hardcoding `fromStatus: 'queued'` was indistinguishable from reading it | `cancels a job in generating / ingesting / finishing` |
+| `API-115` | nothing drove a cancel from `validating`, so replacing `canTransition` with a transcribed list admitted one silently | `refuses to cancel from validating, which the state machine does not admit` |
+
+They share one shape: **each is a branch the inherited suite exercised at exactly ONE of its admitted
+inputs.** That is the same failure shape as Task 6's idempotency gap and as the 227 tests that never
+ran — the branch exists, is correct, and nothing drives the other cases through it. A count is not a
+value, and one legal input is not a domain.
+
+Two further entries carry a `premise` worth reading before trusting them:
+
+- **`API-110` is the honest answer to a claim the implementer made in prose.** It reported placing
+  the ten-reference cap on the raw body *ahead of* the parse, and offered as proof a test counting
+  **zero repository reads** for an over-count. That test does **not** discriminate the placement: a
+  post-parse cap is unreachable anyway (`rawEntryCountBound(10)` inside `boundedArray` refuses the
+  eleventh entry first) and that parse failure *also* precedes every repository read, so zero reads
+  holds under both arrangements. Measured: the mutation that moves the cap below the parse fails
+  exactly one test, and it is the one asserting the refusal **code** `too_many_image_references`. The
+  reasoning was right; the cited proof was not the proof.
+- **`API-113` targets `src/twi/server/queries.ts`, which Task 7 does not own.** The `category =
+  'estimate'` literal is Task 4 code, and it is registered here because Task 7 is the first caller
+  whose money rule depends on it — `actual_cost_usd` is recomputed as
+  `SUM(amount_usd) WHERE category <> 'estimate'`, so a drifted category charges the owner on
+  submission. It is the one of the four estimate/actual-cost mutants the inherited suite already
+  caught, which is why it is **not** listed as a survivor beside `API-112`.
+
+Do not add `measuredInTask7`'s figures to `measuredInTask6`, `measuredInThisRound` or
+`measuredInFixRound2`. Same rule as always, same reason.
+
 ## No runner, deliberately
 
 The owner chose a manifest, not an executable suite. One qualification since v1.3.0:

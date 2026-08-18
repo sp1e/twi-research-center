@@ -16,11 +16,14 @@ import type {
   AssetRecord,
   AssetRow,
   CostEventRow,
+  CountJobEventsInput,
+  CountProjectAssetsInput,
   CreateEstimatedJobInput,
   CreateProjectInput,
   JobEventRow,
   JobRecord,
   JobRow,
+  ListJobsInput,
   ProjectRow,
   PublishCandidatesInput,
   RegisterAssetInput,
@@ -361,6 +364,68 @@ export async function findJobById(db: D1DatabaseLike, jobId: string): Promise<Jo
     .first<JobRow>();
   return row ? mapJob(row) : null;
 }
+
+/**
+ * Newest first, with a TOTAL order.
+ *
+ * `created_at DESC` alone is not enough: two submissions inside the same millisecond
+ * carry the same timestamp — and a fixed clock in a test guarantees it — so the tie is
+ * broken on `id`. Without the tiebreak the answer is stable only by luck of the query
+ * plan, which is the shape of test that passes until an index changes.
+ *
+ * The limit is bound rather than interpolated, so a caller cannot smuggle SQL into it.
+ */
+export const selectJobs = (db: D1DatabaseLike, input: ListJobsInput): Promise<{ results: JobRow[] }> =>
+  (input.projectId === null
+    ? db
+        .prepare(`SELECT ${JOB_COLUMNS} ${JOB_SOURCE} ORDER BY j.created_at DESC, j.id DESC LIMIT ?`)
+        .bind(input.limit)
+    : db
+        .prepare(
+          `SELECT ${JOB_COLUMNS} ${JOB_SOURCE}
+           WHERE j.project_id = ?
+           ORDER BY j.created_at DESC, j.id DESC
+           LIMIT ?`,
+        )
+        .bind(input.projectId, input.limit)
+  ).all<JobRow>();
+
+/**
+ * How many of `assetIds` are active assets of this project, optionally of one kind.
+ *
+ * `id` is the primary key, so `COUNT(*)` over an `IN` list counts distinct rows and the
+ * caller can compare the answer directly against the number of ids it asked about.
+ * Only `lifecycle_state = 'active'` counts: a deleted or still-provisional asset has no
+ * bytes a paid render can rely on. The placeholder list is generated from the array's
+ * LENGTH and every value is bound, so an empty list would produce `IN ()` — invalid
+ * SQL, which is why the repository refuses that case before reaching here.
+ */
+export const countProjectAssets = async (
+  db: D1DatabaseLike,
+  input: CountProjectAssetsInput,
+): Promise<number> => {
+  const placeholders = input.assetIds.map(() => '?').join(',');
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS total
+       FROM twi_assets
+       WHERE project_id = ?
+         AND lifecycle_state = 'active'
+         AND id IN (${placeholders})${input.kind === null ? '' : ' AND kind = ?'}`,
+    )
+    .bind(input.projectId, ...input.assetIds, ...(input.kind === null ? [] : [input.kind]))
+    .first<{ total: number }>();
+  return row?.total ?? 0;
+};
+
+/** The attempt ordinal: how many times this job has entered `toStatus`. */
+export const countJobEvents = async (db: D1DatabaseLike, input: CountJobEventsInput): Promise<number> => {
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS total FROM twi_job_events WHERE job_id = ? AND to_status = ?`)
+    .bind(input.jobId, input.toStatus)
+    .first<{ total: number }>();
+  return row?.total ?? 0;
+};
 
 export const findJobEvent = (
   db: D1DatabaseLike,

@@ -1,7 +1,7 @@
 {
   "manifest": "twi-creation-core-mutants",
   "manifestVersion": "1.8.0",
-  "recordedAt": "2026-08-17",
+  "recordedAt": "2026-08-18",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
   "plan": "docs/superpowers/plans/2026-08-16-twi-creation-core.md",
@@ -63,7 +63,7 @@
       "what": "Added API-75 to API-88 (14 entries) for the classes gate 2 recorded as uncovered: a real request stream, the malformed-multipart path, retry/duplication, the degenerate-size guard, and WEAKENING rather than removal (startsWith -> includes, toLowerCase dropped, a bound widened rather than deleted). Total entries 162 -> 176; sets[api].liveCount 74 -> 88. One existing entry was edited: API-62's anchor was re-pinned because the statement it names moved into a helper, and it was re-measured at this tree rather than re-pinned on paper. Two prose corrections to the v1.6.0 revision entry (liveCount 50 -> 73 read 73 where the data says 74; scopeNote said 23/23 where the score says 24/24). No id was removed or renumbered.",
       "why": "Gate 2 approved Task 6 and then named exactly what its 24 mutants could not see: nothing exercised a real request stream, so no entry could tell 'refused cheaply' from 'refused after buffering 10 MB'; no entry touched the malformed-multipart path, which answered 500 for a client mistake; nothing probed retry/duplication, because with a per-call UUID identity a retry really did duplicate; the degenerate-size guard had no test; and no entry WEAKENED a guard rather than deleting it, which is how a byte validator quietly stops being strict.",
       "scopeNote": "14/14 killed, 0 survivors, 0 ambiguous anchors, measured at this tree. Do not add this score to measuredInTask6, measuredInThisRound or measuredInFixRound2. Three of the fourteen (API-75, API-77, API-78) are not hypothetical: the mutation IS the code as shipped at e9280b6, and gate 2 measured its behaviour. Twelve of the fourteen are invisible to test:twi:contracts and one (API-88) is killed by it \u2014 the same 'neither suite is sufficient' shape this set's testCommandWarning already records.",
-      "alsoRecorded": "Three anchors elsewhere in this file were ALREADY stale at e9280b6 and are not this round's doing: DOM-09 and DOM-32R against src/twi/domain/schemas.ts, and API-21 against scripts/run-tests.mjs. Verified by running the same uniqueness check against the base commit's own blobs, which reports the same three. Repairing them belongs to a round that owns those files. FIX ROUND 2 REPAIRED ALL THREE; see revisions[1.8.0]."
+      "alsoRecorded": "Three anchors elsewhere in this file were ALREADY stale at e9280b6 and are not this round's doing: DOM-09 and DOM-32R against src/twi/domain/schemas.ts, and API-21 against scripts/run-tests.mjs. Verified by running the same uniqueness check against the base commit's own blobs, which reports the same three. Repairing them belongs to a round that owns those files. FIX ROUND 2 REPAIRED ALL THREE; see the revisions entry v1.8.0 / round task-6-fix-round2."
     },
     {
       "version": "1.8.0",
@@ -73,6 +73,15 @@
       "why": "The re-review found that every test in src/twi/server/asset-ingestion.test.ts was single-writer, and that this was not a gap in coverage but a gap in KIND: a single writer\u2019s compensating delete can only ever touch its own object, so no single-writer test can see the consequence of the object key becoming shared. Two of the five new entries therefore depend on a genuinely concurrent test, which the file now has. The five anchor repairs are here because a stale anchor is a mutant that cannot be applied \u2014 a kill signal the manifest claims and does not have. API-21 was the sharpest case: it was the only mutant covering contract-check sections 10 and 11, so while its anchor was dead that section had no applicable kill signal at all.",
       "scopeNote": "5/5 new entries killed, 0 survivors, 0 ambiguous anchors, measured with `npx vitest run --config vitest.twi.config.ts` at 441/21 with `npm run typecheck:twi` exit 0 under each. Do not add this score to measuredInTask6, measuredInThisRound, measuredInFixRound2 or the v1.7.0 block. Three of the five (API-120, API-121, API-122) are the code as shipped at 8e6f289, and each one\u2019s measured consequence is recorded in mutation.isThePreFixCode. A full anchor audit was run over every anchored site in this file, against the base blobs and against the working tree, and is the evidence for the repair list: 161 sites / 3 stale at 8e6f289, 166 sites / 0 stale after.",
       "alsoRecorded": "The whole-file anchor audit this round ran is cheap and belongs in the runner: read every mutation.find (multi-site aware) and count occurrences in target.file. It is what found API-60 and API-61, which no test, typecheck or contract check can see \u2014 a stale anchor fails silently by definition. futureRunner.stillNeeded already asks for it as an ANCHOR-UNIQUENESS PRECHECK; this round\u2019s experience is that it is also needed as a REGRESSION check on every round that edits a target file, not only at apply time. Separately OUT OF SCOPE here and recorded so it is not lost: test:twi:structure executes this manifest\u2019s anchors as a corpus for the ROUTE FILE only, so anchors on the other target files (src/twi/server/assets.ts, src/twi/domain/schemas.ts, scripts/run-tests.mjs, _redirects, tsconfig.twi.json and the rest) rot with nothing watching."
+    },
+    {
+      "version": "1.8.0",
+      "round": "task-7-verification",
+      "at": "feat/twi-task7-submit, base 8e6f289",
+      "what": "Added API-89 to API-115 (27 entries) for the Task 7 creation-job money path. The api set goes 88 -> 115 and total entries 176 -> 203. No entry retired, no id reused, nothing in any other set edited.",
+      "why": "Task 7 is the first task whose every route either spends provider money or acts on a job that already did, and it was inherited from an implementer whose process died before the mutation round it owed. Four of the 27 are measured SURVIVORS of the suite that implementer left behind \u2014 the list page bound, the estimate amount actually charged, and a cancel from two of its four legal states \u2014 so this round records a guard being beaten, not merely tests agreeing with the code they shipped beside.",
+      "scopeNote": "measuredInTask7 carries the numbers: 23/27 killed against the inherited suite, 27/27 after the four survivors were closed by 13 added tests. Neither figure may be added to measuredInTask6, measuredInThisRound or measuredInFixRound2 \u2014 each was measured on a different commit against a suite of a different size.",
+      "mergeNote": "This entry and the task-6-fix-round2 entry above it BOTH took version 1.8.0: they were written concurrently on two branches off 8e6f289 and landed in the same merge of feat/twi-task7-submit into codex/twi-research-center-design. Neither was renumbered — renumbering another round’s account is the thing v1.6.0’s versionNote refused to do — so 1.8.0 names two rounds and the `round` field is the discriminator. Each `what` above states the total against ITS OWN base of 176, so 181 and 203 are both correct and NEITHER is the post-merge total: the union is 208 entries (176 + Task 7’s 27 + fix round 2’s 5, id ranges disjoint by construction) with sets[api].liveCount 120. The 208 and the 120 were counted from the resolved data, not added up from the two sides’ figures. Fix round 2’s six anchor repairs (DOM-09 site 2, DOM-32R, API-21, API-60, API-61, API-80) survive the merge intact; Task 7 edited no existing entry, so nothing about them was contested."
     }
   ],
 
@@ -150,23 +159,23 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "the working tree on top of parent commit 8e6f289, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
+      "measuredAt": "the working tree on top of parent commit b84a0a0, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (8/8), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 441, "files": 21 },
+        "test:twi": { "tests": 523, "files": 23 },
         "test:twi:schema": { "tests": 39 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
-        "test:twi:contracts": { "checks": 52, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3. Zero check names have ever been removed." },
+        "test:twi:contracts": { "checks": 79, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added. Zero check names have ever been removed." },
         "test:migrations": { "tests": 10 },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "827 tests plus 60 script checks",
+      "totals": "909 tests plus 87 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
-      "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 138-entry set against 1da7968, or against any single commit. This block records the suite the mutants would be measured against, not a score."
+      "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 208-entry set against any single commit (the figure read 138 while the manifest was v1.4.0 and was not revised as the set grew; corrected in v1.8.0, and corrected again to 208 when the two concurrent v1.8.0 rounds merged — the two sides carried 181 and 203, each true against its own base of 176, and 208 is the union COUNTED from the resolved entries). This block records the suite the mutants would be measured against, not a score."
     },
     "measuredAt": "ac034a4",
     "measuredBy": "the v1.0.0 manifest round, per-suite, individually — history, see readThisFirst",
@@ -1924,9 +1933,9 @@
       "fullSuiteCommand": "npm test",
       "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it. Fix round 2 widens this sharply: API-30 to API-50 are ALL text-only facts and only TWO of them (API-31, API-32) are visible to test:twi at all. API-30 \u2014 a resource-scoped gate exemption \u2014 is simultaneously green on test:twi, typecheck:twi AND fix round 1\u2019s 29-check contract check, which is precisely why the contract check must not delegate this class to the unit suite: those 401 tests enumerate the resources that EXIST.",
       "historicalNumbering": "M1-M21 from task-5-report.md, plus M22 published in the same section as \"Gap 3\". Gate 2 added one probe (its spot-check 4) and re-verified three of the 21. Fix round 1 added six. The API-* ids are this manifest\u2019s and are one-to-one with those labels via historicalLabels.",
-      "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase. A SECOND kind of collision appeared at Task 6 fix round 2, and the answer is a reserved gap rather than a rule: Task 7's salvage was adding API-* entries to this same file at the same time, and both rounds would otherwise have taken API-89 next. Fix round 2 therefore took API-120..API-124 and RESERVED API-89..API-119 for Task 7, so the two sets cannot overlap whichever merges first. A gap in the numbering is not a deletion — retiredCount stays 0 and 'only ever increase' is preserved — and a concurrent round should reserve forward the same way rather than negotiate for the next free id.",
-      "liveCount": 93,
-      "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response. Task 6 fix round 1 added API-75 to API-88 (14 entries) and fix round 2 added API-120 to API-124 (5); the latter skip API-89..API-119 deliberately — see idCollisionAvoidance. Fix round 2's five numbers live in measuredInTask6FixRound2 and belong to none of the blocks above.",
+      "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase. A SECOND kind of collision appeared at Task 6 fix round 2, and the answer is a reserved gap rather than a rule: Task 7's salvage was adding API-* entries to this same file at the same time, and both rounds would otherwise have taken API-89 next. Fix round 2 therefore took API-120..API-124 and RESERVED API-89..API-119 for Task 7, so the two sets cannot overlap whichever merges first. A gap in the numbering is not a deletion — retiredCount stays 0 and 'only ever increase' is preserved — and a concurrent round should reserve forward the same way rather than negotiate for the next free id. THE RESERVATION HELD: Task 7 landed in the merge that brought both rounds together and took API-89..API-115 out of the reserved range, so the two sets are disjoint and no id was renumbered on either side. API-116..API-119 were never spent and stay a gap — again not a deletion, retiredCount is still 0 — and the next free id is API-125.",
+      "liveCount": 120,
+      "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response. Task 6 fix round 1 added API-75 to API-88 (14 entries) and fix round 2 added API-120 to API-124 (5); the latter skip API-89..API-119 deliberately — see idCollisionAvoidance. Fix round 2's five numbers live in measuredInTask6FixRound2 and belong to none of the blocks above. Task 7 verification added API-89 to API-115 (27 entries) for the creation-job money path \u2014 estimate, idempotent submit, poll, cancel and retry. FOUR of them (API-102, API-112, API-114, API-115) are MEASURED SURVIVORS of the suite that task\u2019s original implementer left behind, each now killed by a test added in the same round; the other 23 were killed on first application. Its numbers live in `measuredInTask7` and belong to none of the blocks above. Those two rounds were concurrent, which is why the id ranges are not contiguous: API-89..API-115 (Task 7) and API-120..API-124 (fix round 2), with API-116..API-119 reserved and unspent. liveCount 120 is the COUNT of entries in this set after the merge, not 93 + 115 and not either side’s figure.",
       "retiredCount": 0,
       "provenanceRounds": [
         "task-5-report.md (M1-M21 plus M22 as Gap 3; M10 and M11 recorded there as survivors it closed)",
@@ -1934,9 +1943,22 @@
         "task-5-gate1-spec-review.md (Minor 4: probes D and E, the same hole as gate 2 Important 1, found independently)",
         "task-5-fix-round1-report.md (API-24-API-29; closed API-23 and API-27-API-29; re-measured API-05/11/14)",
         "task-5-rereview-round1.md (15 constructions against fix round 1\u2019s guard; ELEVEN beat it \u2014 contributed API-30 to API-39)",
-        "task-5-fix-round2-report.md (API-40 to API-50, invented while attacking round 2\u2019s own guard; closed API-30 to API-39)"
+        "task-5-fix-round2-report.md (API-40 to API-50, invented while attacking round 2\u2019s own guard; closed API-30 to API-39)",
+        "task-7-report.md (API-89 to API-115, the money-path round: 27 applied and reverted, 23/27 killed against the inherited suite, 27/27 after four survivors were closed)"
       ],
       "methodNote": "ALL 29 were applied for real in fix round 1, one at a time, and reverted \u2014 not transcribed. Anchor uniqueness was checked mechanically before each application (the driver aborts the mutant rather than half-applying it), and every target file was verified byte-identical to an in-memory pristine copy afterwards. Anchors were chosen to sit in CODE, never in a comment, so the two comment edits fix round 1 made to the route file cannot invalidate them.",
+      "measuredInTask7": {
+        "round": "task-7-verification",
+        "at": "feat/twi-task7-submit, base 8e6f289",
+        "baselineFirst": "Eight suites reproduced BEFORE any mutant was applied: test:legacy 128 (+199 script checks), test:sp1epacker 149/8, test:twi 504/23, test:twi:schema 39, test:twi:structure 60, test:twi:contracts 78, test:migrations 10, test:twi:bundle 8. typecheck:twi, typecheck:sp1epacker and build all exit 0.",
+        "suitesRun": "npm run test:twi -- src/twi/server/jobs.test.ts src/twi/server/jobs-lifecycle.test.ts",
+        "score": "27/27 killed, 0 survivors, 0 ambiguous anchors \u2014 AFTER the four survivors were closed",
+        "scoreBeforeNewTests": "23/27 killed, 4 SURVIVORS, measured against the inherited 55-test suite. The survivors are API-102 (the page bound), API-112 (the estimate amount actually charged), API-114 (a cancel from any state other than queued) and API-115 (a transcribed cancellable set). All four were invisible to a fully green suite.",
+        "whatTheSurvivorsHaveInCommon": "Every one is a case the inherited suite exercised at exactly ONE of its admitted inputs. Cancel was only ever driven from `queued`; the list only ever held three jobs, which fit under any bound; the estimate row was only ever counted, never valued. That is the same failure shape as Task 6\u2019s idempotency gap \u2014 the branch existed, was correct, and nothing drove the other cases through it.",
+        "killedByIsMeasuredNotTranscribed": "Every `killedBy` list in this block is the MEASURED failure set at this tree, captured from the runner\u2019s own FAIL lines, with `measured: true` on each item and the raw pass/fail ratio kept beside it in `measuredFailureCount`.",
+        "scopeNote": "27/27 is a measurement of THIS set at THIS tree. Do not add it to measuredInTask6, measuredInThisRound or measuredInFixRound2. And it is not a coverage claim about Task 7 as a whole: it says these 27 behaviours have a discriminating test, not that every behaviour does.",
+        "notCommitted": "The driver lives in a session scratchpad and is deliberately NOT committed, per the README\u2019s \"No runner, deliberately\". It implements an anchor-uniqueness precheck that aborts rather than half-applying, a byte-identical restore check after every mutant, and per-mutant kill suites. It has no syntax gate, so the three entries with appended payloads (API-92, API-94, API-109) were also eyeballed for parseability."
+      },
       "measuredInTask6": {
         "round": "task-6-asset-ingestion",
         "at": "feat/twi-task6-asset-ingestion, base e602840",
@@ -2748,12 +2770,12 @@
           "target": { "file": "scripts/run-tests.mjs", "construct": "the SUITES entry that makes `npm test` run the contract check" },
           "mutation": {
             "kind": "replace",
-            "find": "  {\n    script: 'test:twi:contracts',\n    blurb: 'TWI API route placement, _redirects order, deploy reachability',\n    shape: 'checks',\n    // 38 \u2192 52 at Task 6: section 12, image-reference ingestion. Zero names removed\n    // (extracted and diffed mechanically, the way fix round 3 did it).\n    floor: { checks: 52 },\n  },\n",
+            "find": "  {\n    script: 'test:twi:contracts',\n    blurb: 'TWI API route placement, _redirects order, deploy reachability',\n    shape: 'checks',\n    // 38 \u2192 52 at Task 6: section 12, image-reference ingestion. Zero names removed\n    // (extracted and diffed mechanically, the way fix round 3 did it).\n    // 52 \u2192 79 when Task 7 merged: section 13 (the job API) takes it to 78, and the Pages\n    // Function graph's exact-pin assertion is the 79th. Still zero names removed.\n    floor: { checks: 79 },\n  },\n",
             "replace": "",
             "anchorUnique": true,
-            "anchorRepinnedIn": "task-6-fix-round2 (fix/twi-asset-race, base 8e6f289). The old anchor named the `['test:twi:contracts', '<blurb>'],` TUPLE that scripts/run-tests.mjs stopped using when SUITES became objects carrying `shape` and `floor`. Two independent audits found it dead at e9280b6 AND at 8e6f289 \u2014 pre-existing, not fix round 1's doing even though that round edited this file. It was also the ONLY mutant covering contract-check sections 10 and 11, so while the anchor was dead that section had no applicable kill signal at all, which is why repairing it was worth a round that does not otherwise own scripts/run-tests.mjs. RE-MEASURED, not re-pinned on paper.",
+            "anchorRepinnedIn": "task-6-fix-round2 (fix/twi-asset-race, base 8e6f289). The old anchor named the `['test:twi:contracts', '<blurb>'],` TUPLE that scripts/run-tests.mjs stopped using when SUITES became objects carrying `shape` and `floor`. Two independent audits found it dead at e9280b6 AND at 8e6f289 \u2014 pre-existing, not fix round 1's doing even though that round edited this file. It was also the ONLY mutant covering contract-check sections 10 and 11, so while the anchor was dead that section had no applicable kill signal at all, which is why repairing it was worth a round that does not otherwise own scripts/run-tests.mjs. RE-MEASURED, not re-pinned on paper. RE-PINNED AGAIN in the merge of feat/twi-task7-submit into codex/twi-research-center-design: raising the contract-check FLOOR in scripts/run-tests.mjs from 52 to 79 (Task 7 takes the check count to 79) rewrote one line inside the anchored block and added two comment lines to it, so the round-2 `find` went to ZERO occurrences. That is exactly the hazard `anchorNote` names, and it was caught by re-running the whole-file anchor audit AFTER the resolution as well as before it \u2014 the regression check revisions[1.8.0 / task-6-fix-round2].alsoRecorded asks for, doing its job on the very next round that edited this target file. RE-MEASURED again, not re-pinned on paper.",
             "anchorNote": "COMMENT-INCLUSIVE BY NECESSITY, because REMOVING the entry is the mutation and the entry carries its own comment. That is exactly how the previous anchor died, so read `mechanicalRule` first: a runner should prefer it and treat `find` as the exact-from-source witness for the tree named in anchorRepinnedIn. If the comment on the contracts suite changes, move this anchor with it.",
-            "mechanicalRule": "Delete the one element of the SUITES array in scripts/run-tests.mjs whose `script` is 'test:twi:contracts', comments and all: from the line matching /^  \\{$/ that precedes /^    script: 'test:twi:contracts',$/ through the following /^  \\},$/ inclusive. Comment-independent, and equivalent to `find` at 8e6f289."
+            "mechanicalRule": "Delete the one element of the SUITES array in scripts/run-tests.mjs whose `script` is 'test:twi:contracts', comments and all: from the line matching /^  \\{$/ that precedes /^    script: 'test:twi:contracts',$/ through the following /^  \\},$/ inclusive. Comment-independent, and equivalent to `find` at 8e6f289. PREFER IT over `find`: the literal anchor has now been re-pinned twice for comment churn inside this block \u2014 at 8e6f289 and again at the Task 7 merge \u2014 while this rule has needed no edit either time. It is equivalent to `find` at both trees."
           },
           "substantiation": "exact-from-source",
           "killedBy": [
@@ -2777,6 +2799,12 @@
             "byRound": "task-6-fix-round2",
             "result": "killed",
             "observed": "`node scripts/twi-contract-check.mjs` -> FAIL `npm test is the suite runner, and the runner lists test:twi:contracts`, 1 of 52 checks failed. `npm test` -> exit 1 on MANIFEST BASELINE DRIFT (3), with every suite that DID run still green (twi 441/21, sp1epacker 149/8, legacy 128, schema 39, structure 60, migrations 10, bundle 8). Measured against UPDATED baselines, so the three drift items are the mutation's own effect and nothing else. scripts/run-tests.mjs restored byte-identical afterwards."
+          },
+          "spotCheckedAtMergeReAnchor": {
+            "at": "the merge of feat/twi-task7-submit into codex/twi-research-center-design, first parent b84a0a0",
+            "byRound": "task-7-merge-resolution",
+            "result": "killed",
+            "observed": "`node scripts/twi-contract-check.mjs` -> FAIL `npm test is the suite runner, and the runner lists test:twi:contracts`; 78 OK and 1 FAIL of 79 checks. `npm test` -> exit 1 on MANIFEST BASELINE DRIFT (3): suites[\"test:twi:contracts\"] recorded as a suite of this project / measured 'npm test does not run it'; npmTest (8/8) -> (7/7); totals 909 tests plus 87 script checks -> 909 tests plus 8 script checks \u2014 and it refused to auto-apply the dropped suite. Every suite that DID run stayed green. Measured against THIS merge\u2019s updated baselines, so all three drift items are the mutation\u2019s own effect and nothing else. scripts/run-tests.mjs verified byte-identical to a pristine copy afterwards (cmp clean)."
           }
         },
         {
@@ -6679,6 +6707,1937 @@
           "premise": {
             "dependsOn": "the contract check reading a comment-free canonical rendering of uploadImageReference for `createImageAsset(`",
             "claim": "The guard is the layer meant to survive a refactor. The two behaviour tests that also fail do so only because the inlined copy drops the rollback; a version that copied the rollback too would be invisible to them and visible to the check."
+          }
+        },
+        {
+          "id": "API-89",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-89",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a zero provider component reads as \"free\" rather than \"not priced\", so the owner authorises a paid render against a number the deployment never set",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/estimates.ts",
+            "construct": "estimateView\u2019s provider-status label"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const status: ProviderEstimateStatus = estimate.provider === 0 ? 'unavailable' : 'estimated';",
+            "replace": "const status: ProviderEstimateStatus = 'estimated';",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs/estimate > labels the provider component unavailable \u2014 not zero \u2014 when pricing is not configured",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-90",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-90",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a configured provider rate is quoted to the owner but excluded from the total they confirm",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/estimates.ts",
+            "construct": "the computed total in creationCoreEstimatePolicy"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "total: provider + FINISHING_ESTIMATE_USD + STORAGE_ESTIMATE_USD,",
+            "replace": "total: FINISHING_ESTIMATE_USD + STORAGE_ESTIMATE_USD,",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs/estimate > parses a configured non-negative provider rate and includes it in the total",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-91",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-91",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a misconfigured rate is quoted as zero instead of refusing, so the confirmation gate passes on a fiction",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/estimates.ts",
+            "construct": "providerEstimateUsd\u2019s refusal branch"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (!Number.isFinite(parsed) || parsed < 0) {",
+            "replace": "if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs/estimate > refuses to quote at all when -1 is configured, rather than quoting zero",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs/estimate > refuses to quote at all when not-a-number is configured, rather than quoting zero",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs/estimate > refuses to quote at all when Infinity is configured, rather than quoting zero",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs/estimate > refuses to quote at all when 1e999 is configured, rather than quoting zero",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  4 failed | 64 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  4 failed | 64 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-92",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-92",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the quote endpoint creates a job and an estimate charge, so the confirmation gate has been passed before the owner sees the number",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "estimateJob\u2019s single return"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return json(estimateView(await policyOf(deps).estimate(spec)));",
+            "replace": "  const est = await policyOf(deps).estimate(spec);\n  const c = clockOf(deps);\n  const sid = c.newId();\n  const jid = c.newId();\n  await deps.repo.saveSpec({ id: sid, projectId, specJson: JSON.stringify(spec), rightsAssertionVersion: RIGHTS_ASSERTION_VERSION, createdAt: c.now() });\n  await deps.repo.createEstimatedJob({ id: jid, projectId, specId: sid, idempotencyKey: jid, estimateJson: JSON.stringify(est), estimateAmountUsd: est.total, provider: creationCoreCapabilities.provider, model: null, eventKey: eventKey(jid, 0, 'estimated'), eventDetailJson: JSON.stringify({ schemaVersion: 1 }), costIdempotencyKey: costKey(jid, 0), costDetailJson: JSON.stringify({ schemaVersion: 1 }), now: c.now() });\n  return json(estimateView(est));",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs/estimate > writes nothing and starts nothing \u2014 an estimate is a quote, not a submission",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-93",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-93",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the same Idempotency-Key creates a second job, a second estimate charge and a SECOND paid render",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the replay short-circuit in submitJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (prior) return json({ job: prior, outcome: 'replayed', transition: null }, 200);",
+            "replace": "  if (false && prior) return json({ job: prior, outcome: 'replayed', transition: null }, 200);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > submitted twice with the same key: one job, one charge, one start",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > replays a cosmetically different retry of the same submission rather than charging twice",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lets the failed submission be replayed without a second charge",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  3 failed | 65 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  3 failed | 65 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-94",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-94",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an independently hashed digest disagrees with the stored one, so findJobByIdempotencyKey reads a legitimate replay as a collision \u2014 a second paid submission",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the fingerprint source in submitJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const fingerprint = await specSha256(specJson);",
+            "replace": "  const fingerprint = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(specJson)))]\n    .map((b) => b.toString(16).padStart(2, '0'))\n    .join('');",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs/:id > returns the job, including the estimate it was submitted against",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > lists the owner\u2019s jobs, newest first",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > filters to one project when asked",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > is bounded by that limit in the repository itself, not merely by how few rows exist",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > asks the orchestrator to stop, then moves the job to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > records the cancel as its own event, keyed by the attempt ordinal",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in queued: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in generating: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in ingesting: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in finishing: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses to cancel from validating, which the state machine does not admit, and starts no stop request",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses to cancel from cancelling, which the state machine does not admit, and starts no stop request",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses a status the state machine cannot cancel from, and does not call the orchestrator",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > leaves the job alone when the orchestrator cannot be reached \u2014 it is still running",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > is allowed only from error",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > re-queues the failed job without a second spec, job or charge",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > clears the error metadata and the checkpoint once the work is resumed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > advances the attempt ordinal across TWO retries, so the second is not a silent replay",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > returns a refused retry to error rather than leaving it stuck in retrying",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > does not dispatch when the retrying transition was somebody else\u2019s",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > records on the job the SAME total the estimate route quotes, before anything is dispatched",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > exists before the orchestrator is asked \u2014 a refused dispatch still leaves the estimate recorded",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > does NOT count the estimate as an actual cost \u2014 that is what makes the two comparable",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > records the ACTUAL cost after, from the non-estimate rows only",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > submitted twice with the same key: one job, one charge, one start",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > replays a cosmetically different retry of the same submission rather than charging twice",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > stores the digest specSha256() derives \u2014 the value findJobByIdempotencyKey looks up",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > refuses a key reused for a DIFFERENT spec, and writes nothing new",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > treats a different key as a different submission \u2014 two jobs, two charges, two starts",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > does not dispatch when createEstimatedJob reports that a concurrent submission won",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 validation > accepts an instrumental submission with the vocal fields cleared",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 validation > records the rights assertion version against the stored spec",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 image references > accepts ten real references belonging to the project",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > queues the job only after the orchestrator accepts, with the attempt ordinal in the event key",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > starts the Workflow at the internal origin, once, with the job identity and no lyric content",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > writes every timestamp in the one shape the schema accepts",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lands a refused dispatch in error with orchestrator_unavailable, charged exactly once",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lands a THROWN dispatch in the same place, and never quotes the binding\u2019s message",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lets the failed submission be replayed without a second charge",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  39 failed | 29 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  39 failed | 29 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-95",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-95",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a concurrent submission that lost the insert race still starts a render, so one job gets two",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "createEstimatedJob\u2019s outcome gate in submitJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (outcome === 'replayed') return json({ job, outcome, transition: null }, 200);",
+            "replace": "  if (false) return json({ job, outcome, transition: null }, 200);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > does not dispatch when createEstimatedJob reports that a concurrent submission won",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-96",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-96",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the ten-reference cap has no caller on the submit path, which is exactly the state Task 6 shipped",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the raw reference-cap call in submitJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  assertImageReferenceSelection(rawImageReferences(body));\n  const { projectId, idempotencyKey, spec } = parseRequest(submitJobSchema, body);",
+            "replace": "  const { projectId, idempotencyKey, spec } = parseRequest(submitJobSchema, body);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 image references > refuses more than 10 references per specification",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-97",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-97",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a job nobody started reports `queued`, so the owner waits on a render that does not exist and the retry route never sees it",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the dispatch result that gates estimated \u2192 queued"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const started = await dispatch(deps, `${ORCHESTRATOR_ORIGIN}/start`, startPayload(job, SUBMIT_ATTEMPT, estimate));\n  if (!started) {",
+            "replace": "  const started = true;\n  await dispatch(deps, `${ORCHESTRATOR_ORIGIN}/start`, startPayload(job, SUBMIT_ATTEMPT, estimate));\n  if (!started) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses a status the state machine cannot cancel from, and does not call the orchestrator",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > re-queues the failed job without a second spec, job or charge",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > clears the error metadata and the checkpoint once the work is resumed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > advances the attempt ordinal across TWO retries, so the second is not a silent replay",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > returns a refused retry to error rather than leaving it stuck in retrying",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > does not dispatch when the retrying transition was somebody else\u2019s",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lands a refused dispatch in error with orchestrator_unavailable, charged exactly once",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lands a THROWN dispatch in the same place, and never quotes the binding\u2019s message",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  8 failed | 60 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  8 failed | 60 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-98",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-98",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "an audio asset is accepted as an image reference against a provider that cannot read it \u2014 a paid render on an input it will ignore",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/job-references.ts",
+            "construct": "the capability-narrowed count in assertImageReferencesUsable"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const images = await repo.countProjectAssets({ projectId, assetIds: imageAssetIds, kind: 'image-reference' });",
+            "replace": "  const images = imageAssetIds.length;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 image references > refuses an AUDIO asset offered as a reference \u2014 audio reference is unavailable",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-99",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-99",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a divergent stored digest is not caught, so the next replay of this key becomes a second paid submission",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the stored-digest comparison in submitJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (saved.specSha256 !== fingerprint) {",
+            "replace": "  if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > refuses to continue if the stored digest disagrees with the fingerprint it looked up",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-100",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-100",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a missing job answers 200 with a fabricated envelope instead of 404",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "requireJob\u2019s 404"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (!job) throw new HttpError(404, 'job not found');",
+            "replace": "  if (!job) return { id: jobId } as unknown as JobRecord;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs/:id > answers 404 for an unknown id rather than an empty envelope",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs/:id > answers 404 for a blank id rather than surfacing the repository assertion as a 500",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > answers 404 for an unknown job",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > answers 404 for an unknown job",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  4 failed | 64 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  4 failed | 64 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-101",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-101",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "one project\u2019s job list returns every project\u2019s jobs",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the projectId query parameter in listJobs"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const projectId = requested !== null && requested.trim().length > 0 ? requested.trim() : null;",
+            "replace": "  const projectId = null;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > filters to one project when asked",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-102",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-102",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the job list is unbounded, so it grows without limit as the Workflow appends to it",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the page bound passed to repo.listJobs"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return json({ jobs: await repo.listJobs({ projectId, limit: MAX_JOB_PAGE }) });",
+            "replace": "  return json({ jobs: await repo.listJobs({ projectId, limit: Number.MAX_SAFE_INTEGER }) });",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > asks the repository for exactly MAX_JOB_PAGE, never a caller-supplied bound",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "notKilledBy": [
+            {
+              "suite": "test:twi",
+              "note": "the suite as INHERITED (55 tests across jobs.test.ts and jobs-lifecycle.test.ts, before this round added any) stayed 55/55 GREEN under this mutation. Measured, before the closing test was written."
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "MEASURED SURVIVOR of the suite the task\u2019s original implementer left behind. Killed only after this round added a discriminating test, so the gap was real rather than hypothetical \u2014 the same class of finding as API-62.",
+            "closedBy": "asks the repository for exactly MAX_JOB_PAGE, never a caller-supplied bound"
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-103",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-103",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a job is cancelled from a status the state machine refuses, so the stored status and the modelled one part company",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "cancelJob\u2019s canTransition guard"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (!canTransition(job.status, 'cancelling')) {",
+            "replace": "  if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses to cancel from validating, which the state machine does not admit, and starts no stop request",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses to cancel from cancelling, which the state machine does not admit, and starts no stop request",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses a status the state machine cannot cancel from, and does not call the orchestrator",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  3 failed | 65 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  3 failed | 65 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-104",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-104",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the job reports `cancelling` though nothing was ever told to stop \u2014 the owner stops watching a render that keeps spending",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "cancelJob\u2019s not-stopped branch"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (!stopped) {",
+            "replace": "  if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > leaves the job alone when the orchestrator cannot be reached \u2014 it is still running",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-105",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-105",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a cancel after a retry reuses an event key and becomes a silent no-op replay",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the cancel transition\u2019s eventKey"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    eventKey: eventKey(job.id, attempt, 'cancelling'),",
+            "replace": "      eventKey: `${job.id}:cancelling`,",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > records the cancel as its own event, keyed by the attempt ordinal",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-106",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-106",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a queued job can be retried, starting a second render against one paid job",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "retryJob\u2019s error-only guard"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (job.status !== 'error') {",
+            "replace": "  if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > is allowed only from error",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-107",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-107",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the first retry loop reuses an event key, so the transition is a silent no-op replay: the job reports retried and nothing moved",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the eventKey helper"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const eventKey = (jobId: string, attempt: number, to: JobStatus): string => `${jobId}:${attempt}:${to}`;",
+            "replace": "const eventKey = (jobId: string, attempt: number, to: JobStatus): string => `${jobId}:${to}`;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > records the cancel as its own event, keyed by the attempt ordinal",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > re-queues the failed job without a second spec, job or charge",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > clears the error metadata and the checkpoint once the work is resumed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > advances the attempt ordinal across TWO retries, so the second is not a silent replay",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > returns a refused retry to error rather than leaving it stuck in retrying",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > queues the job only after the orchestrator accepts, with the attempt ordinal in the event key",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  6 failed | 62 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  6 failed | 62 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-108",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-108",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a retry another isolate already claimed dispatches a second render for one paid job",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "retryJob\u2019s applied-outcome gate"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (retrying.outcome !== 'applied') {",
+            "replace": "  if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > does not dispatch when the retrying transition was somebody else\u2019s",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-109",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-109",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a retry writes a new spec, a new job and a SECOND estimate charge for one render",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "retryJob\u2019s reuse of the frozen spec and the paid estimate"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const attempt = (await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' })) + 1;",
+            "replace": "  const attempt = (await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' })) + 1;\n  {\n    const sid = clock.newId();\n    const jid = clock.newId();\n    await deps.repo.saveSpec({ id: sid, projectId: job.projectId, specJson: JSON.stringify({ resubmitted: true }), rightsAssertionVersion: RIGHTS_ASSERTION_VERSION, createdAt: clock.now() });\n    await deps.repo.createEstimatedJob({ id: jid, projectId: job.projectId, specId: sid, idempotencyKey: jid, estimateJson: JSON.stringify(job.estimate), estimateAmountUsd: 0.05, provider: creationCoreCapabilities.provider, model: null, eventKey: eventKey(jid, 0, 'estimated'), eventDetailJson: JSON.stringify({ schemaVersion: 1 }), costIdempotencyKey: costKey(jid, 0), costDetailJson: JSON.stringify({ schemaVersion: 1 }), now: clock.now() });\n  }",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > re-queues the failed job without a second spec, job or charge",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > advances the attempt ordinal across TWO retries, so the second is not a silent replay",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > returns a refused retry to error rather than leaving it stuck in retrying",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  3 failed | 65 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  3 failed | 65 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-110",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-110",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the reference cap sits below the parse, where boundedArray(uuid, 10) has already refused the eleventh entry, so the cap is dead code and its specific refusal is unreachable",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the position of assertImageReferenceSelection relative to the parse"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  assertImageReferenceSelection(rawImageReferences(body));\n  const { projectId, idempotencyKey, spec } = parseRequest(submitJobSchema, body);",
+            "replace": "  const { projectId, idempotencyKey, spec } = parseRequest(submitJobSchema, body);\n  assertImageReferenceSelection(spec.sound.imageAssetIds);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 image references > refuses more than 10 references per specification",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          },
+          "premise": {
+            "dependsOn": "the refusal CODE being asserted, not merely that the request was refused",
+            "claim": "The sibling test that counts ZERO repository reads for an over-count does NOT discriminate this placement. A post-parse cap is unreachable because rawEntryCountBound(10) inside boundedArray refuses the eleventh entry first, and that parse failure ALSO precedes every repository read \u2014 so the zero-reads assertion holds under both arrangements. Measured: under this mutation exactly one test fails, and it is the one asserting code `too_many_image_references`. The zero-reads test passes."
+          }
+        },
+        {
+          "id": "API-111",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-111",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the job carries no estimate at all, so nothing was shown before submission",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the estimateJson written by createEstimatedJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    estimateJson: JSON.stringify(estimate),",
+            "replace": "    estimateJson: JSON.stringify(null),",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs/:id > returns the job, including the estimate it was submitted against",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > lists the owner\u2019s jobs, newest first",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > filters to one project when asked",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "GET /api/twi/jobs > is bounded by that limit in the repository itself, not merely by how few rows exist",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > asks the orchestrator to stop, then moves the job to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > records the cancel as its own event, keyed by the attempt ordinal",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in queued: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in generating: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in ingesting: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in finishing: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses to cancel from validating, which the state machine does not admit, and starts no stop request",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses to cancel from cancelling, which the state machine does not admit, and starts no stop request",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses a status the state machine cannot cancel from, and does not call the orchestrator",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > leaves the job alone when the orchestrator cannot be reached \u2014 it is still running",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > is allowed only from error",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > re-queues the failed job without a second spec, job or charge",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > clears the error metadata and the checkpoint once the work is resumed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > advances the attempt ordinal across TWO retries, so the second is not a silent replay",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > returns a refused retry to error rather than leaving it stuck in retrying",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/retry > does not dispatch when the retrying transition was somebody else\u2019s",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > records on the job the SAME total the estimate route quotes, before anything is dispatched",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > exists before the orchestrator is asked \u2014 a refused dispatch still leaves the estimate recorded",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > does NOT count the estimate as an actual cost \u2014 that is what makes the two comparable",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > records the ACTUAL cost after, from the non-estimate rows only",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > submitted twice with the same key: one job, one charge, one start",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > replays a cosmetically different retry of the same submission rather than charging twice",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > stores the digest specSha256() derives \u2014 the value findJobByIdempotencyKey looks up",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > refuses a key reused for a DIFFERENT spec, and writes nothing new",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > treats a different key as a different submission \u2014 two jobs, two charges, two starts",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > does not dispatch when createEstimatedJob reports that a concurrent submission won",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 validation > accepts an instrumental submission with the vocal fields cleared",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 validation > records the rights assertion version against the stored spec",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 image references > accepts ten real references belonging to the project",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > queues the job only after the orchestrator accepts, with the attempt ordinal in the event key",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > starts the Workflow at the internal origin, once, with the job identity and no lyric content",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > writes every timestamp in the one shape the schema accepts",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lands a refused dispatch in error with orchestrator_unavailable, charged exactly once",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lands a THROWN dispatch in the same place, and never quotes the binding\u2019s message",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 dispatch > lets the failed submission be replayed without a second charge",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  39 failed | 29 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  39 failed | 29 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-112",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-112",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the estimate charged is not the estimate quoted, so the \"before\" half of the owner rule records a different number from the one shown",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the estimateAmountUsd written by createEstimatedJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    estimateAmountUsd: estimate.total,",
+            "replace": "    estimateAmountUsd: 0,",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > records on the job the SAME total the estimate route quotes, before anything is dispatched",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "notKilledBy": [
+            {
+              "suite": "test:twi",
+              "note": "the suite as INHERITED (55 tests across jobs.test.ts and jobs-lifecycle.test.ts, before this round added any) stayed 55/55 GREEN under this mutation. Measured, before the closing test was written."
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "MEASURED SURVIVOR of the suite the task\u2019s original implementer left behind. Killed only after this round added a discriminating test, so the gap was real rather than hypothetical \u2014 the same class of finding as API-62.",
+            "closedBy": "records on the job the SAME total the estimate route quotes, before anything is dispatched"
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-113",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-113",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the estimate row counts as an actual cost, so actual_cost_usd is charged on submission and the estimate can no longer be told from a charge",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/queries.ts",
+            "construct": "the cost-event category in estimatedJobStatements"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "       VALUES (?, ?, 'estimate', ?, ?, ?, NULL, ?, ?)`,",
+            "replace": "       VALUES (?, ?, 'provider', ?, ?, ?, NULL, ?, ?)`,",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > exists before the orchestrator is asked \u2014 a refused dispatch still leaves the estimate recorded",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > does NOT count the estimate as an actual cost \u2014 that is what makes the two comparable",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "the estimate-before / actual-cost-after rule > records the ACTUAL cost after, from the non-estimate rows only",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs.test.ts",
+              "test": "POST /api/twi/jobs \u2014 idempotency > submitted twice with the same key: one job, one charge, one start",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  4 failed | 64 passed (68)",
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "killed on first application against the implementer\u2019s own suite. NOT a former survivor: what it measures is whether the shipped tests can detect the shipped behaviour being wrong.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  4 failed | 64 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          },
+          "premise": {
+            "dependsOn": "the cost-event category being hardcoded in src/twi/server/queries.ts, which Task 7 does not own",
+            "claim": "Task 7 chooses this row only by calling createEstimatedJob; the category literal is Task 4 code. The mutant is registered here because Task 7 is the first caller whose money rule depends on it. It is also the one of the four estimate/actual-cost mutants the INHERITED suite already caught, via the costCategories assertion in the idempotency test \u2014 so it is not a survivor, unlike API-112 beside it."
+          }
+        },
+        {
+          "id": "API-114",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-114",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a cancel from generating, ingesting or finishing fails its optimistic-concurrency precondition, so the stop request is sent and the job never moves",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "the fromStatus precondition of the cancelling transition"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    fromStatus: job.status,",
+            "replace": "    fromStatus: 'queued',",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in generating: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in ingesting: one stop request, and the job moves to cancelling",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > cancels a job in finishing: one stop request, and the job moves to cancelling",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  3 failed | 65 passed (68)",
+          "notKilledBy": [
+            {
+              "suite": "test:twi",
+              "note": "the suite as INHERITED (55 tests across jobs.test.ts and jobs-lifecycle.test.ts, before this round added any) stayed 55/55 GREEN under this mutation. Measured, before the closing test was written."
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "MEASURED SURVIVOR of the suite the task\u2019s original implementer left behind. Killed only after this round added a discriminating test, so the gap was real rather than hypothetical \u2014 the same class of finding as API-62.",
+            "closedBy": "cancels a job in generating / ingesting / finishing: one stop request, and the job moves to cancelling"
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  3 failed | 65 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
+          }
+        },
+        {
+          "id": "API-115",
+          "historicalLabels": [
+            {
+              "round": "task-7-verification",
+              "label": "API-115",
+              "publishedIn": "task-7-report.md"
+            }
+          ],
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the route admits a cancel the domain refuses, because it transcribes the cancellable set instead of reading it",
+          "appliesAtCommit": "feat/twi-task7-submit",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
+          "target": {
+            "file": "src/twi/server/jobs.ts",
+            "construct": "cancelJob\u2019s canTransition guard, replaced by a transcribed list"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (!canTransition(job.status, 'cancelling')) {",
+            "replace": "  if (!['queued', 'generating', 'ingesting', 'finishing', 'validating'].includes(job.status)) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "POST /api/twi/jobs/:id/cancel > refuses to cancel from validating, which the state machine does not admit, and starts no stop request",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 67 passed (68)",
+          "notKilledBy": [
+            {
+              "suite": "test:twi",
+              "note": "the suite as INHERITED (55 tests across jobs.test.ts and jobs-lifecycle.test.ts, before this round added any) stayed 55/55 GREEN under this mutation. Measured, before the closing test was written."
+            }
+          ],
+          "provenance": {
+            "introducedIn": "task-7-report.md",
+            "section": "the money-path mutation round",
+            "originalVerdict": "MEASURED SURVIVOR of the suite the task\u2019s original implementer left behind. Killed only after this round added a discriminating test, so the gap was real rather than hypothetical \u2014 the same class of finding as API-62.",
+            "closedBy": "refuses to cancel from validating, which the state machine does not admit, and starts no stop request"
+          },
+          "spotChecked": {
+            "at": "feat/twi-task7-submit, base 8e6f289",
+            "byRound": "task-7-verification",
+            "result": "killed",
+            "observed": "Tests  1 failed | 67 passed (68) under the mutation. Applied and reverted, with the target file verified byte-identical to an in-memory pristine copy afterwards."
           }
         },
         {
