@@ -125,6 +125,7 @@ export function repoWith(base: TwiRepository, overrides: Partial<TwiRepository>)
     getProject: (projectId) => base.getProject(projectId),
     saveSpec: (input) => base.saveSpec(input),
     discardUnreferencedSpec: (input) => base.discardUnreferencedSpec(input),
+    countOrphanedSpecs: () => base.countOrphanedSpecs(),
     findJobByIdempotencyKey: (input) => base.findJobByIdempotencyKey(input),
     findAssetById: (assetId) => base.findAssetById(assetId),
     findJobById: (jobId) => base.findJobById(jobId),

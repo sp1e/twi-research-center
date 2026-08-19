@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.10.0",
+  "manifestVersion": "1.11.0",
   "recordedAt": "2026-08-19",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -100,6 +100,15 @@
       "why": "Gate 2's M7 was finally performed: cancelJob and retryJob moved out of jobs.ts, which was 595 lines carrying five use cases. Re-review finding N-2 had established that the recorded reason for deferring the split was FALSE - the section-13 order assertions fail closed rather than emptying silently - so the split was known to be safe and the work was repointing the checks. API-137, API-138 and API-139 are the guards for the three assertions the split had to carry across the new file boundary, each proved to fail by name. API-140 and API-141 are the two the brief did not ask for and are the reason this entry matters: section 13 also asserts ABSENCES, an absence passes VACUOUSLY over an empty corpus, and the order half's fail-closed property does not extend to it. API-141 is a MEASURED counterfactual - the same mutant survives the pre-split contract library while the offending code is present - and API-140 is the check that stops the corpus shrinking to one file unnoticed.",
       "scopeNote": "5/5 killed was measured against the contract check at 80 checks on this branch and must not be added to any earlier round's score; see sets[api].measuredInM7Split.doNotAdd. The contract-check count rises 79 -> 80 by exactly one added check, with two names changed in place and ZERO names removed, verified by executing the script before and after and diffing the printed names positionally and as sets. baselines.currentAtHead and the floor in scripts/run-tests.mjs were both moved to 80.",
       "notFixedHere": "TWO PRE-EXISTING ROTTEN ANCHORS were found while verifying the relocation and deliberately NOT repaired, because bundling unrelated repair with a functional change is what makes a bad change impossible to isolate. API-92 (return json(estimateView(await policyOf(deps).estimate(spec... ) and API-102 (return json({ jobs: await repo.listJobs({ projectId, limit... ) both occur ZERO times in src/twi/server/jobs.ts at 5edbd2b: Task 7's fix round 1 rewrote estimateJob to pass providerConfigured and rewrote listJobs to return { jobs, limit, mayHaveMore } (whose new form is API-135), and neither anchor was updated. They are unrelated to this split and predate it. This is the ANCHOR ROT item futureRunner.stillNeeded already asks for a committed precheck against."
+    },
+    {
+      "version": "1.11.0",
+      "round": "task-m7-minors",
+      "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+      "what": "Added API-142 to API-145 (4 entries). The api set goes 141 -> 145 live and total entries 229 -> 233. No entry retired, no id reused, no existing entry edited. Two of the four (API-142, API-143) target a TEST rather than production code and say so in targetsTheTestNotTheCode: what they prove is that a race instrument discriminates, which is the same category as API-21 targeting the suite wiring.",
+      "why": "The two open Minors from the Task 7 scoped re-review. N-3: missed() was asserted in only 1 of 3 racing tests, so two of them would keep passing on the ordinary sequential replay path if the barrier ever stopped forcing a race. N-4: nothing anywhere counted orphaned spec_json rows outside a test helper, so the reap's residual was invisible in a deployed database and unknown in size rather than merely nonzero - and those rows hold a full copy of the lyrics the owner typed.",
+      "scopeNote": "4/4 killed was measured against src/twi/server/jobs-concurrency.test.ts at 7 tests on this branch, and must not be added to any earlier round's score. Two measurements in these entries are load-bearing and are recorded as such rather than as commentary: under API-142 and API-143 EVERY OTHER assertion in the mutated test passed, which is what makes N-3 a real gap rather than a tidiness note; and under API-144 the six other tests of the file stayed green, because they all assert the residual is zero and an inventory that always answers zero satisfies them.",
+      "notClosedHere": "N-4 is closed as a MEASUREMENT and not as an operational answer. countOrphanedSpecs is production capability and is proved to discriminate in both directions, but nothing yet RUNS it against the deployed database: there is no ops route, no scheduled job and no script reporting the number from production, and nothing sweeps orphans that already exist. Building either would mean new authenticated surface or a wrangler-invoking script, neither of which belongs in this round. Recorded so the residual is not read as retired."
     }
   ],
 
@@ -177,20 +186,20 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "the working tree on top of parent commit 5edbd2b, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
+      "measuredAt": "the working tree on top of parent commit 471a8f0, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (8/8), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 541, "files": 25 },
+        "test:twi": { "tests": 543, "files": 25 },
         "test:twi:schema": { "tests": 39 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
         "test:twi:contracts": { "checks": 80, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added. Zero check names have ever been removed." },
         "test:migrations": { "tests": 10 },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "927 tests plus 88 script checks",
+      "totals": "929 tests plus 88 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 208-entry set against any single commit (the figure read 138 while the manifest was v1.4.0 and was not revised as the set grew; corrected in v1.8.0, and corrected again to 208 when the two concurrent v1.8.0 rounds merged — the two sides carried 181 and 203, each true against its own base of 176, and 208 is the union COUNTED from the resolved entries). This block records the suite the mutants would be measured against, not a score."
@@ -1939,6 +1948,8 @@
       "targetPaths": [
         "functions/api/twi/[[route]].ts",
         "src/twi/server/jobs-cancel-retry.ts",
+        "src/twi/server/queries.ts",
+        "src/twi/server/jobs-concurrency.test.ts",
         "src/twi/server/auth.ts",
         "src/twi/server/http.ts",
         "src/twi/server/projects.ts",
@@ -1953,7 +1964,7 @@
       "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it. Fix round 2 widens this sharply: API-30 to API-50 are ALL text-only facts and only TWO of them (API-31, API-32) are visible to test:twi at all. API-30 \u2014 a resource-scoped gate exemption \u2014 is simultaneously green on test:twi, typecheck:twi AND fix round 1\u2019s 29-check contract check, which is precisely why the contract check must not delegate this class to the unit suite: those 401 tests enumerate the resources that EXIST.",
       "historicalNumbering": "M1-M21 from task-5-report.md, plus M22 published in the same section as \"Gap 3\". Gate 2 added one probe (its spot-check 4) and re-verified three of the 21. Fix round 1 added six. The API-* ids are this manifest\u2019s and are one-to-one with those labels via historicalLabels.",
       "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase. A SECOND kind of collision appeared at Task 6 fix round 2, and the answer is a reserved gap rather than a rule: Task 7's salvage was adding API-* entries to this same file at the same time, and both rounds would otherwise have taken API-89 next. Fix round 2 therefore took API-120..API-124 and RESERVED API-89..API-119 for Task 7, so the two sets cannot overlap whichever merges first. A gap in the numbering is not a deletion — retiredCount stays 0 and 'only ever increase' is preserved — and a concurrent round should reserve forward the same way rather than negotiate for the next free id. THE RESERVATION HELD: Task 7 landed in the merge that brought both rounds together and took API-89..API-115 out of the reserved range, so the two sets are disjoint and no id was renumbered on either side. API-116..API-119 were never spent and stay a gap — again not a deletion, retiredCount is still 0 — and the next free id is API-125.",
-      "liveCount": 141,
+      "liveCount": 145,
       "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response. Task 6 fix round 1 added API-75 to API-88 (14 entries) and fix round 2 added API-120 to API-124 (5); the latter skip API-89..API-119 deliberately — see idCollisionAvoidance. Fix round 2's five numbers live in measuredInTask6FixRound2 and belong to none of the blocks above. Task 7 verification added API-89 to API-115 (27 entries) for the creation-job money path \u2014 estimate, idempotent submit, poll, cancel and retry. FOUR of them (API-102, API-112, API-114, API-115) are MEASURED SURVIVORS of the suite that task\u2019s original implementer left behind, each now killed by a test added in the same round; the other 23 were killed on first application. Its numbers live in `measuredInTask7` and belong to none of the blocks above. Those two rounds were concurrent, which is why the id ranges are not contiguous: API-89..API-115 (Task 7) and API-120..API-124 (fix round 2), with API-116..API-119 reserved and unspent. liveCount 120 is the COUNT of entries in this set after the merge, not 93 + 115 and not either side’s figure.",
       "retiredCount": 0,
       "provenanceRounds": [
@@ -9842,6 +9853,192 @@
             "byRound": "task-m7-jobs-split",
             "result": "killed",
             "observed": "exit 1 with the single named failure above. Landing confirmed by grep naming line 76 and sha256 6c69828b -> 7cdd5b47. Restored and verified byte-identical back to 6c69828b; the borrowed pre-split contract library restored and verified back to 8d510cb8."
+          }
+        },
+        {
+          "id": "API-142",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a concurrency test quietly stops being concurrent. The orphan test would then exercise the ORDINARY SEQUENTIAL replay path - winner commits, loser FINDS the row and writes no spec at all - where specCount() === 1 and zero orphans hold for a reason that has nothing to do with the compensation the test is named after. Re-review finding N-3",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha: the assertion this mutant is killed by is added by the same commit. Resolve it to the commit closing N-3 and N-4.",
+          "target": {
+            "file": "src/twi/server/jobs-concurrency.test.ts",
+            "construct": "the orphan test's race instrument: racingRepo()'s party count and Promise.allSettled"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    const { repo, missed } = racingRepo();\n\n    await Promise.allSettled([submit({}, { repo }), submit({}, { repo })]);",
+            "replace": "    const { repo, missed } = racingRepo(1);\n\n    await submit({}, { repo });\n    await submit({}, { repo });",
+            "anchorUnique": true,
+            "describedAs": "Degenerate the race into a sequential pair. BOTH halves are required and this is the part worth knowing: making the calls sequential ALONE does not model the degeneration, because with parties = 2 a lone caller waits on a barrier that can never open and the test HANGS to timeout - a loud failure. Relaxing the barrier to one party is what turns it into the silent sequential pass that N-3 warns about."
+          },
+          "targetsTheTestNotTheCode": "This mutant mutates the TEST, not production code, and what it proves is that the INSTRUMENT discriminates. Production behaviour is unchanged under it. Registered here because missed() is the only thing standing between this file and a suite of three tests that look like races and are not - the same class as API-21, which targeted the suite wiring rather than a use case.",
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > leaves no orphan specification row behind - the loser reaps the copy of the lyrics it wrote",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 6 passed (7). AssertionError: expected 1 to be 2",
+          "everyOtherAssertionSurvived": "MEASURED, and it is the whole point: under this mutant world.specCount() === 1, orphanSpecs() === 0 and countOrphanedSpecs() === 0 all still PASSED. The missed() assertion added by this round is the only assertion in the test that fails.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "sections 7 and 8, closing re-review findings N-3 and N-4",
+            "originalVerdict": "killed on first application. The assertion it exercises did not exist before this round; N-3 recorded its absence as a Minor.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+            "byRound": "task-m7-minors",
+            "result": "killed",
+            "observed": "Tests 1 failed | 6 passed (7). Landing confirmed by sha256 62c38a31 -> 232b34cd before the run; restored from an out-of-tree copy and verified byte-identical back to 62c38a31."
+          }
+        },
+        {
+          "id": "API-143",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the same degeneration in the 409 test, and it discriminates MORE here than anywhere else in the file: the SEQUENTIAL different-spec path answers the identical 409 idempotency_key_reused, from findReplayableJob at the top of submitJob rather than from replayLostRace after a lost insert. Both paths give that test the status and the code it asserts, so without the instrument it cannot tell which one it exercised - and only one of them is the concurrent path it exists for. Re-review finding N-3",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason as API-142.",
+          "target": {
+            "file": "src/twi/server/jobs-concurrency.test.ts",
+            "construct": "the 409 test's race instrument: racingRepo()'s party count and Promise.allSettled"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    const { repo, missed } = racingRepo();\n\n    const settled = await Promise.allSettled([\n      submit({}, { repo }),\n      submit({ spec: { ...draft, sound: { ...draft.sound, novelty: 3 } } }, { repo }),\n    ]);",
+            "replace": null,
+            "anchorUnique": true,
+            "describedAs": "Same degeneration as API-142 applied to the 409 test: racingRepo(1), and the two submits awaited in sequence with their settled results assembled by hand so the assertions below still typecheck. Described rather than given as a literal replacement because the replacement has to reconstruct the PromiseSettledResult shape; the mutation is mechanical and the anchor is exact."
+          },
+          "targetsTheTestNotTheCode": "As API-142: this mutates the test and proves the instrument.",
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > refuses the loser 409 when the two racing submits carry DIFFERENT specs, and still reaps its spec row",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 6 passed (7). AssertionError: expected 1 to be 2",
+          "everyOtherAssertionSurvived": "MEASURED: status 409, code idempotency_key_reused, jobCount, costCount, orchestrator.starts, specCount, orphanSpecs and countOrphanedSpecs ALL still passed. Only missed() failed.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "sections 7 and 8, closing re-review findings N-3 and N-4",
+            "originalVerdict": "killed on first application. The assertion it exercises did not exist before this round.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+            "byRound": "task-m7-minors",
+            "result": "killed",
+            "observed": "Tests 1 failed | 6 passed (7). Landing confirmed by sha256 62c38a31 -> 9910634a; restored and verified byte-identical back to 62c38a31."
+          }
+        },
+        {
+          "id": "API-144",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the reap's residual reports zero unconditionally. Every OTHER test of the residual asserts it is zero, so an inventory that always answers zero satisfies all of them - and a deployed database holding orphaned spec_json rows, each a full copy of the lyrics the owner typed, would report clean. Re-review finding N-4",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha: countOrphanedSpecs is added by the same commit. Resolve it to the commit closing N-3 and N-4.",
+          "target": {
+            "file": "src/twi/server/queries.ts",
+            "construct": "countOrphanedSpecs's returned count"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return row?.total ?? 0;\n};\n\nexport const insertAsset",
+            "replace": "  return row?.total ?? 0 ? 0 : 0;\n};\n\nexport const insertAsset",
+            "anchorUnique": true,
+            "describedAs": "Make the inventory answer 0 for every input while still executing the real query, so nothing about the SQL, the binding or the call path changes - only the number. The anchor is disambiguated by the following export because `return row?.total ?? 0;` is not unique in queries.ts on its own."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > counts a REAL orphan the reap failed to collect, so the residual is a number and not a hope",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 6 passed (7). AssertionError: expected +0 to be 1",
+          "whyOneTestAndNotSix": "The other six tests of this file assert the residual is ZERO and therefore CANNOT kill this mutant - they were measured green under it. That is the vacuous-pass shape an absence-style assertion always admits, and the orphan-creating test is the only thing that closes it. If that test is ever deleted, this mutant becomes a survivor and the inventory becomes decoration.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "sections 7 and 8, closing re-review findings N-3 and N-4",
+            "originalVerdict": "killed on first application. Both the query and the test that kills it are introduced by this round; N-4 recorded the absence of any count as a Minor.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+            "byRound": "task-m7-minors",
+            "result": "killed",
+            "observed": "Tests 1 failed | 6 passed (7). Landing confirmed by grep and sha256 1e6dd7b8 -> 196a8727; restored and verified byte-identical back to 1e6dd7b8."
+          }
+        },
+        {
+          "id": "API-145",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the inventory counts the OPPOSITE set - every specification a job DOES reference. A healthy production database would then report as entirely orphaned, which is the failure mode that gets an inventory disbelieved and then ignored. It also passes API-144's assertion, so the two mutants pin opposite directions and neither is redundant",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason as API-144.",
+          "target": {
+            "file": "src/twi/server/queries.ts",
+            "construct": "countOrphanedSpecs's NOT EXISTS guard - the complement of deleteUnreferencedSpec's"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "       FROM twi_generation_specs AS spec\n       WHERE NOT EXISTS (",
+            "replace": "       FROM twi_generation_specs AS spec\n       WHERE EXISTS (",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > does not count a specification row a job references, so the inventory cannot cry wolf",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > leaves no orphan specification row behind - the loser reaps the copy of the lyrics it wrote",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > refuses the loser 409 when the two racing submits carry DIFFERENT specs, and still reaps its spec row",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > counts a REAL orphan the reap failed to collect, so the residual is a number and not a hope",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  4 failed | 3 passed (7). AssertionError: expected 1 to be +0, three times, and expected +0 to be 1 once",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "sections 7 and 8, closing re-review findings N-3 and N-4",
+            "originalVerdict": "killed on first application by four tests.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+            "byRound": "task-m7-minors",
+            "result": "killed",
+            "observed": "Tests 4 failed | 3 passed (7). Landing confirmed by reading the mutated SQL back off disk and sha256 -> 70272f6e; restored and verified byte-identical back to 1e6dd7b8."
           }
         }
       ]

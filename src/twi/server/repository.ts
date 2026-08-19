@@ -8,6 +8,7 @@ import { mapJob, mapProject } from './mappers';
 import {
   costStatements,
   countJobEvents,
+  countOrphanedSpecs,
   countProjectAssets,
   deleteUnreferencedSpec,
   estimatedJobStatements,
@@ -234,6 +235,17 @@ export class D1TwiRepository implements TwiRepository {
       durationMs: Date.now() - startedAt,
     });
     return removed;
+  }
+
+  /**
+   * The reap's residual as a number. See {@link TwiRepository} for why it is worth counting.
+   *
+   * No `assertNonBlank` because it takes no input, and no `emit` because it writes nothing —
+   * the telemetry channel reports write outcomes, and adding a read to it would make the
+   * sink's survivorship bias harder to reason about rather than easier.
+   */
+  async countOrphanedSpecs(): Promise<number> {
+    return countOrphanedSpecs(this.env.DB);
   }
 
   async findJobByIdempotencyKey(input: FindJobByIdempotencyKeyInput): Promise<JobRecord | null> {
