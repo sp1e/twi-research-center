@@ -371,6 +371,21 @@ export interface TwiRepository {
    * mistake.
    */
   discardUnreferencedSpec(input: DiscardUnreferencedSpecInput): Promise<boolean>;
+  /**
+   * `discardUnreferencedSpec`'s RESIDUAL, counted.
+   *
+   * The reap is best-effort: its caller swallows the failure so a cleanup cannot replace the
+   * diagnosis of the failure it compensates for. So orphans can exist — after a database
+   * outage during the compensation, and in any database written before the reap shipped — and
+   * nothing counted them, which made the residual unknown in size rather than merely nonzero.
+   * These rows hold `spec_json`, a full copy of the lyrics the owner typed, so the number is a
+   * privacy figure and not a storage one.
+   *
+   * Read-only, estate-wide, and emits no telemetry event: it writes nothing. Counts exactly the
+   * rows `discardUnreferencedSpec` is permitted to remove, by the same `NOT EXISTS` over the
+   * same composite key, so the inventory and the reaper cannot disagree.
+   */
+  countOrphanedSpecs(): Promise<number>;
   findJobByIdempotencyKey(input: FindJobByIdempotencyKeyInput): Promise<JobRecord | null>;
   /**
    * Reads one asset by id, or `null`.

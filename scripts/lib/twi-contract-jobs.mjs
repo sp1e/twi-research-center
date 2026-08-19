@@ -128,7 +128,36 @@ const walkFunctionGraph = (read) => {
 export const checkJobApi = (context, check) => {
   const { read, route, gateIndex, packageJson } = context;
 
+  /**
+   * THE JOB USE CASE IS TWO FILES, AND THIS SECTION READS BOTH AS ONE CORPUS.
+   *
+   * `cancelJob` and `retryJob` moved to `src/twi/server/jobs-cancel-retry.ts` (gate 2's M7)
+   * once `jobs.ts` reached 595 lines. Everything below is written against the job use case
+   * as a whole rather than against a filename, because two different shapes of assertion
+   * live here and they fail in opposite directions when the corpus shrinks:
+   *
+   *   - An ORDER assertion (`precedes(jobFunction('cancelJob'), …)`) fails CLOSED. If the
+   *     function is in neither file `jobFunction` answers `''`, `precedes` is false on it,
+   *     and the check fails naming the function. That property is why the split was judged
+   *     safe, and widening the search to both files preserves it exactly.
+   *   - An ABSENCE assertion (`!/createHash/`, `!/'now'/`, `!/transitionJob\(…'complete'/`)
+   *     passes VACUOUSLY on an empty corpus. Reading only `jobs.ts` after the move would
+   *     quietly stop covering the relocated code; reading a file that has been renamed or
+   *     deleted would stop covering anything at all while still printing OK. So both files
+   *     are concatenated, and `missingJobModules` below refuses an absent one BY NAME.
+   *
+   * That is the enumerated-versus-walked lesson from section 6 applied here: a check whose
+   * corpus can silently shrink is not a check.
+   */
+  const JOB_USE_CASE_FILES = ['src/twi/server/jobs.ts', 'src/twi/server/jobs-cancel-retry.ts'];
+
+  const jobSources = JOB_USE_CASE_FILES.map((file) => [file, read(file)]);
+  const missingJobModules = jobSources.filter(([, source]) => source.trim().length === 0).map(([file]) => file);
+
+  /** `jobs.ts` alone, for the few claims that are ABOUT that file (its imports, its exported constants). */
   const jobs = read('src/twi/server/jobs.ts');
+  /** Both files, raw. Every ABSENCE scan over unparsed text reads this, never `jobs` alone. */
+  const jobsRaw = jobSources.map(([, source]) => source).join('\n');
   const estimates = read('src/twi/server/estimates.ts');
   const references = read('src/twi/server/job-references.ts');
 
@@ -138,15 +167,24 @@ export const checkJobApi = (context, check) => {
     return sf.statements.map((statement) => canonicalStatement(sf, statement));
   };
 
-  const jobStatements = canonicalStatements(jobs, 'jobs.ts');
+  const jobStatements = jobSources.flatMap(([file, source]) => canonicalStatements(source, file));
   const jobsCanonical = jobStatements.join('\n');
   const estimatesCanonical = canonicalStatements(estimates, 'estimates.ts').join('\n');
   const referencesCanonical = canonicalStatements(references, 'job-references.ts').join('\n');
 
+  check(
+    `the job use case is exactly ${JOB_USE_CASE_FILES.length} modules and section 13 reads both, so no absence assertion here can pass over a corpus that shrank${
+      missingJobModules.length ? ` — MISSING: ${missingJobModules.join(', ')}` : ` (${JOB_USE_CASE_FILES.join(', ')})`
+    }`,
+    missingJobModules.length === 0,
+  );
+
   /**
-   * One named top-level declaration, rendered comment-free. Matches both spellings
-   * `jobs.ts` uses — `export async function submitJob` and `const dispatch = …` — so
-   * moving a helper between the two forms does not silently empty an order assertion.
+   * One named top-level declaration, rendered comment-free, from EITHER module of the job
+   * use case. Matches both spellings the code uses — `export async function submitJob` and
+   * `const dispatch = …` — so moving a helper between the two forms, or between the two
+   * FILES, does not silently empty an order assertion. Returns `''` on a miss, which is
+   * what makes every consumer below fail closed.
    */
   const jobFunction = (name) =>
     jobStatements.find(
@@ -188,11 +226,20 @@ export const checkJobApi = (context, check) => {
     routeOffenders.length === 0,
   );
 
+  /**
+   * The import list, pinned EXACTLY, across both job modules.
+   *
+   * Two regexes rather than one because the six handlers now arrive from two files, and
+   * each list is closed: a seventh name appearing on either line, or a handler moving to a
+   * third module, fails here. The alternative — matching the names loosely wherever they
+   * appear — would admit a handler imported from anywhere, which is the thing this check
+   * exists to refuse. The route file is a route table; the use cases live in `src/twi/server`.
+   */
   check(
-    'the job handlers are imported from src/twi/server/jobs, so the route file stays a route table',
-    /import \{ cancelJob, estimateJob, getJob, listJobs, retryJob, submitJob \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs'/.test(
-      route,
-    ),
+    'the six job handlers are imported from the two job use-case modules and nowhere else, so the route file stays a route table',
+    /import \{ estimateJob, getJob, listJobs, submitJob \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs'/.test(route) &&
+      /import \{ cancelJob, retryJob \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs-cancel-retry'/.test(route) &&
+      (route.match(/from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs(?:-[a-z-]+)?'/g) ?? []).length === 2,
   );
 
   /**
@@ -205,7 +252,7 @@ export const checkJobApi = (context, check) => {
     'the orchestrator binding is passed as an argument and never returned, named once in the route file',
     (route.match(/env\.TWI_ORCHESTRATOR/g) ?? []).length === 1 &&
       !/TWI_ORCHESTRATOR/.test(jobsCanonical) &&
-      !/accessKeyId|secretAccessKey|Authorization/.test(jobs),
+      !/accessKeyId|secretAccessKey|Authorization/.test(jobsRaw),
   );
 
   // ── 13b. The fingerprint, which is the defect this project already paid for once ──
@@ -222,8 +269,8 @@ export const checkJobApi = (context, check) => {
     'the spec fingerprint comes from specSha256() and is never hashed inside the job use case',
     /const fingerprint = await specSha256\(specJson\);/.test(jobsCanonical) &&
       /specSha256: fingerprint/.test(jobsCanonical) &&
-      !/crypto\.subtle\.digest/.test(jobs) &&
-      !/createHash/.test(jobs),
+      !/crypto\.subtle\.digest/.test(jobsRaw) &&
+      !/createHash/.test(jobsRaw),
   );
 
   check(
@@ -446,7 +493,7 @@ export const checkJobApi = (context, check) => {
    */
   check(
     'no Task 7 module calls or re-exports deriveImageAssetId, whose preimage ambiguity is latent on ONE caller',
-    !/deriveImageAssetId/.test(jobs + estimates + references + route),
+    !/deriveImageAssetId/.test(jobsRaw + estimates + references + route),
   );
 
   // ── 13g. What crosses the service binding ─────────────────────────────────────
