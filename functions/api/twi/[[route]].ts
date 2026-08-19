@@ -113,7 +113,8 @@ import { requireOwnerSession } from '../../../src/twi/server/auth';
 import { creationCoreCapabilities } from '../../../src/twi/server/capabilities';
 import type { TwiEnv } from '../../../src/twi/server/env';
 import { assertSameOriginMutation, cors, HttpError, json } from '../../../src/twi/server/http';
-import { cancelJob, estimateJob, getJob, listJobs, retryJob, submitJob } from '../../../src/twi/server/jobs';
+import { estimateJob, getJob, listJobs, submitJob } from '../../../src/twi/server/jobs';
+import { cancelJob, retryJob } from '../../../src/twi/server/jobs-cancel-retry';
 import { createProject, getProject, listProjects } from '../../../src/twi/server/projects';
 import { D1TwiRepository } from '../../../src/twi/server/repository';
 

@@ -1,7 +1,7 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.9.0",
-  "recordedAt": "2026-08-18",
+  "manifestVersion": "1.11.0",
+  "recordedAt": "2026-08-19",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
   "plan": "docs/superpowers/plans/2026-08-16-twi-creation-core.md",
@@ -91,6 +91,24 @@
       "why": "Gate 2 BLOCKED Task 7 with three Importants and an 8-survivor ledger of its own. The two that matter are behavioural: two concurrent submits of one Idempotency-Key answered 500 internal_error rather than replaying, so the branch the module header calls contract 3 was unreachable in production and its only test supplied the outcome through a repoWith override; and every post-lookup failure leaked a twi_generation_specs row containing the lyrics the owner typed, measured as specs = 2, jobs = 1. The rest are coverage: five facts the change's own comments call load-bearing, each with a mutation that survived all 523 tests, all 79 contract checks and typecheck:twi.",
       "scopeNote": "The 15/16 kill figure was measured against the four job suites at 86 tests on this branch, and must not be added to measuredInTask7, measuredInTask6, measuredInThisRound, measuredInFixRound2 or measuredInTask6FixRound2 \u2014 each was measured on a different commit against a suite of a different size. API-119, API-125, API-126, API-127, API-128, API-129, API-130, API-131 and API-132 were measured SURVIVORS at 1e5d4c3 by gate 2 (its HUNT-A/B/F/K/L/I/M/N/G) and are killed only because this round added the tests; their provenance says so rather than presenting them as tests agreeing with code shipped beside them.",
       "idNote": "API-116..API-119 were RESERVED-BY-GAP at Task 6 fix round 2 for Task 7 and never spent; this round spends them and then continues at API-125, the first id the reservation left free above Task 6 fix round 2's API-120..API-124. The gap between 119 and 125 is now closed and no id was reused."
+    },
+    {
+      "version": "1.10.0",
+      "round": "task-m7-jobs-split",
+      "at": "refactor/twi-m7-jobs-split, base 5edbd2b",
+      "what": "Added API-137 to API-141 (5 entries) and RELOCATED ten existing entries. The api set goes 136 -> 141 live and total entries 224 -> 229. No entry retired, no id reused, no killedBy weakened, nothing in any other set edited. The ten relocations (API-103/104/105/106/108/109/114/115/125/132) change target.file from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts and add a relocatedIn note to each; their mutation text is byte-identical and each anchor was re-verified to occur exactly once in the new file and zero times in jobs.ts.",
+      "why": "Gate 2's M7 was finally performed: cancelJob and retryJob moved out of jobs.ts, which was 595 lines carrying five use cases. Re-review finding N-2 had established that the recorded reason for deferring the split was FALSE - the section-13 order assertions fail closed rather than emptying silently - so the split was known to be safe and the work was repointing the checks. API-137, API-138 and API-139 are the guards for the three assertions the split had to carry across the new file boundary, each proved to fail by name. API-140 and API-141 are the two the brief did not ask for and are the reason this entry matters: section 13 also asserts ABSENCES, an absence passes VACUOUSLY over an empty corpus, and the order half's fail-closed property does not extend to it. API-141 is a MEASURED counterfactual - the same mutant survives the pre-split contract library while the offending code is present - and API-140 is the check that stops the corpus shrinking to one file unnoticed.",
+      "scopeNote": "5/5 killed was measured against the contract check at 80 checks on this branch and must not be added to any earlier round's score; see sets[api].measuredInM7Split.doNotAdd. The contract-check count rises 79 -> 80 by exactly one added check, with two names changed in place and ZERO names removed, verified by executing the script before and after and diffing the printed names positionally and as sets. baselines.currentAtHead and the floor in scripts/run-tests.mjs were both moved to 80.",
+      "notFixedHere": "TWO PRE-EXISTING ROTTEN ANCHORS were found while verifying the relocation and deliberately NOT repaired, because bundling unrelated repair with a functional change is what makes a bad change impossible to isolate. API-92 (return json(estimateView(await policyOf(deps).estimate(spec... ) and API-102 (return json({ jobs: await repo.listJobs({ projectId, limit... ) both occur ZERO times in src/twi/server/jobs.ts at 5edbd2b: Task 7's fix round 1 rewrote estimateJob to pass providerConfigured and rewrote listJobs to return { jobs, limit, mayHaveMore } (whose new form is API-135), and neither anchor was updated. They are unrelated to this split and predate it. This is the ANCHOR ROT item futureRunner.stillNeeded already asks for a committed precheck against."
+    },
+    {
+      "version": "1.11.0",
+      "round": "task-m7-minors",
+      "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+      "what": "Added API-142 to API-145 (4 entries). The api set goes 141 -> 145 live and total entries 229 -> 233. No entry retired, no id reused, no existing entry edited. Two of the four (API-142, API-143) target a TEST rather than production code and say so in targetsTheTestNotTheCode: what they prove is that a race instrument discriminates, which is the same category as API-21 targeting the suite wiring.",
+      "why": "The two open Minors from the Task 7 scoped re-review. N-3: missed() was asserted in only 1 of 3 racing tests, so two of them would keep passing on the ordinary sequential replay path if the barrier ever stopped forcing a race. N-4: nothing anywhere counted orphaned spec_json rows outside a test helper, so the reap's residual was invisible in a deployed database and unknown in size rather than merely nonzero - and those rows hold a full copy of the lyrics the owner typed.",
+      "scopeNote": "4/4 killed was measured against src/twi/server/jobs-concurrency.test.ts at 7 tests on this branch, and must not be added to any earlier round's score. Two measurements in these entries are load-bearing and are recorded as such rather than as commentary: under API-142 and API-143 EVERY OTHER assertion in the mutated test passed, which is what makes N-3 a real gap rather than a tidiness note; and under API-144 the six other tests of the file stayed green, because they all assert the residual is zero and an inventory that always answers zero satisfies them.",
+      "notClosedHere": "N-4 is closed as a MEASUREMENT and not as an operational answer. countOrphanedSpecs is production capability and is proved to discriminate in both directions, but nothing yet RUNS it against the deployed database: there is no ops route, no scheduled job and no script reporting the number from production, and nothing sweeps orphans that already exist. Building either would mean new authenticated surface or a wrangler-invoking script, neither of which belongs in this round. Recorded so the residual is not read as retired."
     }
   ],
 
@@ -168,20 +186,20 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "the working tree on top of parent commit 1e5d4c3, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
+      "measuredAt": "the working tree on top of parent commit 471a8f0, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (8/8), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 541, "files": 25 },
+        "test:twi": { "tests": 543, "files": 25 },
         "test:twi:schema": { "tests": 39 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
-        "test:twi:contracts": { "checks": 79, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added. Zero check names have ever been removed." },
+        "test:twi:contracts": { "checks": 80, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added. Zero check names have ever been removed." },
         "test:migrations": { "tests": 10 },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "927 tests plus 87 script checks",
+      "totals": "929 tests plus 88 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 208-entry set against any single commit (the figure read 138 while the manifest was v1.4.0 and was not revised as the set grew; corrected in v1.8.0, and corrected again to 208 when the two concurrent v1.8.0 rounds merged — the two sides carried 181 and 203, each true against its own base of 176, and 208 is the union COUNTED from the resolved entries). This block records the suite the mutants would be measured against, not a score."
@@ -1929,6 +1947,9 @@
       "title": "Authenticated API surface \u2014 the Pages Function, the owner gate and the contract check",
       "targetPaths": [
         "functions/api/twi/[[route]].ts",
+        "src/twi/server/jobs-cancel-retry.ts",
+        "src/twi/server/queries.ts",
+        "src/twi/server/jobs-concurrency.test.ts",
         "src/twi/server/auth.ts",
         "src/twi/server/http.ts",
         "src/twi/server/projects.ts",
@@ -1943,7 +1964,7 @@
       "testCommandWarning": "BOTH halves are required and neither is sufficient. Nine entries here (API-17/18/20/21/22 and API-27/28/29, plus one arm of API-02) are text-only facts that NO runtime suite can see \u2014 test:twi stays green under every one of them. Conversely API-15 is invisible to the contract check. API-21 is worse than either: it orphans the suite that kills it, so `npm test` goes GREEN under it and only running the check directly reveals it. Fix round 2 widens this sharply: API-30 to API-50 are ALL text-only facts and only TWO of them (API-31, API-32) are visible to test:twi at all. API-30 \u2014 a resource-scoped gate exemption \u2014 is simultaneously green on test:twi, typecheck:twi AND fix round 1\u2019s 29-check contract check, which is precisely why the contract check must not delegate this class to the unit suite: those 401 tests enumerate the resources that EXIST.",
       "historicalNumbering": "M1-M21 from task-5-report.md, plus M22 published in the same section as \"Gap 3\". Gate 2 added one probe (its spot-check 4) and re-verified three of the 21. Fix round 1 added six. The API-* ids are this manifest\u2019s and are one-to-one with those labels via historicalLabels.",
       "idCollisionAvoidance": "A NEW namespace was opened rather than extending DOM-*/SCH-*/REPO-*: the REPO-* set already targets src/twi/server/ (assertions.ts, repository.ts, spec-digest.ts), so appending Task 5\u2019s server-boundary mutants there would have put two different rounds\u2019 numbering in one sequence over overlapping paths \u2014 the exact shape of the M29 collision. API-* has never been published by any round, and the numbers API-01..API-22 are pinned to the round\u2019s own M1..M22 labels so the report and the manifest cannot drift apart. New ids in this set start at API-23 and only ever increase. A SECOND kind of collision appeared at Task 6 fix round 2, and the answer is a reserved gap rather than a rule: Task 7's salvage was adding API-* entries to this same file at the same time, and both rounds would otherwise have taken API-89 next. Fix round 2 therefore took API-120..API-124 and RESERVED API-89..API-119 for Task 7, so the two sets cannot overlap whichever merges first. A gap in the numbering is not a deletion — retiredCount stays 0 and 'only ever increase' is preserved — and a concurrent round should reserve forward the same way rather than negotiate for the next free id. THE RESERVATION HELD: Task 7 landed in the merge that brought both rounds together and took API-89..API-115 out of the reserved range, so the two sets are disjoint and no id was renumbered on either side. API-116..API-119 were never spent and stay a gap — again not a deletion, retiredCount is still 0 — and the next free id is API-125.",
-      "liveCount": 136,
+      "liveCount": 145,
       "liveCountNote": "All 29 apply, none retired. NONE of them apply at the manifest baseline ac034a4 \u2014 none of these files exist there \u2014 so every entry carries appliesAtCommit: 615e2a5, the commit where Task 5\u2019s API landed. Three entries (API-27, API-28, API-29) additionally carry a `premise`: their kill signal is a contract assertion that exists only from fix round 1 onward, and against Task 5\u2019s own check they are measured survivors. Four more (API-23, API-24, API-25, API-26) were measured as survivors against Task 5\u2019s test suite and are killed by tests added in the same round; that is recorded in their `provenance.originalVerdict` and, for API-23, in `notKilledBy`. Fix round 2 added API-30 to API-50 (21 entries): ten cover the constructions a scoped re-review measured as beating this set\u2019s own 29-check guard, and eleven were invented in round 2. Of those eleven only FOUR were measured survivors of that guard (API-42, API-45, API-46, API-47), one survived in a single spelling (API-48) and SIX were already caught \u2014 four of the six only because an indexOf anchor went to -1 rather than because anything asserted the fact. That distinction is kept per entry instead of rounded up. All 21 carry a `premise` naming the structural analysis their kill depends on. Round 2\u2019s own numbers live in `measuredInFixRound2`; `measuredInThisRound` is fix round 1\u2019s and the two must not be added together. Task 6 added API-51 to API-74 (24 entries) for image-reference ingestion; none is a former survivor, because that round wrote the code and the tests together, so the set is a check that the shipped tests can detect the shipped behaviour being wrong rather than a record of a guard being beaten. Its numbers live in `measuredInTask6` and belong to none of the three blocks above. One of the 24 (API-62) exists because mutation testing found a behaviour with NO discriminating test \u2014 discarding registerAsset's outcome left the suite green \u2014 and the test that kills it was written in response. Task 6 fix round 1 added API-75 to API-88 (14 entries) and fix round 2 added API-120 to API-124 (5); the latter skip API-89..API-119 deliberately — see idCollisionAvoidance. Fix round 2's five numbers live in measuredInTask6FixRound2 and belong to none of the blocks above. Task 7 verification added API-89 to API-115 (27 entries) for the creation-job money path \u2014 estimate, idempotent submit, poll, cancel and retry. FOUR of them (API-102, API-112, API-114, API-115) are MEASURED SURVIVORS of the suite that task\u2019s original implementer left behind, each now killed by a test added in the same round; the other 23 were killed on first application. Its numbers live in `measuredInTask7` and belong to none of the blocks above. Those two rounds were concurrent, which is why the id ranges are not contiguous: API-89..API-115 (Task 7) and API-120..API-124 (fix round 2), with API-116..API-119 reserved and unspent. liveCount 120 is the COUNT of entries in this set after the merge, not 93 + 115 and not either side’s figure.",
       "retiredCount": 0,
       "provenanceRounds": [
@@ -2002,6 +2023,14 @@
         "killedByIsMeasuredNotTranscribed": "Every `killedBy` list in this set is the MEASURED failure set at this round\u2019s tree, with `measured: true` on each entry \u2014 not the introducing report\u2019s claim. Four lists came out broader than the reports implied (API-01, API-08, API-13, API-15), the same way spot-checking DOM-03 corrected its list upward. Note that four of these kill signals are assertions added in this round, so the lists are measured AT THIS TREE and are not what the introducing round would have observed.",
         "survivorsClosed": "Four mutants were measured as survivors against the suite as Task 5 left it, then killed: API-23 (published by gate 2), API-24, API-25, API-26 (found here). Three more (API-27 in seven of its eight spellings, API-28, API-29) survived Task 5\u2019s contract check and are killed by the assertions added in this round.",
         "notCommitted": "The driver lives in a session scratchpad and is deliberately NOT committed, per the README\u2019s \"No runner, deliberately\". It does implement three of the four things `futureRunner` asks for \u2014 anchor-uniqueness precheck, green-baseline gate, per-mutant kill suites \u2014 and not the fourth (a syntax gate), which is why API-20\u2019s and API-28\u2019s appended payloads were also eyeballed for parseability."
+      },
+      "measuredInM7Split": {
+        "at": "refactor/twi-m7-jobs-split, base 5edbd2b",
+        "round": "task-m7-jobs-split",
+        "scope": "FIVE entries only (API-137 to API-141), all introduced by this round, all measured by running scripts/twi-contract-check.mjs directly. 5 applied, 5 killed, 0 survivors.",
+        "corpus": "80 contract checks (79 at 5edbd2b plus the one this round adds). API-139 additionally measured against npm run typecheck:twi (exit 0) and npm run test:twi (541 passed in 25 files, GREEN) to substantiate its killSuiteWarning rather than assert it.",
+        "doNotAdd": "5/5 is a measurement of THESE five entries at THIS tree and must not be added to measuredInTask7, measuredInTask6, measuredInThisRound, measuredInFixRound2 or measuredInTask6FixRound2. Every one of those was measured on a different commit, against a suite of a different size, by a different round. It is also NOT a coverage claim about the split as a whole: it says the three assertions the split had to carry across a file boundary still bite, and that the corpus cannot silently shrink. It says nothing new about the ten RELOCATED entries, whose kill signals were not re-measured here - only their anchors were re-verified as still occurring exactly once, in the new file.",
+        "relocatedNotRemeasured": "API-103, API-104, API-105, API-106, API-108, API-109, API-114, API-115, API-125 and API-132 had target.file moved to src/twi/server/jobs-cancel-retry.ts. Their find/replace text is unchanged and was verified to occur exactly once in the new file and zero times in jobs.ts. Their killedBy entries were NOT re-run in this round and are carried forward on that anchor verification plus the fact that test:twi stayed at 541 passing in 25 files across the move. A future round wanting them re-measured should say so; this round does not claim it did."
       },
       "measuredInTask6FixRound2": {
         "round": "task-6-fix-round2",
@@ -7718,9 +7747,10 @@
           "appliesAtCommit": "feat/twi-task7-submit",
           "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "cancelJob\u2019s canTransition guard"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "  if (!canTransition(job.status, 'cancelling')) {",
@@ -7777,9 +7807,10 @@
           "appliesAtCommit": "feat/twi-task7-submit",
           "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "cancelJob\u2019s not-stopped branch"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "  if (!stopped) {",
@@ -7824,9 +7855,10 @@
           "appliesAtCommit": "feat/twi-task7-submit",
           "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "the cancel transition\u2019s eventKey"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "    eventKey: eventKey(job.id, attempt, 'cancelling'),",
@@ -7871,9 +7903,10 @@
           "appliesAtCommit": "feat/twi-task7-submit",
           "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "retryJob\u2019s error-only guard"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "  if (job.status !== 'error') {",
@@ -7995,9 +8028,10 @@
           "appliesAtCommit": "feat/twi-task7-submit",
           "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "retryJob\u2019s applied-outcome gate"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "  if (retrying.outcome !== 'applied') {",
@@ -8042,9 +8076,10 @@
           "appliesAtCommit": "feat/twi-task7-submit",
           "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "retryJob\u2019s reuse of the frozen spec and the paid estimate"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "  const attempt = (await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' })) + 1;",
@@ -8549,9 +8584,10 @@
           "appliesAtCommit": "feat/twi-task7-submit",
           "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "the fromStatus precondition of the cancelling transition"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "    fromStatus: job.status,",
@@ -8614,9 +8650,10 @@
           "appliesAtCommit": "feat/twi-task7-submit",
           "appliesAtCommitNote": "A branch name rather than a sha, for the same reason the API-51 to API-88 entries carry one: these ship in the SAME commit as the code they target, so the sha did not exist when they were written. Resolve it to the commit that adds src/twi/server/jobs.ts.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "cancelJob\u2019s canTransition guard, replaced by a transcribed list"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "  if (!canTransition(job.status, 'cancelling')) {",
@@ -9115,9 +9152,10 @@
           "appliesAtCommit": "1e5d4c3",
           "appliesAtCommitNote": "Live code correct at 1e5d4c3; survived 523/523 + 79 contracts + typecheck (gate 2 HUNT-B). No test cancelled a job after a retry.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "cancelJob's attempt ordinal"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "  const attempt = await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' });",
@@ -9400,9 +9438,10 @@
           "appliesAtCommit": "1e5d4c3",
           "appliesAtCommitNote": "Survived at 1e5d4c3 (gate 2 HUNT-G / M4), where it was judged an EQUIVALENT mutant because every id the suite mints is a UUID. It is no longer equivalent to the suite: twi_jobs.id carries no format CHECK and cancelJob takes the id straight from a URL segment, so the round wrote a job whose id needs encoding through the real repository rather than leaving the claim to the shape of the fixtures.",
           "target": {
-            "file": "src/twi/server/jobs.ts",
+            "file": "src/twi/server/jobs-cancel-retry.ts",
             "construct": "the cancel URL built in cancelJob"
-          },
+          },          "relocatedIn": "refactor/twi-m7-jobs-split, base 5edbd2b. The construct MOVED, unchanged, from src/twi/server/jobs.ts to src/twi/server/jobs-cancel-retry.ts when cancelJob and retryJob were split out of jobs.ts (gate 2 M7). Only target.file changed: the find and replace text is byte-identical and was re-verified to occur EXACTLY ONCE in the new file and ZERO times in jobs.ts, so the anchor did not rot. Nothing about the kill signal changed - the moved code is the same code, the tests that name it import it from the new module, and section 13 of the contract check reads both modules as one corpus.",
+
           "mutation": {
             "kind": "replace",
             "find": "/cancel/${encodeURIComponent(job.id)}`",
@@ -9586,6 +9625,420 @@
             "section": "§2 mutation ledger",
             "originalVerdict": "survivor (equivalent) at 1e5d4c3, gate 2 HUNT-C / M5; recorded rather than closed",
             "closedBy": null
+          }
+        },
+        {
+          "id": "API-137",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the section-13 order assertion on cancelJob stops seeing the function it names. This is the guard the M7 split rests on: if it did NOT bite, cancelJob could be moved, renamed or reordered and the 'cancel does NOT claim a stop it never made' ordering could be inverted with every suite green",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha: src/twi/server/jobs-cancel-retry.ts is created by the same commit these entries describe, so the sha did not exist when they were written. Resolve it to the commit that adds that file.",
+          "target": {
+            "file": "src/twi/server/jobs-cancel-retry.ts",
+            "construct": "cancelJob's declaration, which is the anchor jobFunction('cancelJob') resolves"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "export async function cancelJob(jobId: string, deps: JobDeps): Promise<Response> {",
+            "replace": "export async function cancelJobMoved(jobId: string, deps: JobDeps): Promise<Response> {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "a dispatch failure lands the job in error with orchestrator_unavailable, and cancel does NOT claim a stop it never made",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "exit 1, 1 failing check of 80 printed",
+          "whatItProves": "jobFunction searches BOTH job use-case modules and still returns the empty string on a miss, so precedes fails CLOSED across a file boundary. This is the empirical answer to re-review finding N-2, which established that the fix round's stated reason for skipping M7 (that these assertions would silently empty) was false. Here the assertion is exercised against the REAL split rather than a simulated rename, and it fails loudly and by name.",
+          "notAnIsolatedMutant": "Renaming the declaration also breaks the named import in functions/api/twi/[[route]].ts and in two test files, so test:twi and typecheck:twi cannot stay green under it either. That was NOT measured here and no claim is made about it: the recorded kill signal is the contract check, run directly, which is what this entry exists to prove. API-139 is the isolated companion mutant for the same relocation and it IS measured green on test:twi.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "section 4, the five mutants that prove the relocated assertions still bite",
+            "originalVerdict": "killed on first application. Introduced BY the M7 split as the guard that made the split safe to perform, not by a round finding a gap.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 5edbd2b",
+            "byRound": "task-m7-jobs-split",
+            "result": "killed",
+            "observed": "exit 1 with the single named failure above. Landing confirmed before the run by grep (cancelJobMoved at line 48) and by sha256 moving 6c69828b -> 022d0f1b; git diff --numstat is NOT a landing signal for this file because it is untracked at the moment of the probe. Restored and verified byte-identical back to 6c69828b."
+          }
+        },
+        {
+          "id": "API-138",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the section-13 order assertion on retryJob stops seeing the function it names, so the rule that a retry may not dispatch unless its own retrying transition was APPLIED could be inverted unobserved. That rule is what stops two concurrent retries starting two renders against one paid job",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason as API-137. Resolve it to the commit that adds src/twi/server/jobs-cancel-retry.ts.",
+          "target": {
+            "file": "src/twi/server/jobs-cancel-retry.ts",
+            "construct": "retryJob's declaration, which is the anchor jobFunction('retryJob') resolves"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "export async function retryJob(jobId: string, deps: JobDeps): Promise<Response> {",
+            "replace": "export async function retryJobMoved(jobId: string, deps: JobDeps): Promise<Response> {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "retryJob refuses to dispatch unless its own retrying transition was applied",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "exit 1, 1 failing check of 80 printed",
+          "notAnIsolatedMutant": "Same caveat as API-137: the rename also breaks three import sites, so no claim is made about test:twi under it. The recorded signal is the contract check run directly.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "section 4, the five mutants that prove the relocated assertions still bite",
+            "originalVerdict": "killed on first application. Introduced BY the M7 split.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 5edbd2b",
+            "byRound": "task-m7-jobs-split",
+            "result": "killed",
+            "observed": "exit 1 with the single named failure above. Landing confirmed by grep (retryJobMoved at line 93) and sha256 6c69828b -> dc27b500. Restored and verified byte-identical back to 6c69828b."
+          }
+        },
+        {
+          "id": "API-139",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the six job handlers stop being pinned to the two modules they must come from, so a handler could be imported from anywhere - including a third module, or a local wrapper - while the route file still read as a route table",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha: the two-line import form this mutates is created by the same commit. Resolve it to the commit that adds src/twi/server/jobs-cancel-retry.ts.",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the two-module job handler import list, pinned exactly"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "import { cancelJob, retryJob } from '../../../src/twi/server/jobs-cancel-retry';",
+            "replace": "import { retryJob, cancelJob } from '../../../src/twi/server/jobs-cancel-retry';",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the six job handlers are imported from the two job use-case modules and nowhere else, so the route file stays a route table",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "exit 1, 1 failing check of 80 printed",
+          "killSuiteWarning": "TEXT-ONLY, and MEASURED to be so rather than assumed. Reordering names inside an import clause has no runtime or type meaning, so npm run typecheck:twi exits 0 and test:twi reports 541 passed in 25 files - GREEN - under this mutant. The contract check is its ONLY kill signal. It is the isolated companion to API-137 and API-138: those two also break imports, this one changes nothing a runtime suite can observe, which is why it is the entry that actually demonstrates the import-list assertion has force.",
+          "whatItProves": "The check pins the EXACT import list rather than merely looking for the six names somewhere in the file. It also carries a third clause counting the src/twi/server/jobs* import sites and requiring exactly 2, which refuses a THIRD job module appearing later.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "section 4, the five mutants that prove the relocated assertions still bite",
+            "originalVerdict": "killed on first application. Introduced BY the M7 split, and it is the mutant that made the renamed import check worth its new name.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 5edbd2b",
+            "byRound": "task-m7-jobs-split",
+            "result": "killed",
+            "observed": "exit 1 with the single named failure above, while typecheck:twi exit 0 and test:twi 541/541 in 25 files stayed GREEN - all three measured under the same applied mutant. Landing confirmed by grep at line 117 and sha256 10eb62d8 -> 5a9ff1f9. Restored and verified byte-identical back to 10eb62d8."
+          }
+        },
+        {
+          "id": "API-140",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "CRITICAL to the honesty of section 13, and the reason this check was added rather than left implicit. Section 13 asserts ABSENCES over the job use case (no createHash, no SQL clock literal, no credential-shaped identifier, no deriveImageAssetId, no transitionJob to 'complete'). An absence assertion passes VACUOUSLY when its corpus is empty. With the job use case split across two files, a renamed or deleted second module would shrink the corpus to one file and every one of those absences would keep printing OK while no longer covering cancelJob or retryJob at all",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha: both the file and the check that requires it are created by the same commit.",
+          "target": {
+            "file": "src/twi/server/jobs-cancel-retry.ts",
+            "construct": "the module's EXISTENCE, as section 13's second corpus"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": null,
+            "replace": null,
+            "anchorUnique": false,
+            "describedAs": "Truncate the whole file to a single newline, modelling the module being renamed, moved or deleted without section 13 being repointed. Mechanical rather than a literal substitution: any edit that leaves read() returning whitespace reproduces it.",
+            "mechanicalRule": "replace the entire contents of the target file with a single newline character"
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the job use case is exactly 2 modules and section 13 reads both, so no absence assertion here can pass over a corpus that shrank",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "retryJob refuses to dispatch unless its own retrying transition was applied",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every job event key is minted by the one helper and carries the attempt ordinal",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "a dispatch failure lands the job in error with orchestrator_unavailable, and cancel does NOT claim a stop it never made",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "exit 1, 4 failing checks of 80 printed",
+          "whyTheFirstFailureIsTheLoadBearingOne": "The other three are the order assertions failing CLOSED, which they would do anyway. Only the first NAMES the missing file (MISSING: src/twi/server/jobs-cancel-retry.ts), and only the first protects the absence half of the section, which fails OPEN. Deleting that check would leave this mutant killed - the order checks still fire - while silently restoring the vacuous-pass hole for every absence in section 13. Do not read the other three as making it redundant.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "section 4, the five mutants that prove the relocated assertions still bite",
+            "originalVerdict": "killed on first application. Introduced BY the M7 split, as the check that stops the split from quietly narrowing section 13.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 5edbd2b",
+            "byRound": "task-m7-jobs-split",
+            "result": "killed",
+            "observed": "exit 1 with four named failures, the first naming the missing file. Landing confirmed by file size 1 byte and sha256 6c69828b -> 01ba4719 (the sha256 of a lone newline). Restored from an out-of-tree copy and verified byte-identical back to 6c69828b."
+          }
+        },
+        {
+          "id": "API-141",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a timestamp taken from SQLite inside the relocated code. twi_jobs and twi_job_events refuse anything but a JS-generated YYYY-MM-DDTHH:MM:SS.sssZ at the repository boundary and again in twelve schema CHECKs, and the whole point of the injectable clock is that the use case never asks the database what time it is",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason as API-137.",
+          "target": {
+            "file": "src/twi/server/jobs-cancel-retry.ts",
+            "construct": "cancelJob's cancelling-event detailJson, used here as a PROBE that section 13's absence assertions reach the relocated code"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "detailJson: JSON.stringify({ schemaVersion: 1, attempt, requestedFrom: job.status }),",
+            "replace": "detailJson: JSON.stringify({ schemaVersion: 1, attempt, requestedFrom: job.status, at: \"datetime('now')\" }),",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "every job timestamp is JS-generated through the injectable clock, never SQL of its own",
+              "measured": true
+            }
+          ],
+          "killedByNameNote": "The executed check name contains a typographic right single quote (never SQL's, U+2019) which is not reproduced in this field; match on the leading text 'every job timestamp is JS-generated through the injectable clock'.",
+          "measuredFailureCount": "exit 1, 1 failing check of 80 printed",
+          "survivedThePreSplitCheck": "THIS IS WHY THE ENTRY EXISTS, and it is a measured counterfactual rather than an argument. The SAME mutant was run against the SAME split tree with the PRE-SPLIT contract library restored (git show HEAD:scripts/lib/twi-contract-jobs.mjs swapped in, confirmed to contain no jobsRaw and to read src/twi/server/jobs.ts only). It printed: OK every job timestamp is JS-generated through the injectable clock. The offence was present in the code and the check passed. So a split that repointed only the three assertions coupled to jobFunction - which is what the brief for this round named - would have shipped with the SQL-clock, createHash, credential-identifier and deriveImageAssetId absences silently no longer covering cancelJob or retryJob. That is the same class as the section 6 enumerated-versus-walked finding (API-20) in a new place: the order half of section 13 fails closed, the absence half does not, and only the order half was ever discussed.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "section 4, the five mutants that prove the relocated assertions still bite",
+            "originalVerdict": "killed on first application against the widened corpus, and MEASURED SURVIVOR against the pre-split corpus. Introduced BY the M7 split as the probe that decided the corpus had to be widened rather than repointed.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 5edbd2b",
+            "byRound": "task-m7-jobs-split",
+            "result": "killed",
+            "observed": "exit 1 with the single named failure above. Landing confirmed by grep naming line 76 and sha256 6c69828b -> 7cdd5b47. Restored and verified byte-identical back to 6c69828b; the borrowed pre-split contract library restored and verified back to 8d510cb8."
+          }
+        },
+        {
+          "id": "API-142",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "a concurrency test quietly stops being concurrent. The orphan test would then exercise the ORDINARY SEQUENTIAL replay path - winner commits, loser FINDS the row and writes no spec at all - where specCount() === 1 and zero orphans hold for a reason that has nothing to do with the compensation the test is named after. Re-review finding N-3",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha: the assertion this mutant is killed by is added by the same commit. Resolve it to the commit closing N-3 and N-4.",
+          "target": {
+            "file": "src/twi/server/jobs-concurrency.test.ts",
+            "construct": "the orphan test's race instrument: racingRepo()'s party count and Promise.allSettled"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    const { repo, missed } = racingRepo();\n\n    await Promise.allSettled([submit({}, { repo }), submit({}, { repo })]);",
+            "replace": "    const { repo, missed } = racingRepo(1);\n\n    await submit({}, { repo });\n    await submit({}, { repo });",
+            "anchorUnique": true,
+            "describedAs": "Degenerate the race into a sequential pair. BOTH halves are required and this is the part worth knowing: making the calls sequential ALONE does not model the degeneration, because with parties = 2 a lone caller waits on a barrier that can never open and the test HANGS to timeout - a loud failure. Relaxing the barrier to one party is what turns it into the silent sequential pass that N-3 warns about."
+          },
+          "targetsTheTestNotTheCode": "This mutant mutates the TEST, not production code, and what it proves is that the INSTRUMENT discriminates. Production behaviour is unchanged under it. Registered here because missed() is the only thing standing between this file and a suite of three tests that look like races and are not - the same class as API-21, which targeted the suite wiring rather than a use case.",
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > leaves no orphan specification row behind - the loser reaps the copy of the lyrics it wrote",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 6 passed (7). AssertionError: expected 1 to be 2",
+          "everyOtherAssertionSurvived": "MEASURED, and it is the whole point: under this mutant world.specCount() === 1, orphanSpecs() === 0 and countOrphanedSpecs() === 0 all still PASSED. The missed() assertion added by this round is the only assertion in the test that fails.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "sections 7 and 8, closing re-review findings N-3 and N-4",
+            "originalVerdict": "killed on first application. The assertion it exercises did not exist before this round; N-3 recorded its absence as a Minor.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+            "byRound": "task-m7-minors",
+            "result": "killed",
+            "observed": "Tests 1 failed | 6 passed (7). Landing confirmed by sha256 62c38a31 -> 232b34cd before the run; restored from an out-of-tree copy and verified byte-identical back to 62c38a31."
+          }
+        },
+        {
+          "id": "API-143",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the same degeneration in the 409 test, and it discriminates MORE here than anywhere else in the file: the SEQUENTIAL different-spec path answers the identical 409 idempotency_key_reused, from findReplayableJob at the top of submitJob rather than from replayLostRace after a lost insert. Both paths give that test the status and the code it asserts, so without the instrument it cannot tell which one it exercised - and only one of them is the concurrent path it exists for. Re-review finding N-3",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason as API-142.",
+          "target": {
+            "file": "src/twi/server/jobs-concurrency.test.ts",
+            "construct": "the 409 test's race instrument: racingRepo()'s party count and Promise.allSettled"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    const { repo, missed } = racingRepo();\n\n    const settled = await Promise.allSettled([\n      submit({}, { repo }),\n      submit({ spec: { ...draft, sound: { ...draft.sound, novelty: 3 } } }, { repo }),\n    ]);",
+            "replace": null,
+            "anchorUnique": true,
+            "describedAs": "Same degeneration as API-142 applied to the 409 test: racingRepo(1), and the two submits awaited in sequence with their settled results assembled by hand so the assertions below still typecheck. Described rather than given as a literal replacement because the replacement has to reconstruct the PromiseSettledResult shape; the mutation is mechanical and the anchor is exact."
+          },
+          "targetsTheTestNotTheCode": "As API-142: this mutates the test and proves the instrument.",
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > refuses the loser 409 when the two racing submits carry DIFFERENT specs, and still reaps its spec row",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 6 passed (7). AssertionError: expected 1 to be 2",
+          "everyOtherAssertionSurvived": "MEASURED: status 409, code idempotency_key_reused, jobCount, costCount, orchestrator.starts, specCount, orphanSpecs and countOrphanedSpecs ALL still passed. Only missed() failed.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "sections 7 and 8, closing re-review findings N-3 and N-4",
+            "originalVerdict": "killed on first application. The assertion it exercises did not exist before this round.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+            "byRound": "task-m7-minors",
+            "result": "killed",
+            "observed": "Tests 1 failed | 6 passed (7). Landing confirmed by sha256 62c38a31 -> 9910634a; restored and verified byte-identical back to 62c38a31."
+          }
+        },
+        {
+          "id": "API-144",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the reap's residual reports zero unconditionally. Every OTHER test of the residual asserts it is zero, so an inventory that always answers zero satisfies all of them - and a deployed database holding orphaned spec_json rows, each a full copy of the lyrics the owner typed, would report clean. Re-review finding N-4",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha: countOrphanedSpecs is added by the same commit. Resolve it to the commit closing N-3 and N-4.",
+          "target": {
+            "file": "src/twi/server/queries.ts",
+            "construct": "countOrphanedSpecs's returned count"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return row?.total ?? 0;\n};\n\nexport const insertAsset",
+            "replace": "  return row?.total ?? 0 ? 0 : 0;\n};\n\nexport const insertAsset",
+            "anchorUnique": true,
+            "describedAs": "Make the inventory answer 0 for every input while still executing the real query, so nothing about the SQL, the binding or the call path changes - only the number. The anchor is disambiguated by the following export because `return row?.total ?? 0;` is not unique in queries.ts on its own."
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > counts a REAL orphan the reap failed to collect, so the residual is a number and not a hope",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  1 failed | 6 passed (7). AssertionError: expected +0 to be 1",
+          "whyOneTestAndNotSix": "The other six tests of this file assert the residual is ZERO and therefore CANNOT kill this mutant - they were measured green under it. That is the vacuous-pass shape an absence-style assertion always admits, and the orphan-creating test is the only thing that closes it. If that test is ever deleted, this mutant becomes a survivor and the inventory becomes decoration.",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "sections 7 and 8, closing re-review findings N-3 and N-4",
+            "originalVerdict": "killed on first application. Both the query and the test that kills it are introduced by this round; N-4 recorded the absence of any count as a Minor.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+            "byRound": "task-m7-minors",
+            "result": "killed",
+            "observed": "Tests 1 failed | 6 passed (7). Landing confirmed by grep and sha256 1e6dd7b8 -> 196a8727; restored and verified byte-identical back to 1e6dd7b8."
+          }
+        },
+        {
+          "id": "API-145",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "the inventory counts the OPPOSITE set - every specification a job DOES reference. A healthy production database would then report as entirely orphaned, which is the failure mode that gets an inventory disbelieved and then ignored. It also passes API-144's assertion, so the two mutants pin opposite directions and neither is redundant",
+          "appliesAtCommit": "refactor/twi-m7-jobs-split",
+          "appliesAtCommitNote": "A branch name rather than a sha, for the same reason as API-144.",
+          "target": {
+            "file": "src/twi/server/queries.ts",
+            "construct": "countOrphanedSpecs's NOT EXISTS guard - the complement of deleteUnreferencedSpec's"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "       FROM twi_generation_specs AS spec\n       WHERE NOT EXISTS (",
+            "replace": "       FROM twi_generation_specs AS spec\n       WHERE EXISTS (",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > does not count a specification row a job references, so the inventory cannot cry wolf",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > leaves no orphan specification row behind - the loser reaps the copy of the lyrics it wrote",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > refuses the loser 409 when the two racing submits carry DIFFERENT specs, and still reaps its spec row",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-concurrency.test.ts",
+              "test": "POST /api/twi/jobs > counts a REAL orphan the reap failed to collect, so the residual is a number and not a hope",
+              "measured": true
+            }
+          ],
+          "measuredFailureCount": "Tests  4 failed | 3 passed (7). AssertionError: expected 1 to be +0, three times, and expected +0 to be 1 once",
+          "provenance": {
+            "introducedIn": "task-m7-minors-report.md",
+            "section": "sections 7 and 8, closing re-review findings N-3 and N-4",
+            "originalVerdict": "killed on first application by four tests.",
+            "closedBy": null
+          },
+          "spotChecked": {
+            "at": "refactor/twi-m7-jobs-split, base 471a8f0",
+            "byRound": "task-m7-minors",
+            "result": "killed",
+            "observed": "Tests 4 failed | 3 passed (7). Landing confirmed by reading the mutated SQL back off disk and sha256 -> 70272f6e; restored and verified byte-identical back to 1e6dd7b8."
           }
         }
       ]

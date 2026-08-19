@@ -18,7 +18,8 @@ import { draft } from '../domain/spec.fixture';
 import type { JobPhase, JobStatus } from '../domain/types';
 
 import { HttpError } from './http';
-import { MAX_JOB_PAGE, cancelJob, getJob, listJobs, retryJob, submitJob, type JobDeps } from './jobs';
+import { MAX_JOB_PAGE, getJob, listJobs, submitJob, type JobDeps } from './jobs';
+import { cancelJob, retryJob } from './jobs-cancel-retry';
 import {
   OTHER_PROJECT_ID,
   OWNER_PROJECT_ID,

@@ -109,6 +109,41 @@ export const deleteUnreferencedSpec = (
     )
     .bind(input.projectId, input.id, input.projectId, input.id);
 
+/**
+ * How many specification rows NO job references — the reap's RESIDUAL, as a number.
+ *
+ * `deleteUnreferencedSpec` above is best-effort by design: its caller swallows failures so
+ * that a cleanup cannot replace the diagnosis of the failure it is compensating for. The
+ * consequence is a residual, and until this query existed nothing anywhere counted it. Its
+ * size in a deployed database was therefore unknown rather than merely nonzero, and these
+ * rows are not ordinary garbage: each holds `spec_json`, a full copy of the lyrics the owner
+ * typed, so an uncounted residual is an unmeasured privacy exposure.
+ *
+ * The predicate is deliberately the EXACT complement of `deleteUnreferencedSpec`'s guard —
+ * same `NOT EXISTS`, same `(project_id, spec_id)` pair, which is the composite FOREIGN KEY
+ * `twi_jobs` actually carries. So this counts precisely the rows the reap is permitted to
+ * remove, and the two can never disagree about what "unreferenced" means. A `NOT IN`
+ * subquery would have been the obvious spelling and is the wrong one twice over: it ignores
+ * `project_id`, and it answers zero rows for the whole table the moment one `spec_id` is
+ * NULL.
+ *
+ * Estate-wide and unscoped on purpose: an operator asking this question wants the inventory,
+ * not one project's slice.
+ */
+export const countOrphanedSpecs = async (db: D1DatabaseLike): Promise<number> => {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS total
+       FROM twi_generation_specs AS spec
+       WHERE NOT EXISTS (
+         SELECT 1 FROM twi_jobs AS job
+          WHERE job.project_id = spec.project_id AND job.spec_id = spec.id
+       )`,
+    )
+    .first<{ total: number }>();
+  return row?.total ?? 0;
+};
+
 export const insertAsset = (db: D1DatabaseLike, input: RegisterAssetInput): D1PreparedStatementLike =>
   db
     .prepare(
