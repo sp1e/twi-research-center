@@ -100,7 +100,7 @@ describe('TWI render Workflow', () => {
 
     const response = await start(payload);
     expect(response.status).toBe(202);
-    expect(await json(response)).toMatchObject({ ok: true, created: true, instance: { id: `${JOB_ID}:0` } });
+    expect(await json(response)).toMatchObject({ ok: true, created: true, instance: { id: `${JOB_ID}_0` } });
 
     const [instance] = await introspector.get();
     expect(instance).toBeDefined();
@@ -116,9 +116,9 @@ describe('TWI render Workflow', () => {
       expect(JSON.stringify(manifest).length).toBeLessThan(1_024);
     }
 
-    const status = await fetchWorker(`/status/${encodeURIComponent(`${JOB_ID}:0`)}`);
+    const status = await fetchWorker(`/status/${encodeURIComponent(`${JOB_ID}_0`)}`);
     expect(status.status).toBe(200);
-    expect(await json(status)).toEqual({ ok: true, instance: { id: `${JOB_ID}:0`, status: 'complete' } });
+    expect(await json(status)).toEqual({ ok: true, instance: { id: `${JOB_ID}_0`, status: 'complete' } });
 
     const [job] = await queryAll<{ status: string; actual_cost_usd: number; output_manifest_json: string }>(
       `SELECT status, actual_cost_usd, output_manifest_json FROM twi_jobs WHERE id = '${JOB_ID}'`,
@@ -239,7 +239,7 @@ describe('TWI render Workflow', () => {
     const duplicate = await start(payload);
     const higher = await start({ ...payload, attempt: 1 });
     expect(first.status).toBe(202);
-    expect(await json(duplicate)).toMatchObject({ ok: true, created: false, instance: { id: `${JOB_ID}:0` } });
+    expect(await json(duplicate)).toMatchObject({ ok: true, created: false, instance: { id: `${JOB_ID}_0` } });
     expect(higher.status).toBe(202);
 
     const instances = await introspector.get();
@@ -283,10 +283,10 @@ describe('TWI render Workflow', () => {
       body: JSON.stringify({ schemaVersion: 1, jobId: JOB_ID, projectId: PROJECT_ID, attempt: 1 }),
     });
     expect(response.status).toBe(200);
-    expect(await json(response)).toEqual({ ok: true, instance: { id: `${JOB_ID}:1`, status: 'terminated' } });
+    expect(await json(response)).toEqual({ ok: true, instance: { id: `${JOB_ID}_1`, status: 'terminated' } });
 
-    const attempt0 = await env.TWI_RENDER_WORKFLOW.get(`${JOB_ID}:0`);
-    const attempt1 = await env.TWI_RENDER_WORKFLOW.get(`${JOB_ID}:1`);
+    const attempt0 = await env.TWI_RENDER_WORKFLOW.get(`${JOB_ID}_0`);
+    const attempt1 = await env.TWI_RENDER_WORKFLOW.get(`${JOB_ID}_1`);
     expect((await attempt1.status()).status).toBe('terminated');
     expect((await attempt0.status()).status).not.toBe('terminated');
   });

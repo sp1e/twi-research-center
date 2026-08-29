@@ -29,7 +29,14 @@ interface ObjectManifest {
   id: string;
   key: string;
   contentType: string;
-  bytes: number;
+  /**
+   * The SIZE of the object, never its content. Named `sizeBytes` rather than `bytes`
+   * because a Workflow step result is durable state that crosses a step boundary, and a
+   * field called `bytes` is one careless edit away from carrying the audio itself. The
+   * integration test forbids the NAME on a step result for exactly that reason, and
+   * backs it with a 1 KiB ceiling on the serialized manifest.
+   */
+  sizeBytes: number;
   sha256: string;
   durationSeconds: number | null;
 }
@@ -87,7 +94,7 @@ const getObjectBytes = async (bucket: R2Bucket, manifest: ObjectManifest): Promi
   if (!object) throw new Error('candidate object is missing');
   if (object.httpMetadata?.contentType !== manifest.contentType) throw new Error('candidate content type is invalid');
   const bytes = new Uint8Array(await object.arrayBuffer());
-  if (bytes.byteLength !== manifest.bytes || (await sha256Hex(bytes)) !== manifest.sha256) {
+  if (bytes.byteLength !== manifest.sizeBytes || (await sha256Hex(bytes)) !== manifest.sha256) {
     throw new Error('candidate object integrity check failed');
   }
   return bytes;
@@ -108,7 +115,7 @@ const registerInput = (
   label,
   r2Key: manifest.key,
   contentType: manifest.contentType,
-  bytes: manifest.bytes,
+  bytes: manifest.sizeBytes, //   `bytes` is the twi_assets COLUMN name; the manifest field is not
   durationSeconds: manifest.durationSeconds,
   sha256: manifest.sha256,
   provenanceKey,
@@ -154,7 +161,7 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
           id: assetId(payload, label, 'raw'),
           key,
           contentType: candidate.contentType,
-          bytes: candidate.bytes.byteLength,
+          sizeBytes: candidate.bytes.byteLength,
           sha256,
           durationSeconds: candidate.durationSeconds,
           label,
@@ -207,7 +214,7 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
           id: assetId(payload, raw.label, 'master'),
           key: `${prefix}/master.wav`,
           contentType: 'audio/wav',
-          bytes: bytes.byteLength,
+          sizeBytes: bytes.byteLength,
           sha256: raw.sha256,
           durationSeconds: raw.durationSeconds,
         };
@@ -231,7 +238,7 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
           id: assetId(payload, raw.label, 'provenance'),
           key: raw.provenanceKey,
           contentType: 'application/json',
-          bytes: provenanceBytes.byteLength,
+          sizeBytes: provenanceBytes.byteLength,
           sha256: await sha256Hex(provenanceBytes),
           durationSeconds: null,
         };
