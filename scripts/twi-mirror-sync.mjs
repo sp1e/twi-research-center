@@ -69,6 +69,12 @@ const SUPPORT_PATHS = new Set([
   'scripts/lib/ts-ast.mjs',
   'docs/superpowers/HANDOVER.md',
   'docs/superpowers/mutants/README.md',
+  // Task 8's handoff. Same category as HANDOVER.md above: a TWI document whose NAME
+  // carries no 'twi', so the coverage check cannot derive it and the leak check would
+  // otherwise refuse it. It is listed in the extraction contract on purpose -- the
+  // mirror is meant to be readable on its own, and this file is where Task 8's state
+  // and its measured failures are written down.
+  'docs/superpowers/TASK8-CLAUDE-CODE-HANDOFF.md',
 ])
 
 /**
