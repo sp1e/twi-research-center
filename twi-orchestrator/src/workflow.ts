@@ -5,6 +5,12 @@ import type { CostEstimate, GenerationSpec } from '../../src/twi/domain/types';
 import type { CandidatePublicationEntry, RegisterAssetInput } from '../../src/twi/server/repository-types';
 import { TwiWorkflowStore } from './db';
 import { canCompleteRender, createProvider, mustNotRetry } from './providers/select';
+import {
+  assertBothCandidatesValidated,
+  assertCandidateAudio,
+  assertProvenance,
+  assertWavHeader,
+} from './publication-guards';
 import type { CandidateLabel, MusicProvider, ProviderCandidate } from './providers/types';
 
 export interface StartPayload {
@@ -78,18 +84,6 @@ const objectPrefix = (payload: StartPayload, label: CandidateLabel): string =>
 
 const assetId = (payload: StartPayload, label: CandidateLabel, kind: string): string =>
   `${payload.jobId}:${payload.attempt}:${label}:${kind}`;
-
-const assertWav = (bytes: Uint8Array): void => {
-  if (bytes.byteLength < 44) throw new Error('candidate WAV is too short');
-  const text = (from: number, to: number) => new TextDecoder().decode(bytes.slice(from, to));
-  if (text(0, 4) !== 'RIFF' || text(8, 12) !== 'WAVE' || text(36, 40) !== 'data') {
-    throw new Error('candidate WAV header is invalid');
-  }
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (view.getUint32(4, true) !== bytes.byteLength - 8 || view.getUint32(40, true) !== bytes.byteLength - 44) {
-    throw new Error('candidate WAV length is invalid');
-  }
-};
 
 const getObjectBytes = async (bucket: R2Bucket, manifest: ObjectManifest): Promise<Uint8Array> => {
   const object = await bucket.get(manifest.key);
@@ -229,7 +223,7 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
       const candidates: FinishedCandidateManifest[] = [];
       for (const raw of raws) {
         const bytes = await getObjectBytes(this.env.FILES, raw);
-        assertWav(bytes);
+        assertWavHeader(bytes);
         const prefix = objectPrefix(payload, raw.label);
         const master: ObjectManifest = {
           id: assetId(payload, raw.label, 'master'),
@@ -295,24 +289,19 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
         const raw = await getObjectBytes(this.env.FILES, candidate.raw);
         const master = await getObjectBytes(this.env.FILES, candidate.master);
         const preview = await getObjectBytes(this.env.FILES, candidate.preview);
-        assertWav(raw);
-        assertWav(master);
-        assertWav(preview);
-        if (candidate.raw.sha256 !== candidate.master.sha256 || candidate.raw.sha256 !== candidate.preview.sha256) {
-          throw new Error('fake candidate audio outputs differ');
-        }
+        assertCandidateAudio({
+          raw: { bytes: raw, sha256: candidate.raw.sha256 },
+          master: { bytes: master, sha256: candidate.master.sha256 },
+          preview: { bytes: preview, sha256: candidate.preview.sha256 },
+        });
         const provenanceObject = await this.env.FILES.get(candidate.provenance.key);
-        if (!provenanceObject || provenanceObject.httpMetadata?.contentType !== 'application/json') {
-          throw new Error('candidate provenance is missing');
-        }
-        const provenance = JSON.parse(await provenanceObject.text()) as Record<string, unknown>;
-        if (
-          provenance.providerRequestId !== candidate.providerRequestId ||
-          provenance.specSha256 !== payload.specSha256 ||
-          provenance.label !== candidate.label
-        ) {
-          throw new Error('candidate provenance is invalid');
-        }
+        assertProvenance({
+          contentType: provenanceObject?.httpMetadata?.contentType,
+          text: provenanceObject ? await provenanceObject.text() : null,
+          label: candidate.label,
+          providerRequestId: candidate.providerRequestId,
+          specSha256: payload.specSha256,
+        });
         assetIds.push(candidate.raw.id, candidate.master.id, candidate.preview.id, candidate.provenance.id);
       }
       await store.assertAssetsProvisional(payload.projectId, payload.jobId, assetIds);
@@ -320,7 +309,7 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
     });
 
     return step.do('publish', STEP_CONFIG, async () => {
-      if (validated.labels.join('') !== 'AB') throw new Error('both candidates must validate before publication');
+      assertBothCandidatesValidated(validated.labels);
       const candidates = finished.candidates.map((candidate): CandidatePublicationEntry => ({
         label: candidate.label,
         rawAssetId: candidate.raw.id,
