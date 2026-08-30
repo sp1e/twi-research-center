@@ -80,6 +80,13 @@ const SUPPORT_PATHS = new Set([
   // them. The rest of stems-gpu/ is deliberately NOT in the extraction contract.
   'stems-gpu/finish.py',
   'stems-gpu/test_finish.py',
+  // The mutation harnesses. TWI-owned evidence, but none of the filenames carries 'twi',
+  // so the coverage check cannot derive them from their names.
+  'docs/superpowers/mutants/harnesses/README.md',
+  'docs/superpowers/mutants/harnesses/task9_mutants.py',
+  'docs/superpowers/mutants/harnesses/task8_publication_mutants.py',
+  'docs/superpowers/mutants/harnesses/guards_mutants.py',
+  'docs/superpowers/mutants/harnesses/task10_finish_mutants.py',
 ])
 
 /**
