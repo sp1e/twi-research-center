@@ -39,7 +39,8 @@ Three checkouts exist and they are **not** interchangeable:
 | Path | What it is |
 |---|---|
 | `…/Documents/Codex/2026-08-15/new-chat/work/sp1e.se` | **the canonical source repo.** Work here. |
-| `…/Claude/twi-research-center` | a mirror clone. **Never hand-edit.** |
+| `…/Documents/Codex/2026-08-15/new-chat/work/twi-research-center` | **the live mirror clone** — the one `sync:twi-mirror` actually writes to, because the script defaults to `<source>/../twi-research-center`. **Never hand-edit.** |
+| `…/Claude/twi-research-center` | a STALE second mirror clone, last synced 2026-08-19. The sync script never touches it, so its tip lags and reading it will misreport the mirror's state. Verify the mirror with `git ls-remote …/twi-research-center.git main` rather than any local clone. |
 | `…/Documents/Codex/2026-08-15/new-chat/work/twi-verify/*` | task worktrees, incl. the research branch |
 
 The deep-research documents (`TWI-AUDIO-AI-DEEP-RESEARCH-2026-08-30.md` and
