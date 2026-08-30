@@ -60,3 +60,64 @@ export function createSineWav({ seconds, frequencyHz, sampleRate }: SineWavOptio
 
   return bytes;
 }
+
+export interface WavProperties {
+  sampleRate: number;
+  channels: number;
+  bitsPerSample: number;
+  dataBytes: number;
+  durationSeconds: number;
+}
+
+const CHUNK_HEADER_BYTES = 8;
+
+/*
+ * Read a RIFF/WAVE header by WALKING the chunk list rather than assuming the canonical
+ * 44-byte layout. Encoders are entitled to put `LIST`, `fact` or padding chunks before
+ * `data`, so a fixed offset would misread a perfectly legal file from a real provider.
+ */
+export function readWavProperties(bytes: Uint8Array): WavProperties {
+  const ascii = (from: number, to: number): string => new TextDecoder().decode(bytes.slice(from, to));
+  if (bytes.byteLength < 12 || ascii(0, 4) !== 'RIFF' || ascii(8, 12) !== 'WAVE') {
+    throw new RangeError('payload is not a RIFF/WAVE container');
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let format: { channels: number; sampleRate: number; bitsPerSample: number } | null = null;
+  let dataBytes: number | null = null;
+
+  let offset = 12;
+  while (offset + CHUNK_HEADER_BYTES <= bytes.byteLength) {
+    const id = ascii(offset, offset + 4);
+    const size = view.getUint32(offset + 4, true);
+    const body = offset + CHUNK_HEADER_BYTES;
+    if (body + size > bytes.byteLength) throw new RangeError(`WAV chunk "${id}" runs past the end of the payload`);
+
+    if (id === 'fmt ' && size >= 16) {
+      format = {
+        channels: view.getUint16(body + 2, true),
+        sampleRate: view.getUint32(body + 4, true),
+        bitsPerSample: view.getUint16(body + 14, true),
+      };
+    } else if (id === 'data') {
+      dataBytes = size;
+    }
+
+    // RIFF pads odd-sized chunks to an even boundary; the pad byte is not counted in size.
+    offset = body + size + (size % 2);
+  }
+
+  if (!format || dataBytes === null) throw new RangeError('WAV is missing its fmt or data chunk');
+  const bytesPerFrame = format.channels * (format.bitsPerSample / 8);
+  if (!Number.isFinite(bytesPerFrame) || bytesPerFrame <= 0 || format.sampleRate <= 0) {
+    throw new RangeError('WAV declares an unusable frame size or sample rate');
+  }
+
+  return {
+    sampleRate: format.sampleRate,
+    channels: format.channels,
+    bitsPerSample: format.bitsPerSample,
+    dataBytes,
+    durationSeconds: dataBytes / bytesPerFrame / format.sampleRate,
+  };
+}

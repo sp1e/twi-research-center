@@ -1601,6 +1601,50 @@ git add twi-orchestrator/src/providers twi-orchestrator/src/workflow.ts
 git commit -m "feat(twi): add official Lyria provider adapter"
 ```
 
+**AMENDMENT, 2026-08-30 — what Task 9 actually shipped, and why it differs from the steps above.**
+
+Four corrections, each measured rather than assumed. The endpoint, model and WAV request in
+Step 1 were confirmed against primary sources and are unchanged.
+
+1. **Lyria renders at most ~184 s; this schema accepts 240.** `src/twi/domain/schemas.ts:105`
+   declares `durationSeconds: integer(30, 240)`, so a legal TWI spec can exceed what the
+   provider will render. The adapter refuses the difference with `provider_capability_mismatch`
+   BEFORE the billable call, and never silently crops or segments. `LYRIA_MAX_DURATION_SECONDS`
+   is the single place that number lives. A mutant raising it to 240, and a mutant turning the
+   `>` into `>=`, are both killed by name.
+
+2. **`charged` is load-bearing, so the error codes are not enough on their own.** The plan's
+   `ProviderError` already carried `charged: boolean | null`; Task 9 gives it meaning. `false`
+   means the money path was never entered, `true` means it certainly was, `null` means the call
+   is AMBIGUOUS. `mustNotRetry()` permits a retry only for `provider_unavailable` with
+   `charged === false` (rate limiting); everything else is promoted to `NonRetryableError` at
+   the step seam so a retry policy cannot buy the same render twice. Unrelated failures — a D1
+   read, an R2 put — keep the retries they were configured for.
+
+3. **A paid render is refused until something can finish it.** `finish` is still the in-Worker
+   fake path, so selecting `lyria` today would generate two candidates, bill for them, and then
+   fail. `canCompleteRender()` refuses at `/start` and again at `load-job` with
+   `finishing_not_implemented`, before the first call. Task 11 adds `'lyria'` to
+   `FINISHABLE_MODES`; until it does, the adapter is complete but deliberately unreachable.
+
+4. **The response envelope in Step 1 is UNVERIFIED.** Primary sources confirm the endpoint, the
+   model and that WAV can be returned. No source pins the `model_output` / `audio` block shape,
+   so the extractor walks every step, collects every audio block, treats zero as
+   `provider_invalid_audio` and treats two as ambiguous rather than picking one. Block markers
+   follow the Gemini `generateContent` convention and are likewise unverified for Interactions;
+   if they never appear, a refusal still fails closed as an audio-less success. **Task 11 must
+   run a secret-gated live canary before anyone trusts this against real billing.**
+
+Two further notes for Tasks 10-11:
+
+- Image references are refused, not dropped. `MusicProvider.generate` has no R2 handle, and
+  inventing an unverified content-block shape would be worse than declining, so an
+  image-bearing spec fails `provider_capability_mismatch`.
+- `assertWav` in `twi-orchestrator/src/workflow.ts` assumes the canonical 44-byte layout and
+  reads `data` at offset 36. Real encoders may emit `LIST` or `fact` chunks first. It is not a
+  live defect (it runs only on fake-mode bytes) but Task 10/11 must replace it with
+  `readWavProperties`, which walks the chunk list and is mutation-proven against exactly that.
+
 ---
 
 ### Task 10: Add the Modal maximum-quality finishing job
