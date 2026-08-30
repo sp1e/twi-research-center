@@ -2,7 +2,7 @@
 
 Working state of the TWI Research Center Creation Core build. Written 2026-08-17, at tip `1da7968`.
 
-> **STALE as of 2026-08-30 — Tasks 6, 7, 8 and 9 are all CLOSED.** The "Task 5 is CLOSED, Task 6 is
+> **STALE as of 2026-08-30 — Tasks 6 through 10 are all CLOSED.** The "Task 5 is CLOSED, Task 6 is
 > next" heading below is four tasks out of date, and every count in §2 has moved. Current tip is on
 > `codex/twi-research-center-design`; the mirror is synced by `npm run sync:twi-mirror` on every
 > landing (§4 item 15, still the standing two-repository rule).
@@ -47,7 +47,12 @@ reviewed. If a fact matters to the next session, it belongs here. See [Process l
 
 ---
 
-## 1. Resume here — Tasks 5 to 9 are CLOSED. Task 10 (Modal finishing) is next
+## 1. Resume here — Tasks 5 to 10 are CLOSED. Task 11 is next
+
+> **Start at [`TASK11-HANDOFF.md`](TASK11-HANDOFF.md).** It carries the verified tip, the
+> three corrections that apply to Task 11, the `/callback/modal` security requirements and
+> the traps that already cost time. It is written to be read by a different account on a
+> different machine.
 
 *The Task 5 history below is kept as the worked example of how a task closes here; the
 banner above is the current state.*

@@ -10678,7 +10678,7 @@
     "harnessesNotCommitted": [
       "Every harness lived in a session scratchpad and none was committed: group-e's scratch-tree runner,",
       "raw-bound's scratchpad/mutate.mjs, fence-parity's scratchpad/mutants.mjs. They cannot be inspected,",
-      "so the exact edits they applied are known only through their reports' one-line descriptions."
+      "so the exact edits they applied are known only through their reports' one-line descriptions STILL TRUE for those three rounds only.", "SUPERSEDED for the four 2026-08-30 rounds (task-9, task-8-publication first pass, publication-guards, task-10): their harnesses are committed under docs/superpowers/mutants/harnesses/, resolve the repository root from their own location so they run from any checkout, and were re-run from an unrelated working directory to prove it. The exact find/replace text each applied is in the PUB entries above and in the harness sources themselves, not only in a one-line description."
     ],
     "killedByAttribution": [
       "For the mutants this round spot-checked, `killedBy` is measured. For the rest it is the introducing",

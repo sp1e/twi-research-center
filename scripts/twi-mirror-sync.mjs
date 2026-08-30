@@ -75,11 +75,21 @@ const SUPPORT_PATHS = new Set([
   // mirror is meant to be readable on its own, and this file is where Task 8's state
   // and its measured failures are written down.
   'docs/superpowers/TASK8-CLAUDE-CODE-HANDOFF.md',
+  // Task 11's handoff. Same category, and the one file a session resuming on another
+  // account or machine reads first -- so it has to be in the mirror too.
+  'docs/superpowers/TASK11-HANDOFF.md',
   // Task 10's finishing helpers. TWI-owned -- they validate TWI candidates and write TWI
   // object keys -- but neither filename carries 'twi', so the coverage check cannot derive
   // them. The rest of stems-gpu/ is deliberately NOT in the extraction contract.
   'stems-gpu/finish.py',
   'stems-gpu/test_finish.py',
+  // The mutation harnesses. TWI-owned evidence, but none of the filenames carries 'twi',
+  // so the coverage check cannot derive them from their names.
+  'docs/superpowers/mutants/harnesses/README.md',
+  'docs/superpowers/mutants/harnesses/task9_mutants.py',
+  'docs/superpowers/mutants/harnesses/task8_publication_mutants.py',
+  'docs/superpowers/mutants/harnesses/guards_mutants.py',
+  'docs/superpowers/mutants/harnesses/task10_finish_mutants.py',
 ])
 
 /**
