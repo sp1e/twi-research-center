@@ -37,6 +37,13 @@ tsconfig.twi.json
 vite.twi.config.ts
 vitest.twi.config.ts
 
+# --- the orchestrator Worker: its own package, its own toolchain ---
+# A separate sub-package with wrangler 4 and workers-types 5, deliberately not the root's
+# wrangler 3. Every path under it contains "twi", so the sync's coverage check refuses to
+# publish until this entry exists -- that refusal is the mechanism working, not an
+# obstacle. The trailing slash matters here for the same reason it does on `twi/`.
+twi-orchestrator/
+
 # --- the guards: TWI-named scripts, plus the two shared libraries they need ---
 glob:scripts/twi-*
 glob:scripts/lib/twi-*
