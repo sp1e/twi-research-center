@@ -48,7 +48,9 @@ scripts/lib/ts-ast.mjs
 # plans and specs, and a first extraction attempt leaked six of them.
 docs/superpowers/HANDOVER.md
 docs/superpowers/TASK8-CLAUDE-CODE-HANDOFF.md
+docs/superpowers/TWI-AUDIO-AI-DEEP-RESEARCH-2026-08-30.md
 docs/superpowers/mutants/README.md
 docs/superpowers/mutants/twi-creation-core.mutants.json
 docs/superpowers/plans/2026-08-16-twi-creation-core.md
+docs/superpowers/research/report-source.md
 docs/superpowers/specs/2026-08-16-twi-research-center-design.md
