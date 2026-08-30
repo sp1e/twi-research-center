@@ -44,6 +44,11 @@ vitest.twi.config.ts
 # obstacle. The trailing slash matters here for the same reason it does on `twi/`.
 twi-orchestrator/
 
+# TWI's finishing helpers and their tests. The rest of stems-gpu/ is Stem Lab's and stays
+# out: app.py and registry.py serve a different product that happens to share the Modal app.
+stems-gpu/finish.py
+stems-gpu/test_finish.py
+
 # --- the guards: TWI-named scripts, plus the two shared libraries they need ---
 glob:scripts/twi-*
 glob:scripts/lib/twi-*
