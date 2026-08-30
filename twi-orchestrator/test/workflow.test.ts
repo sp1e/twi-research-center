@@ -232,7 +232,18 @@ describe('TWI render Workflow', () => {
     const payload = await seedJob();
     await using introspector = await introspectWorkflow(env.TWI_RENDER_WORKFLOW);
     await introspector.modifyAll(async (modifier) => {
-      await modifier.mockStepError({ name: 'load-job' }, new Error('stop after identity'));
+      // The mocked error must be TERMINAL. load-job retries 5 times with exponential
+      // backoff (~31 s), which is right in production for a transient D1 read failure
+      // and would blow this test's 20 s budget for a fault that is not transient. The
+      // engine skips retries when the error's name is NonRetryableError (or its message
+      // starts with it) -- the same escape hatch production code would use for a fatal
+      // fault. The production retry policy is deliberately NOT lowered for this test.
+      // The name alone does not survive the RPC hop into the binding worker, so the
+      // MESSAGE carries the marker too -- the engine accepts either (binding.worker.js:
+      // name === 'NonRetryableError' || message.startsWith('NonRetryableError')).
+      const fatal = new Error('NonRetryableError: stop after identity');
+      fatal.name = 'NonRetryableError';
+      await modifier.mockStepError({ name: 'load-job' }, fatal);
     });
 
     const first = await start(payload);

@@ -143,7 +143,7 @@ const ABSENT_INSTANCE_MESSAGES = new Set(['instance.not_found', 'Engine was neve
 const isAbsentInstance = (error: unknown): boolean =>
   error instanceof Error && ABSENT_INSTANCE_MESSAGES.has(error.message);
 
-const statusOf = async (workflow: Workflow<StartPayload>, id: string): Promise<InstanceStatus> => {
+const statusOf = async (workflow: Workflow<StartPayload>, id: string): Promise<InstanceStatus['status']> => {
   try {
     return (await (await workflow.get(id)).status()).status;
   } catch (error) {
@@ -157,7 +157,7 @@ const statusOf = async (workflow: Workflow<StartPayload>, id: string): Promise<I
  * with start-up, not a missing instance. Reporting `queued` states what is true; a
  * rethrow would 500 on a render that was successfully created and is about to run.
  */
-const createdStatus = async (instance: WorkflowInstance): Promise<InstanceStatus> => {
+const createdStatus = async (instance: WorkflowInstance): Promise<InstanceStatus['status']> => {
   try {
     return (await instance.status()).status;
   } catch (error) {

@@ -1,6 +1,7 @@
-import { NonRetryableError, WorkflowEntrypoint } from 'cloudflare:workers';
+import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workers';
+import { NonRetryableError } from 'cloudflare:workflows';
 
-import type { CostEstimate } from '../../src/twi/domain/types';
+import type { CostEstimate, GenerationSpec } from '../../src/twi/domain/types';
 import type { CandidatePublicationEntry, RegisterAssetInput } from '../../src/twi/server/repository-types';
 import { TwiWorkflowStore } from './db';
 import { DeterministicFakeMusicProvider } from './providers/fake';
@@ -130,7 +131,15 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
     const now = event.timestamp.toISOString();
     const store = new TwiWorkflowStore(this.env.DB);
 
-    const loaded = await step.do('load-job', LOAD_STEP_CONFIG, async () => {
+    /*
+     * The step returns a PLAIN GenerationSpec, not the branded NormalizedGenerationSpec
+     * the store hands back. The brand is a compile-time witness that the value came out
+     * of generationSpecSchema; a step result is serialized into durable storage and read
+     * back as JSON, so on the far side of this boundary that witness is no longer true.
+     * Dropping it here is more honest than carrying it across -- and Rpc.Serializable
+     * rejects the unique symbol anyway, which is the type system saying the same thing.
+     */
+    const loaded = await step.do<{ spec: GenerationSpec }>('load-job', LOAD_STEP_CONFIG, async () => {
       if (this.env.TWI_PROVIDER_MODE !== 'fake') {
         throw new NonRetryableError('provider_not_configured');
       }
@@ -139,7 +148,7 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
         throw new Error('workflow job is not queued yet');
       }
       await store.transition(payload.jobId, payload.attempt, 'queued', 'generating', 'generating', now);
-      return { spec: frozen.spec };
+      return { spec: frozen.spec as GenerationSpec };
     });
 
     const generate = (label: CandidateLabel): Promise<RawCandidateManifest> =>

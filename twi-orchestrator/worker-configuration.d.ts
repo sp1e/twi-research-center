@@ -1,4 +1,11 @@
-import type worker from './src/index';
+// ctx.exports carries loopback bindings for the ENTRYPOINT exports only, so mainModule
+// names exactly those two. The module namespace cannot be used wholesale: index.ts also
+// exports parseStartPayload, workflowInstanceId and START_PAYLOAD_KEYS for the tests and
+// the cross-package contract check, and `Exports` demands every key it maps be an
+// ExportedHandler or an entrypoint class. A default import cannot be used either -- that
+// keys Exports on `fetch`/`queue` and removes the `default` handle the tests use.
+import type workerDefault from './src/index';
+import type { TwiRenderWorkflow } from './src/index';
 
 declare global {
   interface Env {
@@ -13,7 +20,7 @@ declare global {
   namespace Cloudflare {
     interface Env extends globalThis.Env {}
     interface GlobalProps {
-      mainModule: typeof worker;
+      mainModule: { default: typeof workerDefault; TwiRenderWorkflow: typeof TwiRenderWorkflow };
     }
   }
 }
