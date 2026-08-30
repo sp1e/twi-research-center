@@ -139,6 +139,20 @@ const decodeAudio = (payloads: string[]): Uint8Array => {
   }
 };
 
+/*
+ * A paid call whose provider request id we cannot record is unreconcilable: there would be
+ * a charge on the account with nothing in provenance to match it against. The audio is
+ * discarded rather than published unattributable -- and because the provenance guard
+ * compares this value on both sides, a blank one would otherwise compare equal to itself.
+ */
+const requireRequestId = (value: unknown): string => {
+  const id = typeof value === 'string' ? value.trim() : '';
+  if (id.length === 0) {
+    throw new ProviderError('provider_invalid_audio', 'the provider returned no request id', true);
+  }
+  return id;
+};
+
 const measureWav = (bytes: Uint8Array): { durationSeconds: number } => {
   try {
     return readWavProperties(bytes);
@@ -179,7 +193,7 @@ export class LyriaMusicProvider implements MusicProvider {
       model: LYRIA_MODEL,
       durationSeconds: measureWav(bytes).durationSeconds,
       providerCostUsd: this.costUsdPerCandidate,
-      providerRequestId: String(asRecord(body)?.id ?? ''),
+      providerRequestId: requireRequestId(asRecord(body)?.id),
     };
   }
 

@@ -74,6 +74,7 @@
  *   section 12                → scripts/lib/twi-contract-assets.mjs
  *   section 13                → scripts/lib/twi-contract-jobs.mjs
  *   section 14                → scripts/lib/twi-contract-orchestrator.mjs
+ *   section 15                → scripts/lib/twi-contract-guards.mjs
  *
  * The call order below IS the printed order, and the mutant manifest cites these checks by
  * name, so neither may drift.
@@ -89,6 +90,7 @@ import { checkAssetIngestion } from './lib/twi-contract-assets.mjs';
 import { checkCatalogAndProjects } from './lib/twi-contract-catalog.mjs';
 import { checkGateStructure, checkRoutePlacement } from './lib/twi-contract-gate.mjs';
 import { checkJobApi } from './lib/twi-contract-jobs.mjs';
+import { checkPublicationGuards } from './lib/twi-contract-guards.mjs';
 import { checkOrchestratorSeam } from './lib/twi-contract-orchestrator.mjs';
 import { checkRedirectOrdering, checkRoutingProtections } from './lib/twi-contract-redirects.mjs';
 import { checkResponseShaping } from './lib/twi-contract-responses.mjs';
@@ -148,6 +150,7 @@ checkSuiteWiring(context, check); //           sections 10, 11
 checkAssetIngestion(context, check); //        section 12
 checkJobApi(context, check); //                section 13
 checkOrchestratorSeam(context, check); //     section 14
+checkPublicationGuards(context, check); //     section 15
 
 const failed = checks.filter((c) => !c.ok);
 for (const c of checks) console.log(`${c.ok ? 'OK  ' : 'FAIL'} ${c.name}`);

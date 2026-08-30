@@ -12,6 +12,7 @@ import type {
 } from '../../src/twi/server/repository-types';
 import { findJobById } from '../../src/twi/server/queries';
 import { specSha256 } from '../../src/twi/server/spec-digest';
+import { assertAllProvisional, assertFrozenJobMatchesPayload } from './publication-guards';
 import type { StartPayload } from './workflow';
 
 export interface FrozenJob {
@@ -35,14 +36,7 @@ export class TwiWorkflowStore {
   async loadFrozenJob(payload: StartPayload): Promise<FrozenJob> {
     const job = await findJobById(this.database, payload.jobId);
     if (!job) throw new Error('workflow job was not found');
-    if (
-      job.projectId !== payload.projectId ||
-      job.specId !== payload.specId ||
-      job.specSha256 !== payload.specSha256 ||
-      job.idempotencyKey !== payload.idempotencyKey
-    ) {
-      throw new Error('workflow identity does not match the frozen job');
-    }
+    assertFrozenJobMatchesPayload(job, payload);
 
     const row = await this.database
       .prepare(
@@ -100,7 +94,7 @@ export class TwiWorkflowStore {
       )
       .bind(projectId, jobId, ...assetIds)
       .first<{ count: number }>();
-    if (row?.count !== assetIds.length) throw new Error('candidate assets are not all provisional');
+    assertAllProvisional(row?.count, assetIds.length);
   }
 
   publish(input: PublishCandidatesInput): Promise<PublishCandidatesResult> {

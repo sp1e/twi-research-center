@@ -217,6 +217,23 @@ describe('LyriaMusicProvider failure taxonomy', () => {
     expect(error.charged).toBe(true);
   });
 
+  it('refuses a billed response that carries no request id, which could never be reconciled', async () => {
+    const { fetchImpl } = respondingWith({
+      steps: [{ model_output: { content: [{ audio: { data: base64(returnedWav) } }] } }],
+    });
+    const error = await generateFailure(fetchImpl);
+    expect(error.code).toBe('provider_invalid_audio');
+    expect(error.charged).toBe(true);
+  });
+
+  it('refuses a blank request id for the same reason', async () => {
+    const { fetchImpl } = respondingWith({
+      id: '   ',
+      steps: [{ model_output: { content: [{ audio: { data: base64(returnedWav) } }] } }],
+    });
+    expect((await generateFailure(fetchImpl)).code).toBe('provider_invalid_audio');
+  });
+
   it('never leaks the prompt, the api key or the response body into a failure', async () => {
     const { fetchImpl } = respondingWith({ error: { message: 'SECRET-BODY-MARKER' } }, 400);
     const error = await generateFailure(fetchImpl);
