@@ -2,17 +2,39 @@
 
 Working state of the TWI Research Center Creation Core build. Written 2026-08-17, at tip `1da7968`.
 
-> **STALE as of 2026-08-19 — Tasks 6 and 7 are CLOSED (Task 7's scoped re-review closed all five
-> Importants), and M7 plus both its open minors are also done**, so the "Task 6 is next" heading
-> below is WRONG twice over. The tip is now `b274d80` (mirror `dbf5e30`), and every count in §2 has
-> moved (twi 543 tests in 25 files, contracts 80 checks, structure 60 tests). A full refresh is still
-> queued — now behind Task 8 (the Workflow Worker), not behind the Task 7 fix round, which is
-> finished. The authoritative record of what happened in between is the working ledger at
-> `.superpowers/sdd/2026-08-16-twi-creation-core/progress.md`, which is gitignored and therefore
-> exists only on the machine that built it — **1474 lines as of this banner**. Sections 4, 5, 7 and 8
-> still hold as written, and §4 item 15 is the standing two-repository rule. §12's three M7-related
-> bullets (M7 open, the race instrument, the reap residual) are now DONE — see the done-list at the
-> end of §12 rather than the bullets themselves, which have been removed.
+> **STALE as of 2026-08-30 — Tasks 6, 7, 8 and 9 are all CLOSED.** The "Task 5 is CLOSED, Task 6 is
+> next" heading below is four tasks out of date, and every count in §2 has moved. Current tip is on
+> `codex/twi-research-center-design`; the mirror is synced by `npm run sync:twi-mirror` on every
+> landing (§4 item 15, still the standing two-repository rule).
+>
+> **Measured at the 2026-08-30 landing:** `npm test` runs 10 suites — twi 543 tests in 25 files,
+> sp1epacker 149 in 8, legacy 128 + 199 script checks, structure 60, schema 39, migrations 10,
+> contracts **94 checks**, orchestrator guard 8, orchestrator **80 tests in 6 files**, bundle 8.
+> Totals: **1017 tests plus 102 script checks.** Floors in `scripts/run-tests.mjs` match those
+> figures exactly; the manifest's `baselines.currentAtHead` records them and is verified by the gate.
+>
+> **What landed since the last banner:**
+> - **Task 8** — the Workflow Worker (`twi-orchestrator/`), a nested package on a deliberately newer
+>   toolchain (wrangler 4, workers-types 5, vitest 4, TypeScript 7), tested against REAL Workflow, D1
+>   and R2 through `@cloudflare/vitest-plugin`. Gated as the ninth and tenth root suites.
+> - **Task 9** — the official Lyria adapter. Endpoint and model confirmed against primary sources;
+>   the duration ceiling, the charge semantics, the finishing gate and the unverified response
+>   envelope are all recorded in the Task 9 amendment in the plan. Read that before Task 11.
+> - **A publication-guard round that changed how this project should be read.** A mutation campaign
+>   against the Workflow's own validation and publication logic found **NINE of twelve mutants
+>   SURVIVING** the full integration suite: every defensive check between a finished render and a
+>   published one could be deleted with the suite still green. The predicates now live in
+>   `twi-orchestrator/src/publication-guards.ts` and contract-check **section 15** proves they are
+>   still invoked. Set `publication-guards` (PUB-01..PUB-20) in the manifest records it, including
+>   the nine survivors, because the survivors are the more useful half of the finding.
+>
+> **The lesson to carry forward:** a green integration suite says nothing about a guard that only
+> fires on state the happy path cannot produce. If a check cannot be reached by a test, it is not
+> protected — extract it until it can be, and prove the call site separately.
+>
+> Sections 4, 5, 7 and 8 still hold as written. The authoritative blow-by-blow remains the gitignored
+> ledger at `.superpowers/sdd/2026-08-16-twi-creation-core/progress.md`, which exists only on the
+> machine that built it.
 
 This file is **in the repository on purpose**. Every controller ledger and gate report for this
 project lives in `.superpowers/`, which is gitignored — none of it ships. When an earlier session's
@@ -25,7 +47,10 @@ reviewed. If a fact matters to the next session, it belongs here. See [Process l
 
 ---
 
-## 1. Resume here — Task 5 is CLOSED. Task 6 is next
+## 1. Resume here — Tasks 5 to 9 are CLOSED. Task 10 (Modal finishing) is next
+
+*The Task 5 history below is kept as the worked example of how a task closes here; the
+banner above is the current state.*
 
 **Task 5 (the authenticated TWI Projects + Bootstrap API) is closed at `1da7968`.** Read §6 before
 writing Task 6 or 7, and §2 to verify the tree you inherit.

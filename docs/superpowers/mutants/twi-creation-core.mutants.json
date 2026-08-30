@@ -10044,6 +10044,553 @@
           }
         }
       ]
+    },
+    {
+      "id": "publication-guards",
+      "title": "Publication guards — every check between a finished render and a published one",
+      "targetPaths": [
+        "twi-orchestrator/src/publication-guards.ts",
+        "twi-orchestrator/src/workflow.ts",
+        "twi-orchestrator/src/db.ts"
+      ],
+      "testCommand": "npm test --prefix twi-orchestrator -- src/publication-guards.test.ts && npm run test:twi:contracts",
+      "fullSuiteCommand": "npm test",
+      "historicalNumbering": "PUB-01 to PUB-20, first round for this set. No prior labels, no collisions.",
+      "liveCount": 20,
+      "retiredCount": 0,
+      "provenanceRounds": [
+        "task-8-publication-guards, 2026-08-30, at db289a1"
+      ],
+      "precedingEvidence": {
+        "round": "task-8-publication-guards, first pass, at 9377337",
+        "what": "Twelve mutants against the SAME invariants where they then lived: inline in the validate and publish steps of twi-orchestrator/src/workflow.ts and in twi-orchestrator/src/db.ts, run against the full Workflow integration suite twi-orchestrator/test/workflow.test.ts.",
+        "result": "NINE of twelve SURVIVED. Only the two event-key mutants and the wrong-from-status transition died, because the happy path exercises those. The digest comparison, the provenance content-type, spec-digest and label matches, the provisional assertion, the both-candidates gate, the master header check, the provisional count comparison and the frozen-job digest check could each be deleted with the suite still green.",
+        "why": "Those checks only fire on state the happy path cannot produce, and inline in a 200-line step there was no seam at which a test could forge a violation. The suite was not weak about what it covered; the code offered nothing to cover.",
+        "response": "The predicates were extracted into twi-orchestrator/src/publication-guards.ts, which makes them forgeable by unit test (PUB-01 to PUB-13), and contract-check section 15 now reads the call graph of workflow.ts and db.ts to prove the guards are still INVOKED (PUB-14 to PUB-20). A unit test proves a predicate; only the call graph proves the call."
+      },
+      "notMutationTestable": [],
+      "mutants": [
+        {
+          "id": "PUB-01",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "publication invariant",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the digest comparison across the three renditions"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (raw.sha256 !== master.sha256 || raw.sha256 !== preview.sha256) {",
+            "replace": "if (raw.sha256 !== master.sha256) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects a preview whose digest differs from the raw it came from",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-02",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "publication invariant",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the digest comparison across the three renditions"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (raw.sha256 !== master.sha256 || raw.sha256 !== preview.sha256) {",
+            "replace": "if (raw.sha256 !== preview.sha256) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects a master whose digest differs from the raw it came from",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-03",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "publication invariant",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the RIFF/WAVE header check on the finished master"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  assertWavHeader(master.bytes);\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects a master that is not playable audio at all",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-04",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "provenance integrity",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the provenance object content-type check"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (text === null || contentType !== 'application/json') throw new Error('candidate provenance is missing');",
+            "replace": "if (text === null) throw new Error('candidate provenance is missing');",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects a provenance object stored under the wrong content type",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-05",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "provenance integrity",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the provenance specification-digest match"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    provenance.specSha256 !== specSha256 ||\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects provenance that points at a different specification",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-06",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "provenance integrity",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the provenance candidate-label match"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    provenance.label !== label\n",
+            "replace": "    false\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects provenance that claims the other candidate",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-07",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the provenance provider-request-id match"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    provenance.providerRequestId !== providerRequestId ||\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects provenance that names a different provider request",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-08",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "publication atomicity",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the both-candidates publication gate"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (labels.join('') !== 'AB') throw new Error('both candidates must validate before publication');",
+            "replace": "if (labels.length === 0) throw new Error('both candidates must validate before publication');",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "refuses to publish [\"A\",\"A\"]",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-09",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "publication atomicity",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the provisional asset count comparison"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (count !== expected) throw new Error('candidate assets are not all provisional');",
+            "replace": "if (count === -1) throw new Error('candidate assets are not all provisional');",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "refuses when even one asset is not provisional",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-10",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "job identity",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the frozen job specification-digest identity check"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    job.specSha256 !== payload.specSha256 ||\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "refuses a payload whose specSha256 does not match the frozen job",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-11",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "job identity",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the frozen job idempotency-key identity check"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    job.idempotencyKey !== payload.idempotencyKey\n",
+            "replace": "    false\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "refuses a payload whose idempotencyKey does not match the frozen job",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-12",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "publication invariant",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the minimum WAV length check"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (bytes.byteLength < 44) throw new Error('candidate WAV is too short');",
+            "replace": "if (bytes.byteLength < 4) throw new Error('candidate WAV is too short');",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects a payload too short to hold a header",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-13",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "publication invariant",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the declared-versus-actual WAV length check"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (view.getUint32(4, true) !== bytes.byteLength - 8 || view.getUint32(40, true) !== bytes.byteLength - 44) {\n    throw new Error('candidate WAV length is invalid');\n  }\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects a payload whose declared length disagrees with its size",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-14",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "guard wiring",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/workflow.ts",
+            "construct": "the call site of assertCandidateAudio in the validate step"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "assertCandidateAudio({",
+            "replace": "void ({",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-guards.mjs",
+              "test": "the three renditions are still compared before publication (twi-orchestrator/src/workflow.ts calls assertCandidateAudio)",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-15",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "guard wiring",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/workflow.ts",
+            "construct": "the call site of assertProvenance in the validate step"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "assertProvenance({",
+            "replace": "void ({",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-guards.mjs",
+              "test": "the stored provenance is still matched against the candidate and the spec (twi-orchestrator/src/workflow.ts calls assertProvenance)",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-16",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "guard wiring",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/workflow.ts",
+            "construct": "the call site of assertBothCandidatesValidated in the publish step"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "assertBothCandidatesValidated(validated.labels);",
+            "replace": "void (validated.labels);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-guards.mjs",
+              "test": "publication still refuses a partial or reordered pair (twi-orchestrator/src/workflow.ts calls assertBothCandidatesValidated)",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-17",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "guard wiring",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/workflow.ts",
+            "construct": "the call site of assertAssetsProvisional in the validate step"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "await store.assertAssetsProvisional(payload.projectId, payload.jobId, assetIds);",
+            "replace": "void (assetIds);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-guards.mjs",
+              "test": "the assets are still confirmed provisional before they go active (twi-orchestrator/src/workflow.ts calls assertAssetsProvisional)",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-18",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "guard wiring",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/workflow.ts",
+            "construct": "the call site of assertWavHeader in the finish step"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "assertWavHeader(bytes);",
+            "replace": "void (bytes);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-guards.mjs",
+              "test": "a finished master is still checked for a playable RIFF/WAVE header (twi-orchestrator/src/workflow.ts calls assertWavHeader)",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-19",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "guard wiring",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/db.ts",
+            "construct": "the call site of assertFrozenJobMatchesPayload in loadFrozenJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "assertFrozenJobMatchesPayload(job, payload);",
+            "replace": "void (job);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-guards.mjs",
+              "test": "the frozen job identity is still checked against the payload (twi-orchestrator/src/db.ts calls assertFrozenJobMatchesPayload)",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "PUB-20",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "guard wiring",
+          "appliesAtCommit": "db289a1",
+          "target": {
+            "file": "twi-orchestrator/src/db.ts",
+            "construct": "the call site of assertAllProvisional in assertAssetsProvisional"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "assertAllProvisional(row?.count, assetIds.length);",
+            "replace": "void (row);",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-guards.mjs",
+              "test": "the provisional row count is still compared against what was registered (twi-orchestrator/src/db.ts calls assertAllProvisional)",
+              "measured": true
+            }
+          ]
+        }
+      ]
     }
   ],
 
