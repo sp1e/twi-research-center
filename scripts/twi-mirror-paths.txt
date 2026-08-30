@@ -60,6 +60,7 @@ scripts/lib/ts-ast.mjs
 # plans and specs, and a first extraction attempt leaked six of them.
 docs/superpowers/HANDOVER.md
 docs/superpowers/TASK8-CLAUDE-CODE-HANDOFF.md
+docs/superpowers/TASK11-HANDOFF.md
 docs/superpowers/mutants/README.md
 docs/superpowers/mutants/twi-creation-core.mutants.json
 glob:docs/superpowers/mutants/harnesses/*
