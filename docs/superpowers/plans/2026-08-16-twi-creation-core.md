@@ -1694,6 +1694,35 @@ git add stems-gpu/app.py stems-gpu/finish.py stems-gpu/test_finish.py stems-gpu/
 git commit -m "feat(twi): add maximum-quality finishing job"
 ```
 
+**AMENDMENT, 2026-08-30 — this task does not produce a mastered FLAC, and the prefix pattern
+above matches nothing this system writes.**
+
+Two corrections, both measured.
+
+1. **The loudness target moved off the archive.** Step 1 specified a FLAC master two-pass
+   normalized to `-14 LUFS`. Normalising an archive is an irreversible change to delivered
+   dynamic range baked into the only lossless copy, and it applies a streaming delivery
+   target to an object that is not being streamed. The work is split three ways instead:
+   `raw` is never rewritten, `archive.flac` is a LOSSLESS conversion that is **measured and
+   never targeted**, and `review.mp3` is loudness-MATCHED to `-14 LUFS` / max `-1 dBTP`
+   purely so a blind A/B cannot be won by being louder. Only the review is gated on
+   loudness; a quiet, wide-range archive is a legitimate archive. The review is rendered
+   `linear=true`, at an explicit output rate, from the archive rather than the raw.
+   Mutants that put a loudness target on the archive, that drop `linear=true`, that leave
+   the output rate implicit or that widen the tolerances are each killed by name.
+
+2. **`^twi/[0-9a-f-]+/assets/[0-9a-f-]+$` matches no prefix this system produces.** Task 8
+   writes to `twi/<projectId>/jobs/<jobId>/attempt-<n>/<label>`
+   (`twi-orchestrator/src/workflow.ts`, `objectPrefix`). Validating against the pattern as
+   written would reject every real job the moment Task 11 wired the two together. The
+   validator now matches the layout Task 8 actually writes, with UUID-shaped segments, a
+   numeric attempt and an `A`/`B` label, so traversal and cross-job writes are still refused.
+
+Also worth carrying into Task 11: the manifest records the FFmpeg version and a digest of
+the exact commands, every rendition is PROBED rather than assumed, and `/status/{call_id}`
+returns `manifest` for a finishing call while the Stem Lab `stems` shape is returned exactly
+as before — that endpoint serves a live service.
+
 ---
 
 ### Task 11: Connect the Workflow to Modal finishing and validation
