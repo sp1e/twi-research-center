@@ -4,8 +4,8 @@ import { NonRetryableError } from 'cloudflare:workflows';
 import type { CostEstimate, GenerationSpec } from '../../src/twi/domain/types';
 import type { CandidatePublicationEntry, RegisterAssetInput } from '../../src/twi/server/repository-types';
 import { TwiWorkflowStore } from './db';
-import { DeterministicFakeMusicProvider } from './providers/fake';
-import type { CandidateLabel, ProviderCandidate } from './providers/types';
+import { canCompleteRender, createProvider, mustNotRetry } from './providers/select';
+import type { CandidateLabel, MusicProvider, ProviderCandidate } from './providers/types';
 
 export interface StartPayload {
   schemaVersion: 1;
@@ -24,6 +24,7 @@ export interface OrchestratorEnv {
   TWI_RENDER_WORKFLOW: Workflow<StartPayload>;
   TWI_RENDER_QUEUE: Queue;
   TWI_PROVIDER_MODE?: string;
+  GEMINI_API_KEY?: string;
 }
 
 interface ObjectManifest {
@@ -125,6 +126,9 @@ const registerInput = (
   deletedAt: null,
 });
 
+const selectProvider = (env: OrchestratorEnv): MusicProvider | null =>
+  createProvider({ mode: env.TWI_PROVIDER_MODE, apiKey: env.GEMINI_API_KEY });
+
 export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, StartPayload> {
   async run(event: Readonly<WorkflowEvent<StartPayload>>, step: WorkflowStep): Promise<unknown> {
     const payload = event.payload;
@@ -140,8 +144,16 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
      * rejects the unique symbol anyway, which is the type system saying the same thing.
      */
     const loaded = await step.do<{ spec: GenerationSpec }>('load-job', LOAD_STEP_CONFIG, async () => {
-      if (this.env.TWI_PROVIDER_MODE !== 'fake') {
+      if (selectProvider(this.env) === null) {
         throw new NonRetryableError('provider_not_configured');
+      }
+      /*
+       * Refuse BEFORE the first billable call, not at `finish`: this build can only finish
+       * the fake path, so starting a paid render here would buy two candidates and then
+       * fail. See canCompleteRender -- Task 11 is what makes 'lyria' finishable.
+       */
+      if (!canCompleteRender(this.env.TWI_PROVIDER_MODE)) {
+        throw new NonRetryableError('finishing_not_implemented');
       }
       const frozen = await store.loadFrozenJob(payload);
       if (frozen.job.status !== 'queued' && frozen.job.status !== 'generating') {
@@ -153,7 +165,7 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
 
     const generate = (label: CandidateLabel): Promise<RawCandidateManifest> =>
       step.do(`generate-${label}`, STEP_CONFIG, async () => {
-        const candidate: ProviderCandidate = await new DeterministicFakeMusicProvider().generate(loaded.spec, label);
+        const candidate: ProviderCandidate = await this.callProvider(loaded.spec, label);
         const prefix = objectPrefix(payload, label);
         const key = `${prefix}/raw.wav`;
         const provenanceKey = `${prefix}/provenance.json`;
@@ -332,5 +344,21 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
         candidateAssetIds: candidates,
       };
     });
+  }
+
+  /*
+   * The provider seam. A ProviderError that might already have been paid for is promoted to
+   * NonRetryableError so the step policy cannot buy the same render a second time; anything
+   * else keeps the retries it was configured for.
+   */
+  private async callProvider(spec: GenerationSpec, label: CandidateLabel): Promise<ProviderCandidate> {
+    const provider = selectProvider(this.env);
+    if (provider === null) throw new NonRetryableError('provider_not_configured');
+    try {
+      return await provider.generate(spec, label);
+    } catch (error) {
+      if (mustNotRetry(error)) throw new NonRetryableError((error as { code: string }).code);
+      throw error;
+    }
   }
 }

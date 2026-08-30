@@ -1,3 +1,4 @@
+import { canCompleteRender, createProvider } from './providers/select';
 import type { OrchestratorEnv, StartPayload } from './workflow';
 import { TwiRenderWorkflow } from './workflow';
 
@@ -169,8 +170,12 @@ const createdStatus = async (instance: WorkflowInstance): Promise<InstanceStatus
 const startWorkflow = async (request: Request, env: OrchestratorEnv): Promise<Response> => {
   requireMethod(request, 'POST');
   const payload = parseStartPayload(await readObject(request));
-  if (env.TWI_PROVIDER_MODE !== 'fake') {
+  if (createProvider({ mode: env.TWI_PROVIDER_MODE, apiKey: env.GEMINI_API_KEY }) === null) {
     throw new HttpError(503, 'provider_not_configured', 'music provider is not configured');
+  }
+  // Refuse a render this build cannot finish before the caller can be billed for it.
+  if (!canCompleteRender(env.TWI_PROVIDER_MODE)) {
+    throw new HttpError(503, 'finishing_not_implemented', 'this deployment cannot finish a render yet');
   }
 
   const id = workflowInstanceId(payload.jobId, payload.attempt);
