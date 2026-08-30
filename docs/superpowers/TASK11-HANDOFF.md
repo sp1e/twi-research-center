@@ -23,8 +23,8 @@ Expected at the time of writing:
 | Thing | Value |
 |---|---|
 | Source branch | `codex/twi-research-center-design` |
-| Source tip | `6caa9bb` (clean, in sync with origin) |
-| Mirror tip | `c132a33` at the sync before this file; re-sync after any landing |
+| Source branch tip | the commit that added **this file**, on top of `6caa9bb`. `git log --oneline -1` therefore shows a LATER hash than `6caa9bb` — that is expected, not drift. Tree clean, in sync with origin. |
+| Mirror | synced from the same commit; re-sync after every landing |
 | Gate | **ALL SUITES PASSED (11/11)** |
 | Totals | **1017 tests plus 102 script checks** |
 | Task 10 harness | 12/12 killed |
