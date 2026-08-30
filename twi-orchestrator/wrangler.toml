@@ -1,0 +1,28 @@
+name = "twi-orchestrator"
+main = "src/index.ts"
+compatibility_date = "2026-08-29"
+workers_dev = false
+preview_urls = false
+
+[[workflows]]
+name = "twi-render-workflow"
+binding = "TWI_RENDER_WORKFLOW"
+class_name = "TwiRenderWorkflow"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sp1e-db"
+database_id = "6452c73c-7d9a-487e-bffc-15c8ebfe202e"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "sp1e-files"
+
+[[queues.producers]]
+binding = "TWI_RENDER_QUEUE"
+queue = "twi-render-jobs"
+
+[[queues.consumers]]
+queue = "twi-render-jobs"
+max_batch_size = 1
+max_batch_timeout = 1
