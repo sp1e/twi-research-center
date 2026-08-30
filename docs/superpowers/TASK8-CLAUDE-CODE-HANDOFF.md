@@ -1,5 +1,33 @@
 # Claude Code handoff: TWI Task 8 Workflow Worker
 
+> **SUPERSEDED IN PART, 2026-08-30.** Task 8's implementation is now GREEN and landed on
+> `codex/twi-research-center-design` (merge `91832e8`, mirror `001491c`): the integration suite is
+> 8/8, the nested suite 15/15, `npm test` is ALL SUITES PASSED (10/10), both root typechecks, the
+> nested typecheck and `npm run build` pass, and the tree is clean afterwards. Sections 5 (measured
+> failures) and 8 (remaining work items 1-4, 8-14) are therefore HISTORY, not instructions.
+>
+> Three claims in this document were measured and found WRONG. They are corrected here because a
+> false claim about this repo's own safety net misdirects the next round:
+>
+> 1. **§2 and §6.1: the Workflow id `${jobId}:${attempt}` is IMPOSSIBLE.** Cloudflare validates an
+>    instance id against `^[a-zA-Z0-9_][a-zA-Z0-9-_]*$`, max 100 chars. A colon is rejected by
+>    `create()`. The id is now `${jobId}_${attempt}`; the pair-identity requirement is unchanged.
+>    See the SECOND AMENDMENT in the plan's Task 8.
+> 2. **§6.1 point 2 and §9: a bare `npm test --prefix twi-orchestrator` does NOT silently skip on a
+>    fresh clone.** Measured four ways: missing install exits 1; missing install while the repo root
+>    HAS vitest also exits 1 (the root's binary does not leak onto the child's PATH); missing test
+>    script exits 1; missing package.json exits 127. `scripts/run-tests.mjs` turns each into a suite
+>    failure, so the naive wiring already failed closed. The wrapper that now exists guards the two
+>    paths that ARE quiet, neither of which this document names: `--passWithNoTests` (exit 0 having
+>    run nothing) and a nested package with no vitest config of its own, which runs under the
+>    REPOSITORY ROOT's config and can report the root's counts as its own.
+> 3. **§5.3 understated the root gate.** It was not merely unrun — it was RED, and had been since
+>    `e33d259`. `.continue-here.md` was committed to the repository root without a `_redirects`
+>    entry, so `scripts/landing-layout-check.mjs` correctly reported it PUBLICLY FETCHABLE. Fixed.
+>
+> Still genuinely outstanding from §8: items 15 (specification and code-quality reviews), 16 (the
+> remaining mutation rounds) and 18 (the HANDOVER.md refresh). Item 17 is DONE.
+
 Written for Claude Code on 2026-08-29 from a freshly measured WIP checkout. This document describes the branch as it exists, including failures. It is not a completion report and must not be treated as approval to merge.
 
 ## 1. Start here

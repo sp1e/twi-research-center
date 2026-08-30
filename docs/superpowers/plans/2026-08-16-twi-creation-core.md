@@ -1493,6 +1493,27 @@ cross-package check pinning the envelope the Worker accepts against the keys `st
 emits: `schemaVersion`, `jobId`, `projectId`, `specId`, `specSha256`, `idempotencyKey`, `attempt`,
 `estimate`. Two suites can stay green while those two shapes drift apart.
 
+**SECOND AMENDMENT, 2026-08-30 — the separator in that id CANNOT be a colon.**
+
+The amendment above is right about the requirement and wrong about the character. Cloudflare
+validates a Workflow instance id against `^[a-zA-Z0-9_][a-zA-Z0-9-_]*$`, capped at 100
+characters (`ALLOWED_STRING_ID_PATTERN` and `MAX_WORKFLOW_INSTANCE_ID_LENGTH` in the workflows
+binding; the same limit is published at developers.cloudflare.com/workflows/reference/limits).
+A colon is not in that set. `${jobId}:${attempt}` is therefore REJECTED by `create()` with
+`WorkflowError: Workflow instance has invalid id`, and every one of the eight integration tests
+failed on it before this was found.
+
+The requirement is unchanged: identity is the PAIR, so a retry gets its own instance. Only the
+carrying character changes, to an UNDERSCORE — `${jobId}_${attempt}`. Underscore over hyphen
+because a UUID job id contains hyphens and never underscores, so the last-separator split stays
+unambiguous to a reader as well as to a parser. The builder also validates the composed id
+against that grammar and refuses by name what it cannot represent, rather than letting the
+failure surface as an opaque 500 from inside `create()`.
+
+The D1 EVENT KEY is a different identifier and keeps its colons. `${jobId}:${attempt}:${status}`
+must match `src/twi/server/jobs.ts` byte for byte; it is a database key with no character
+restriction. Do not "fix" it to match this one.
+
 So duplicate detection is scoped to the PAIR (job id, attempt): the same job at the same attempt
 collapses to one run, and the same job at a higher attempt starts a new one. `/cancel/:id` already
 receives `attempt` in its POST body, so it can resolve the instance for the attempt being cancelled
