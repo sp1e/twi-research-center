@@ -90,6 +90,14 @@ const SUPPORT_PATHS = new Set([
   'docs/superpowers/mutants/harnesses/task8_publication_mutants.py',
   'docs/superpowers/mutants/harnesses/guards_mutants.py',
   'docs/superpowers/mutants/harnesses/task10_finish_mutants.py',
+  'docs/superpowers/mutants/harnesses/task11_finishing_mutants.py',
+  // The deep audio-AI research source extract. `report-source.md` carries no 'twi' at
+  // all, so the coverage check cannot derive it and the leak check would otherwise
+  // refuse it. It is here because the mirror is meant to be readable on its own, and
+  // the P0 backlog this file and its report carry is what the next tasks are measured
+  // against. The report itself is derived by name -- the coverage check matches
+  // case-insensitively, so TWI-AUDIO-AI-DEEP-RESEARCH needs no entry.
+  'docs/superpowers/research/report-source.md',
 ])
 
 /**

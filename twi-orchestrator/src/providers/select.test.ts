@@ -55,12 +55,24 @@ describe('mustNotRetry', () => {
 });
 
 describe('canCompleteRender', () => {
-  it('reports that only the fake mode can be finished by this build', () => {
-    expect(canCompleteRender('fake')).toBe(true);
+  const finishing = { finishUrl: 'https://m/finish/jobs', callbackOrigin: 'https://o', secret: 's' };
+
+  it('reports that a configured deployment can finish the fake mode', () => {
+    expect(canCompleteRender('fake', finishing)).toBe(true);
   });
 
-  it('reports that a paid render cannot yet be finished, so it must not be started', () => {
-    expect(canCompleteRender('lyria')).toBe(false);
-    expect(canCompleteRender(undefined)).toBe(false);
+  it('reports that a configured deployment can now finish a paid render — Task 11 wired Modal in', () => {
+    expect(canCompleteRender('lyria', finishing)).toBe(true);
+  });
+
+  it('refuses EVERY mode when Modal finishing is not configured, so no render is bought that cannot be finished', () => {
+    expect(canCompleteRender('fake', null)).toBe(false);
+    expect(canCompleteRender('lyria', null)).toBe(false);
+    expect(canCompleteRender('lyria', undefined)).toBe(false);
+  });
+
+  it('still refuses an unnamed or unrecognised mode even when finishing is configured', () => {
+    expect(canCompleteRender(undefined, finishing)).toBe(false);
+    expect(canCompleteRender('lyra', finishing)).toBe(false);
   });
 });

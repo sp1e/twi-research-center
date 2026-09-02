@@ -4,67 +4,102 @@ import { createSineWav } from './audio/wav';
 import {
   assertAllProvisional,
   assertBothCandidatesValidated,
-  assertCandidateAudio,
   assertFrozenJobMatchesPayload,
   assertProvenance,
-  assertWavHeader,
+  assertRawWavIntegrity,
+  assertStoredObject,
 } from './publication-guards';
 
 const WAV = createSineWav({ seconds: 1, frequencyHz: 220, sampleRate: 8_000 });
 const OTHER = createSineWav({ seconds: 1, frequencyHz: 440, sampleRate: 8_000 });
 
-const triple = (over: Partial<Record<'raw' | 'master' | 'preview', { bytes: Uint8Array; sha256: string }>> = {}) => ({
-  raw: { bytes: WAV, sha256: 'hash-1' },
-  master: { bytes: WAV, sha256: 'hash-1' },
-  preview: { bytes: WAV, sha256: 'hash-1' },
-  ...over,
-});
+/** A legal WAV whose `data` chunk is NOT at offset 36, which the old fixed-offset check rejected. */
+const withLeadingListChunk = (source: Uint8Array): Uint8Array => {
+  const listBody = new TextEncoder().encode('INFOISFT');
+  const inserted = 8 + listBody.byteLength;
+  const bytes = new Uint8Array(source.byteLength + inserted);
+  bytes.set(source.slice(0, 36), 0);
+  bytes.set(new TextEncoder().encode('LIST'), 36);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(40, listBody.byteLength, true);
+  bytes.set(listBody, 44);
+  bytes.set(source.slice(36), 44 + listBody.byteLength);
+  view.setUint32(4, bytes.byteLength - 8, true);
+  return bytes;
+};
 
-describe('assertWavHeader', () => {
+describe('assertRawWavIntegrity', () => {
   it('accepts a well-formed RIFF/WAVE payload', () => {
-    expect(() => assertWavHeader(WAV)).not.toThrow();
+    expect(() => assertRawWavIntegrity(WAV)).not.toThrow();
+  });
+
+  it('reads the audio properties rather than assuming them', () => {
+    expect(assertRawWavIntegrity(WAV)).toMatchObject({ sampleRate: 8_000, channels: 1, durationSeconds: 1 });
+  });
+
+  it('accepts a legal file whose data chunk is NOT at offset 36 — the whole reason for the change', () => {
+    const padded = withLeadingListChunk(WAV);
+    expect(() => assertRawWavIntegrity(padded)).not.toThrow();
+    expect(assertRawWavIntegrity(padded).durationSeconds).toBe(1);
   });
 
   it('rejects a payload too short to hold a header', () => {
-    expect(() => assertWavHeader(WAV.slice(0, 43))).toThrow('too short');
+    expect(() => assertRawWavIntegrity(WAV.slice(0, 43))).toThrow('too short');
   });
 
   it('rejects a payload whose RIFF marker was overwritten', () => {
     const broken = WAV.slice();
     broken[0] = 0x52 + 1;
-    expect(() => assertWavHeader(broken)).toThrow('header is invalid');
+    expect(() => assertRawWavIntegrity(broken)).toThrow('not a RIFF/WAVE container');
   });
 
-  it('rejects a payload whose declared length disagrees with its size', () => {
+  it('rejects a payload whose declared RIFF length disagrees with its size', () => {
     const broken = WAV.slice();
     new DataView(broken.buffer).setUint32(4, 12, true);
-    expect(() => assertWavHeader(broken)).toThrow('length is invalid');
+    expect(() => assertRawWavIntegrity(broken)).toThrow('length is invalid');
+  });
+
+  it('rejects a payload with a header but no audio in it', () => {
+    const empty = createSineWav({ seconds: 1, frequencyHz: 220, sampleRate: 8_000 }).slice(0, 44);
+    new DataView(empty.buffer, empty.byteOffset, empty.byteLength).setUint32(4, empty.byteLength - 8, true);
+    new DataView(empty.buffer, empty.byteOffset, empty.byteLength).setUint32(40, 0, true);
+    expect(() => assertRawWavIntegrity(empty)).toThrow('carries no audio');
+  });
+
+  it('rejects a payload that is not audio at all', () => {
+    expect(() => assertRawWavIntegrity(OTHER.slice(0, 60))).toThrow();
   });
 });
 
-describe('assertCandidateAudio', () => {
-  it('accepts three identical, well-formed candidates', () => {
-    expect(() => assertCandidateAudio(triple())).not.toThrow();
+describe('assertStoredObject', () => {
+  const claim = (over: Partial<Parameters<typeof assertStoredObject>[0]> = {}) => ({
+    key: 'twi/p/jobs/j/attempt-0/A/archive.flac',
+    contentType: 'audio/flac',
+    sizeBytes: 1_024,
+    storedContentType: 'audio/flac',
+    storedSizeBytes: 1_024,
+    ...over,
   });
 
-  it('rejects a master whose digest differs from the raw it came from', () => {
-    expect(() => assertCandidateAudio(triple({ master: { bytes: WAV, sha256: 'hash-2' } }))).toThrow('differ');
+  it('accepts an object that is exactly what the manifest reported', () => {
+    expect(() => assertStoredObject(claim())).not.toThrow();
   });
 
-  it('rejects a preview whose digest differs from the raw it came from', () => {
-    expect(() => assertCandidateAudio(triple({ preview: { bytes: WAV, sha256: 'hash-2' } }))).toThrow('differ');
+  it('refuses an object that was never written, naming the key', () => {
+    expect(() => assertStoredObject(claim({ storedSizeBytes: null, storedContentType: null })))
+      .toThrow('finished object is missing from storage: twi/p/jobs/j/attempt-0/A/archive.flac');
   });
 
-  it('rejects a master that is not playable audio at all', () => {
-    expect(() => assertCandidateAudio(triple({ master: { bytes: new Uint8Array(8), sha256: 'hash-1' } }))).toThrow();
+  it('refuses an object stored without a content type at all', () => {
+    expect(() => assertStoredObject(claim({ storedContentType: undefined }))).toThrow('missing from storage');
   });
 
-  it('rejects a preview that is not playable audio at all', () => {
-    expect(() => assertCandidateAudio(triple({ preview: { bytes: new Uint8Array(8), sha256: 'hash-1' } }))).toThrow();
+  it('refuses an object stored under a different content type', () => {
+    expect(() => assertStoredObject(claim({ storedContentType: 'audio/wav' }))).toThrow('wrong content type');
   });
 
-  it('rejects a raw that is not playable audio at all', () => {
-    expect(() => assertCandidateAudio(triple({ raw: { bytes: OTHER.slice(0, 20), sha256: 'hash-1' } }))).toThrow();
+  it('refuses an object whose size disagrees with what the manifest measured', () => {
+    expect(() => assertStoredObject(claim({ storedSizeBytes: 1_023 }))).toThrow('size disagrees with the manifest');
   });
 });
 
