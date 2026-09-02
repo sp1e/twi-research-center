@@ -4,12 +4,22 @@ import { NonRetryableError } from 'cloudflare:workflows';
 import type { CostEstimate, GenerationSpec } from '../../src/twi/domain/types';
 import type { CandidatePublicationEntry, RegisterAssetInput } from '../../src/twi/server/repository-types';
 import { TwiWorkflowStore } from './db';
+import {
+  assertCallbackBindsCall,
+  assertFinishManifest,
+  expectedFinishKeys,
+  parseFinishCallback,
+  type FinishCallRecord,
+  type RenditionName,
+  type ValidatedRendition,
+} from './finishing/manifest';
+import { readFinishingConfig, submitFinish } from './finishing/modal';
 import { canCompleteRender, createProvider, mustNotRetry } from './providers/select';
 import {
   assertBothCandidatesValidated,
-  assertCandidateAudio,
   assertProvenance,
-  assertWavHeader,
+  assertRawWavIntegrity,
+  assertStoredObject,
 } from './publication-guards';
 import type { CandidateLabel, MusicProvider, ProviderCandidate } from './providers/types';
 
@@ -31,6 +41,12 @@ export interface OrchestratorEnv {
   TWI_RENDER_QUEUE: Queue;
   TWI_PROVIDER_MODE?: string;
   GEMINI_API_KEY?: string;
+  /** Absolute https URL of Modal's `POST /finish/jobs`. */
+  TWI_MODAL_FINISH_URL?: string;
+  /** This Worker's public https origin, which Modal fetches the raw from and posts back to. */
+  TWI_CALLBACK_ORIGIN?: string;
+  /** The `X-Stems-Secret` shared with the Modal app, both directions. */
+  STEMS_PROXY_SECRET?: string;
 }
 
 interface ObjectManifest {
@@ -60,18 +76,28 @@ interface RawCandidateManifest extends ObjectManifest {
 
 interface FinishedCandidateManifest {
   label: CandidateLabel;
-  provider: string;
-  model: string;
-  providerCostUsd: number;
-  providerRequestId: string;
-  raw: ObjectManifest;
-  master: ObjectManifest;
-  preview: ObjectManifest;
-  provenance: ObjectManifest;
+  ffmpegVersion: string;
+  commandDigest: string;
+  archive: ObjectManifest;
+  review: ObjectManifest;
 }
 
 const STEP_CONFIG = { retries: { limit: 0, delay: '1 second' as const } };
 const LOAD_STEP_CONFIG = { retries: { limit: 5, delay: '1 second' as const, backoff: 'exponential' as const } };
+/*
+ * The submission is the ONE step here that talks to a third party over the network, so it is
+ * the one step that gets a retry policy: a transient 502 from Modal's front door must not cost
+ * a paid render. Three attempts with exponential backoff is what the plan specifies.
+ */
+const SUBMIT_FINISH_CONFIG = {
+  retries: { limit: 3, delay: '10 seconds' as const, backoff: 'exponential' as const },
+};
+/*
+ * How long a finishing callback may take to arrive. `finish_job` is declared with a 30-minute
+ * timeout on the Modal side (stems-gpu/app.py), so waiting longer than that would be waiting
+ * for a call that can no longer be running.
+ */
+const FINISH_EVENT_TIMEOUT = '30 minutes' as const;
 const encoder = new TextEncoder();
 
 const sha256Hex = async (bytes: Uint8Array): Promise<string> => {
@@ -94,6 +120,39 @@ const getObjectBytes = async (bucket: R2Bucket, manifest: ObjectManifest): Promi
     throw new Error('candidate object integrity check failed');
   }
   return bytes;
+};
+
+/**
+ * Reads an object a DIFFERENT machine wrote, checks it against what the finishing manifest
+ * claimed, and derives the digest the asset row needs.
+ *
+ * The manifest carries no checksum -- `stems-gpu/finish.py` probes duration, size, rate and
+ * loudness and never hashes -- and `twi_assets.sha256` is NOT NULL. So the digest is computed
+ * HERE, over the bytes actually stored, which also makes it a digest of the object that will
+ * be served rather than of one Modal says it uploaded.
+ */
+const adoptFinishedObject = async (
+  bucket: R2Bucket,
+  id: string,
+  rendition: ValidatedRendition,
+): Promise<ObjectManifest> => {
+  const object = await bucket.get(rendition.key);
+  const bytes = object ? new Uint8Array(await object.arrayBuffer()) : null;
+  assertStoredObject({
+    key: rendition.key,
+    contentType: rendition.contentType,
+    sizeBytes: rendition.sizeBytes,
+    storedContentType: object ? (object.httpMetadata?.contentType ?? null) : null,
+    storedSizeBytes: bytes ? bytes.byteLength : null,
+  });
+  return {
+    id,
+    key: rendition.key,
+    contentType: rendition.contentType,
+    sizeBytes: bytes!.byteLength,
+    sha256: await sha256Hex(bytes!),
+    durationSeconds: rendition.durationSeconds,
+  };
 };
 
 const registerInput = (
@@ -142,12 +201,12 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
         throw new NonRetryableError('provider_not_configured');
       }
       /*
-       * Refuse BEFORE the first billable call, not at `finish`: this build can only finish
-       * the fake path, so starting a paid render here would buy two candidates and then
-       * fail. See canCompleteRender -- Task 11 is what makes 'lyria' finishable.
+       * Refuse BEFORE the first billable call, not at `finish`. Finishing now runs on Modal,
+       * so a deployment with no Modal finishing configured would otherwise buy two candidates
+       * and then have nowhere to send them.
        */
-      if (!canCompleteRender(this.env.TWI_PROVIDER_MODE)) {
-        throw new NonRetryableError('finishing_not_implemented');
+      if (!canCompleteRender(this.env.TWI_PROVIDER_MODE, readFinishingConfig(this.env))) {
+        throw new NonRetryableError('finishing_not_configured');
       }
       const frozen = await store.loadFrozenJob(payload);
       if (frozen.job.status !== 'queued' && frozen.job.status !== 'generating') {
@@ -216,28 +275,94 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
       return { persisted: raws.map(({ label, id }) => ({ label, rawAssetId: id })) };
     });
 
-    const finished = await step.do('finish', STEP_CONFIG, async () => {
-      if (this.env.TWI_PROVIDER_MODE !== 'fake') {
-        throw new NonRetryableError('fake finishing is disabled outside explicit fake mode');
-      }
-      const candidates: FinishedCandidateManifest[] = [];
-      for (const raw of raws) {
-        const bytes = await getObjectBytes(this.env.FILES, raw);
-        assertWavHeader(bytes);
+    await step.do('begin-finishing', STEP_CONFIG, async () => {
+      await store.transition(payload.jobId, payload.attempt, 'ingesting', 'finishing', 'finishing', now);
+      return { phase: 'finishing' as const };
+    });
+
+    /*
+     * ONE CPU JOB PER CANDIDATE, ON SEPARATE PATHS. Both submissions go out before either wait
+     * begins, so A and B are finished CONCURRENTLY on Modal; a submit-wait-submit-wait shape
+     * would read the same in the plan and serialise them. The paths are coupled only at
+     * `publish`, which is atomic.
+     */
+    const submit = (raw: RawCandidateManifest): Promise<FinishCallRecord> =>
+      step.do(`submit-finish-${raw.label}`, SUBMIT_FINISH_CONFIG, async () => {
+        const config = readFinishingConfig(this.env);
+        if (config === null) throw new NonRetryableError('finishing_not_configured');
         const prefix = objectPrefix(payload, raw.label);
-        const master: ObjectManifest = {
-          id: assetId(payload, raw.label, 'master'),
-          key: `${prefix}/master.wav`,
-          contentType: 'audio/wav',
-          sizeBytes: bytes.byteLength,
-          sha256: raw.sha256,
-          durationSeconds: raw.durationSeconds,
+        /*
+         * Minted HERE, once, and durable: a step result is replayed rather than recomputed, so
+         * a retried Workflow addresses the same callback identity instead of orphaning one.
+         */
+        const callbackId = crypto.randomUUID();
+        const nonce = crypto.randomUUID();
+        const { callId } = await submitFinish(config, {
+          jobId: payload.jobId,
+          attempt: payload.attempt,
+          label: raw.label,
+          prefix,
+          rawKey: raw.key,
+          callbackId,
+          nonce,
+        });
+        return {
+          jobId: payload.jobId,
+          attempt: payload.attempt,
+          label: raw.label,
+          prefix,
+          callId,
+          callbackId,
+          nonce,
+          rawSizeBytes: raw.sizeBytes,
+          rawDurationSeconds: raw.durationSeconds,
         };
-        const preview: ObjectManifest = {
-          ...master,
-          id: assetId(payload, raw.label, 'preview'),
-          key: `${prefix}/preview.wav`,
+      });
+
+    const calls = { A: await submit(rawA), B: await submit(rawB) };
+
+    const awaitCandidate = async (label: CandidateLabel): Promise<FinishedCandidateManifest> => {
+      const call = calls[label];
+      /*
+       * The event payload is the callback envelope as JSON TEXT, not as an object. Two
+       * reasons, and the second is the load-bearing one: `waitForEvent` is typed over
+       * `Rpc.Serializable`, which an open `Record<string, unknown>` does not satisfy; and the
+       * Workflow re-parses and re-validates the envelope itself rather than trusting the shape
+       * the route happened to forward. The route's checks are about AUTHENTICITY; these are
+       * about whether this is the call we are waiting on.
+       */
+      const event = await step.waitForEvent<{ envelopeJson: string }>(`wait-finish-${label}`, {
+        type: `modal-finished-${label}`,
+        timeout: FINISH_EVENT_TIMEOUT,
+      });
+      return step.do(`validate-${label}`, STEP_CONFIG, async () => {
+        const envelope = parseFinishCallback(JSON.parse(event.payload.envelopeJson) as unknown);
+        assertCallbackBindsCall(call, envelope);
+        const renditions = assertFinishManifest(call, envelope.manifest!);
+        const finishedKeys: Record<RenditionName, string> = expectedFinishKeys(call.prefix);
+        if (renditions.raw.key !== finishedKeys.raw) throw new Error('finish manifest is invalid');
+        return {
+          label,
+          ffmpegVersion: String(envelope.manifest!.ffmpeg_version),
+          commandDigest: String(envelope.manifest!.command_digest),
+          archive: await adoptFinishedObject(this.env.FILES, assetId(payload, label, 'master'), renditions.archive),
+          review: await adoptFinishedObject(this.env.FILES, assetId(payload, label, 'preview'), renditions.review),
         };
+      });
+    };
+
+    const finishedA = await awaitCandidate('A');
+    const finishedB = await awaitCandidate('B');
+    const finished: [FinishedCandidateManifest, FinishedCandidateManifest] = [finishedA, finishedB];
+
+    const validated = await step.do('persist-finished', STEP_CONFIG, async () => {
+      const assetIds: string[] = [];
+      const entries: CandidatePublicationEntry[] = [];
+      for (const [index, candidate] of finished.entries()) {
+        const raw = raws[index]!;
+        const rawBytes = await getObjectBytes(this.env.FILES, raw);
+        assertRawWavIntegrity(rawBytes);
+
         const provenanceDocument = {
           schemaVersion: 1,
           label: raw.label,
@@ -247,6 +372,13 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
           providerCostUsd: raw.providerCostUsd,
           providerRequestId: raw.providerRequestId,
           specSha256: payload.specSha256,
+          finishing: {
+            callId: calls[raw.label].callId,
+            ffmpegVersion: candidate.ffmpegVersion,
+            commandDigest: candidate.commandDigest,
+            archiveKey: candidate.archive.key,
+            reviewKey: candidate.review.key,
+          },
         };
         const provenanceBytes = encoder.encode(JSON.stringify(provenanceDocument));
         const provenance: ObjectManifest = {
@@ -257,66 +389,47 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
           sha256: await sha256Hex(provenanceBytes),
           durationSeconds: null,
         };
+        await this.env.FILES.put(provenance.key, provenanceBytes, {
+          httpMetadata: { contentType: provenance.contentType },
+        });
 
-        await Promise.all([
-          this.env.FILES.put(master.key, bytes, { httpMetadata: { contentType: master.contentType } }),
-          this.env.FILES.put(preview.key, bytes, { httpMetadata: { contentType: preview.contentType } }),
-          this.env.FILES.put(provenance.key, provenanceBytes, { httpMetadata: { contentType: provenance.contentType } }),
-        ]);
-        await store.registerAsset(registerInput(payload, raw.label, 'generation-master', master, provenance.key, now));
-        await store.registerAsset(registerInput(payload, raw.label, 'generation-preview', preview, provenance.key, now));
+        await store.registerAsset(
+          registerInput(payload, raw.label, 'generation-master', candidate.archive, provenance.key, now),
+        );
+        await store.registerAsset(
+          registerInput(payload, raw.label, 'generation-preview', candidate.review, provenance.key, now),
+        );
         await store.registerAsset(registerInput(payload, raw.label, 'provenance', provenance, null, now));
-        candidates.push({
-          label: raw.label,
-          provider: raw.provider,
-          model: raw.model,
-          providerCostUsd: raw.providerCostUsd,
-          providerRequestId: raw.providerRequestId,
-          raw,
-          master,
-          preview,
-          provenance,
-        });
-      }
-      await store.transition(payload.jobId, payload.attempt, 'ingesting', 'finishing', 'finishing', now);
-      return { candidates: candidates as [FinishedCandidateManifest, FinishedCandidateManifest] };
-    });
 
-    const validated = await step.do('validate', STEP_CONFIG, async () => {
-      await store.transition(payload.jobId, payload.attempt, 'finishing', 'validating', 'validating', now);
-      const assetIds: string[] = [];
-      for (const candidate of finished.candidates) {
-        const raw = await getObjectBytes(this.env.FILES, candidate.raw);
-        const master = await getObjectBytes(this.env.FILES, candidate.master);
-        const preview = await getObjectBytes(this.env.FILES, candidate.preview);
-        assertCandidateAudio({
-          raw: { bytes: raw, sha256: candidate.raw.sha256 },
-          master: { bytes: master, sha256: candidate.master.sha256 },
-          preview: { bytes: preview, sha256: candidate.preview.sha256 },
-        });
-        const provenanceObject = await this.env.FILES.get(candidate.provenance.key);
+        const provenanceObject = await this.env.FILES.get(provenance.key);
         assertProvenance({
           contentType: provenanceObject?.httpMetadata?.contentType,
           text: provenanceObject ? await provenanceObject.text() : null,
           label: candidate.label,
-          providerRequestId: candidate.providerRequestId,
+          providerRequestId: raw.providerRequestId,
           specSha256: payload.specSha256,
         });
-        assetIds.push(candidate.raw.id, candidate.master.id, candidate.preview.id, candidate.provenance.id);
+
+        assetIds.push(raw.id, candidate.archive.id, candidate.review.id, provenance.id);
+        entries.push({
+          label: candidate.label,
+          rawAssetId: raw.id,
+          masterAssetId: candidate.archive.id,
+          previewAssetId: candidate.review.id,
+          provenanceAssetId: provenance.id,
+        });
       }
       await store.assertAssetsProvisional(payload.projectId, payload.jobId, assetIds);
-      return { labels: ['A', 'B'] as [CandidateLabel, CandidateLabel], assetIds };
+      await store.transition(payload.jobId, payload.attempt, 'finishing', 'validating', 'validating', now);
+      return {
+        labels: finished.map(({ label }) => label) as [CandidateLabel, CandidateLabel],
+        candidates: entries as [CandidatePublicationEntry, CandidatePublicationEntry],
+      };
     });
 
     return step.do('publish', STEP_CONFIG, async () => {
       assertBothCandidatesValidated(validated.labels);
-      const candidates = finished.candidates.map((candidate): CandidatePublicationEntry => ({
-        label: candidate.label,
-        rawAssetId: candidate.raw.id,
-        masterAssetId: candidate.master.id,
-        previewAssetId: candidate.preview.id,
-        provenanceAssetId: candidate.provenance.id,
-      })) as [CandidatePublicationEntry, CandidatePublicationEntry];
+      const candidates = validated.candidates;
       const publication = await store.publish({
         projectId: payload.projectId,
         jobId: payload.jobId,

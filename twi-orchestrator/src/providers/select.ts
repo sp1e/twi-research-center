@@ -35,11 +35,22 @@ export const mustNotRetry = (error: unknown): boolean => {
 };
 
 /*
- * Which modes this build can carry all the way to a published pair. Finishing is still the
- * fake in-Worker path (Tasks 10-11 replace it with Modal), so a PAID render would generate,
- * bill, and then fail at `finish`. Refusing before the first call is the money-path rule:
- * never buy a render this build cannot finish. Task 11 adds 'lyria' here.
+ * Which modes this build can carry all the way to a published pair, and under what conditions.
+ *
+ * The rule this enforces has not changed: never buy a render this build cannot finish. What
+ * changed in Task 11 is WHY a render might be unfinishable. Finishing used to be the fake
+ * in-Worker path, so `lyria` was refused unconditionally and the code said so by name
+ * (`finishing_not_implemented`). Finishing is now a real Modal job that takes `raw.wav` from
+ * R2 and is indifferent to which provider produced it, so `lyria` belongs in this set --
+ * BUT ONLY when Modal finishing is actually configured. A deployment with no
+ * TWI_MODAL_FINISH_URL, no callback origin or no shared secret can finish NOTHING, whatever
+ * its provider mode says, and must refuse before the first billable call rather than after it.
+ *
+ * That is why the second argument is required rather than optional: an accidental
+ * `canCompleteRender(mode)` would answer "yes" for an unconfigured deployment, which is
+ * exactly the answer that costs money.
  */
-const FINISHABLE_MODES: ReadonlySet<string> = new Set(['fake']);
+const FINISHABLE_MODES: ReadonlySet<string> = new Set(['fake', 'lyria']);
 
-export const canCompleteRender = (mode?: string): boolean => FINISHABLE_MODES.has(mode ?? '');
+export const canCompleteRender = (mode: string | undefined, finishing: unknown): boolean =>
+  finishing !== null && finishing !== undefined && FINISHABLE_MODES.has(mode ?? '');

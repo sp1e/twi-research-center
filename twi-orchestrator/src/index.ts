@@ -1,3 +1,7 @@
+import { TwiWorkflowStore } from './db';
+import { assertCallbackAuthentic, secretsMatch } from './finishing/callback-auth';
+import { parseFinishCallback } from './finishing/manifest';
+import { readFinishingConfig } from './finishing/modal';
 import { canCompleteRender, createProvider } from './providers/select';
 import type { OrchestratorEnv, StartPayload } from './workflow';
 import { TwiRenderWorkflow } from './workflow';
@@ -174,8 +178,8 @@ const startWorkflow = async (request: Request, env: OrchestratorEnv): Promise<Re
     throw new HttpError(503, 'provider_not_configured', 'music provider is not configured');
   }
   // Refuse a render this build cannot finish before the caller can be billed for it.
-  if (!canCompleteRender(env.TWI_PROVIDER_MODE)) {
-    throw new HttpError(503, 'finishing_not_implemented', 'this deployment cannot finish a render yet');
+  if (!canCompleteRender(env.TWI_PROVIDER_MODE, readFinishingConfig(env))) {
+    throw new HttpError(503, 'finishing_not_configured', 'this deployment cannot finish a render');
   }
 
   const id = workflowInstanceId(payload.jobId, payload.attempt);
@@ -225,13 +229,128 @@ const cancelWorkflow = async (
   return response({ ok: true, instance: { id, status: (await instance.status()).status } });
 };
 
+/*
+ * THE ONLY R2 KEY THIS WORKER WILL SERVE, and it is a whole-string match on purpose.
+ *
+ * Modal's finishing job downloads the raw over HTTP, so this route exists. It is also, by
+ * construction, a read oracle over the bucket, and the bucket holds every project's audio. So
+ * it serves EXACTLY the shape Task 8 writes -- `raw.wav` under a job attempt's candidate
+ * prefix -- and nothing else: no provenance, no archive, no review, no traversal, no other
+ * project's key spelled to look like one. The same layout `stems-gpu/finish.py` validates
+ * (OUTPUT_PREFIX_PATTERN), extended by the one file name it is allowed to fetch.
+ */
+const RAW_OBJECT_KEY_PATTERN =
+  /^twi\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/jobs\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/attempt-\d+\/[AB]\/raw\.wav$/;
+
+/**
+ * `GET /internal/raw/<key>` — the raw candidate, for the Modal finishing job only.
+ *
+ * Gated on the shared secret before anything else, and on the key pattern before R2 is touched
+ * at all, so an unauthenticated caller cannot even use the 404/200 difference to probe which
+ * keys exist.
+ */
+const serveRawObject = async (request: Request, env: OrchestratorEnv, encodedKey: string): Promise<Response> => {
+  requireMethod(request, 'GET');
+  const config = readFinishingConfig(env);
+  if (config === null) throw new HttpError(503, 'finishing_not_configured', 'this deployment cannot finish a render');
+  if (!secretsMatch(request.headers.get('X-Stems-Secret'), config.secret)) {
+    throw new HttpError(401, 'callback_unauthorized', 'unauthorized');
+  }
+
+  const key = decodeURIComponent(encodedKey);
+  if (!RAW_OBJECT_KEY_PATTERN.test(key)) throw new HttpError(404, 'not_found', 'route not found');
+
+  const object = await env.FILES.get(key);
+  if (!object) throw new HttpError(404, 'not_found', 'route not found');
+  return new Response(object.body, {
+    headers: {
+      'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+      'cache-control': 'no-store',
+    },
+  });
+};
+
+/**
+ * `POST /callback/modal` — the finishing callback, and the ONLY way an event reaches a
+ * Workflow from outside.
+ *
+ * It must satisfy every one of these before `sendEvent`, in this order, and each answers with
+ * a code rather than a description:
+ *
+ *   1. the deployment has Modal finishing configured at all;
+ *   2. the `X-Stems-Secret` shared secret, compared without an early return;
+ *   3. an envelope this build fully understands -- exact keys, exact types;
+ *   4. a replay TIMESTAMP inside a five-minute window, plus a NONCE and a CALLBACK ID that are
+ *      two distinct opaque tokens;
+ *   5. a Workflow instance for `${jobId}_${attempt}` that actually exists;
+ *   6. a callback id this job has never seen, refused BY THE DATABASE -- `event_key` is
+ *      `UNIQUE (job_id, event_key)`, so a replay cannot insert and is answered 200 with
+ *      `outcome: 'replayed'` and NO second event.
+ *
+ * What it deliberately does NOT do is decide whether the callback answers the call the
+ * Workflow is waiting on. That needs the submitted call's own identity, which lives in the
+ * Workflow's durable step result and not in any table this route can read; `validate-{label}`
+ * checks it there (`assertCallbackBindsCall`). So a holder of the shared secret can make a
+ * render FAIL, but cannot make one publish audio it did not commission.
+ */
+const modalCallback = async (request: Request, env: OrchestratorEnv): Promise<Response> => {
+  requireMethod(request, 'POST');
+  const config = readFinishingConfig(env);
+  if (config === null) throw new HttpError(503, 'finishing_not_configured', 'this deployment cannot finish a render');
+
+  const body = await readObject(request);
+  const envelope = (() => {
+    try {
+      return parseFinishCallback(body);
+    } catch {
+      throw new HttpError(400, 'invalid_request', 'invalid request envelope');
+    }
+  })();
+
+  try {
+    assertCallbackAuthentic({
+      presentedSecret: request.headers.get('X-Stems-Secret'),
+      expectedSecret: config.secret,
+      timestamp: envelope.timestamp,
+      nonce: envelope.nonce,
+      callbackId: envelope.callbackId,
+      now: Date.now(),
+    });
+  } catch (error) {
+    throw new HttpError(401, error instanceof Error ? error.message : 'callback_unauthorized', 'unauthorized');
+  }
+
+  const id = workflowInstanceId(envelope.jobId, envelope.attempt);
+  if ((await statusOf(env.TWI_RENDER_WORKFLOW, id)) === 'unknown') {
+    throw new HttpError(404, 'instance_not_found', 'workflow instance was not found');
+  }
+
+  const outcome = await new TwiWorkflowStore(env.DB).recordFinishCallback({
+    jobId: envelope.jobId,
+    attempt: envelope.attempt,
+    label: envelope.label,
+    callbackId: envelope.callbackId,
+    nonce: envelope.nonce,
+    callId: envelope.callId,
+    now: new Date().toISOString(),
+  });
+  if (outcome === 'unknown-job') throw new HttpError(404, 'instance_not_found', 'workflow instance was not found');
+  if (outcome === 'replayed') return response({ ok: true, outcome: 'replayed' });
+
+  const instance = await env.TWI_RENDER_WORKFLOW.get(id);
+  await instance.sendEvent({
+    type: `modal-finished-${envelope.label}`,
+    payload: { envelopeJson: JSON.stringify(envelope) },
+  });
+  return response({ ok: true, outcome: 'accepted' });
+};
+
 const fetchHandler = async (request: Request, env: OrchestratorEnv): Promise<Response> => {
   const { pathname } = new URL(request.url);
   if (pathname === '/start') return startWorkflow(request, env);
-  if (pathname === '/callback/modal') {
-    requireMethod(request, 'POST');
-    return errorResponse(501, 'modal_callback_not_configured', 'Modal callback is not configured');
-  }
+  if (pathname === '/callback/modal') return modalCallback(request, env);
+  const raw = pathname.match(/^\/internal\/raw\/(.+)$/);
+  if (raw) return serveRawObject(request, env, raw[1]!);
   const status = pathname.match(/^\/status\/([^/]+)$/);
   if (status) return workflowStatus(request, env, status[1]!);
   const cancel = pathname.match(/^\/cancel\/([^/]+)$/);

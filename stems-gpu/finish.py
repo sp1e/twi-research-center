@@ -257,6 +257,65 @@ def loudness_from_measurement(measured):
     }
 
 
+def iso_millis(moment):
+    """`YYYY-MM-DDTHH:MM:SS.sssZ`, the only timestamp shape the TWI schema accepts.
+
+    Built by hand rather than with `isoformat()`, which prints SIX fractional digits and a
+    `+00:00` offset -- both of which the CHECK constraint on `twi_job_events.created_at`
+    refuses. A timestamp the database rejects would turn a successful finishing job into a
+    failed callback, which is the worst place to discover a formatting difference.
+    """
+    return moment.strftime("%Y-%m-%dT%H:%M:%S.") + "%03dZ" % (moment.microsecond // 1000)
+
+
+def build_twi_callback_payload(job_id, attempt, label, output_prefix, callback_context,
+                               call_id, timestamp, manifest=None, error=None):
+    """The finishing callback, as the TWI orchestrator's /callback/modal requires it.
+
+    THIS IS NOT THE STEM LAB CALLBACK. `process_job` posts its own, unchanged, snake_case
+    payload to a live service and nothing here touches it.
+
+    Every field exists so the receiver can refuse a callback that is not evidence:
+
+      callbackId / nonce  echoed from `callback_context`. The orchestrator minted them before
+                          it submitted, so only a callback that came back from THIS submission
+                          can carry them. The callback id is also what the database dedupes on.
+      callId              the Modal function call id, read inside the container via
+                          `modal.current_function_call_id()`. It is the one identifier the
+                          orchestrator learned from the submission RESPONSE, so it ties the
+                          callback to the exact call rather than to the job.
+      prefix              the asset prefix, so a callback cannot be redirected at another
+                          candidate's objects.
+
+    A missing or unusable `callback_context` raises rather than sending a callback that names
+    no call: an unanswerable callback is refused here, loudly, instead of failing validation on
+    the other side with nothing to point at.
+    """
+    if not isinstance(callback_context, dict):
+        raise ValueError("callback_context is required and must be an object")
+    callback_id = callback_context.get("callback_id")
+    nonce = callback_context.get("nonce")
+    if not callback_id or not nonce or callback_id == nonce:
+        raise ValueError("callback_context must carry a distinct callback_id and nonce")
+    if not call_id:
+        raise ValueError("call_id is required: a callback that names no call is not evidence")
+
+    return {
+        "schemaVersion": 1,
+        "callbackId": callback_id,
+        "nonce": nonce,
+        "timestamp": timestamp,
+        "callId": call_id,
+        "jobId": job_id,
+        "attempt": int(attempt),
+        "label": label,
+        "prefix": output_prefix,
+        "status": "done" if manifest is not None else "error",
+        "manifest": manifest,
+        "error": error,
+    }
+
+
 def build_status_response(result):
     """Shape a finished Modal call for /status.
 
