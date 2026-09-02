@@ -91,6 +91,9 @@ const SUPPORT_PATHS = new Set([
   'docs/superpowers/mutants/harnesses/guards_mutants.py',
   'docs/superpowers/mutants/harnesses/task10_finish_mutants.py',
   'docs/superpowers/mutants/harnesses/task11_finishing_mutants.py',
+  // The provider-call state harness (research P0). Same category: the harnesses glob in
+  // paths.txt carries it, and the leak check refuses it unless it is also named here.
+  'docs/superpowers/mutants/harnesses/provider_call_state_mutants.py',
   // The deep audio-AI research source extract. `report-source.md` carries no 'twi' at
   // all, so the coverage check cannot derive it and the leak check would otherwise
   // refuse it. It is here because the mirror is meant to be readable on its own, and

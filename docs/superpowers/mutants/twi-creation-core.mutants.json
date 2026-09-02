@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.11.0",
+  "manifestVersion": "1.12.0",
   "recordedAt": "2026-08-19",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -109,6 +109,15 @@
       "why": "The two open Minors from the Task 7 scoped re-review. N-3: missed() was asserted in only 1 of 3 racing tests, so two of them would keep passing on the ordinary sequential replay path if the barrier ever stopped forcing a race. N-4: nothing anywhere counted orphaned spec_json rows outside a test helper, so the reap's residual was invisible in a deployed database and unknown in size rather than merely nonzero - and those rows hold a full copy of the lyrics the owner typed.",
       "scopeNote": "4/4 killed was measured against src/twi/server/jobs-concurrency.test.ts at 7 tests on this branch, and must not be added to any earlier round's score. Two measurements in these entries are load-bearing and are recorded as such rather than as commentary: under API-142 and API-143 EVERY OTHER assertion in the mutated test passed, which is what makes N-3 a real gap rather than a tidiness note; and under API-144 the six other tests of the file stayed green, because they all assert the residual is zero and an inventory that always answers zero satisfies them.",
       "notClosedHere": "N-4 is closed as a MEASUREMENT and not as an operational answer. countOrphanedSpecs is production capability and is proved to discriminate in both directions, but nothing yet RUNS it against the deployed database: there is no ops route, no scheduled job and no script reporting the number from production, and nothing sweeps orphans that already exist. Building either would mean new authenticated surface or a wrangler-invoking script, neither of which belongs in this round. Recorded so the residual is not read as retired."
+    },
+    {
+      "version": "1.12.0",
+      "round": "provider-call-state",
+      "at": "feat/twi-ambiguous-paid-call-state, base 119ea66, tip cd87b87",
+      "what": "Added the provider-call-state set, PCS-01 to PCS-20 (20 entries). Total entries 267 -> 287, COUNTED from the sets in this file rather than carried forward: the v1.11.0 note says 233, but the publication-guards (20) and modal-finishing (14) sets landed after it without a revision entry, so 233 was already stale. No entry retired, no id reused, no existing entry edited, no killedBy weakened. Every find/replace pair is read out of the committed harness by the script that wrote this set, so the manifest and the harness cannot disagree about a mutation's text.",
+      "why": "The research file's P0 row (docs/superpowers/research/report-source.md line 27) and its acceptance criterion at line 192, 'Ambiguous paid calls cannot be blindly repeated', measured at 119ea66 as: the generate step's FIRST statement was the billable call with nothing in D1 before it, the provider cost row was written only after BOTH calls returned, ProviderError.charged died with the isolate, retryJob consulted nothing about prior provider calls, and a retried Workflow re-runs both generate steps. The fix is a table written BEFORE the call (twi_provider_calls), a step body whose order is claim -> pay -> settle, a retry gate, and a reconciliation primitive; each is a guard the happy path never exercises, which is the shape of coverage this manifest exists to keep honest.",
+      "scopeNote": "20/20 killed was measured per mutant against the suite named for it in the harness, at the sizes on this branch (test:twi:schema 49, test:twi 572 in 25 files, test:twi:orchestrator 184 in 10 files, test:twi:contracts 129), and must not be added to any earlier round's score. Three mutants were run against TWO commands and the record says which killed: PCS-14 survived npm test --prefix twi-orchestrator (184/184 green) and died only in npm run test:twi:contracts -- the measured proof that section 16 pins the call and no test does; PCS-15 and PCS-20 died in both.",
+      "notClosedHere": "resolveProviderCall is the reconciliation primitive the P0 requires and is proved through the repository in both directions, but no HTTP route, script or operator surface calls it yet, and nothing runs countUnreconciledProviderCalls against the deployed database. Building either is new authenticated surface and did not belong in this round. Recorded so the seam is not read as an operator tool."
     }
   ],
 
@@ -11034,6 +11043,1259 @@
             }
           ],
           "note": "SUCCESSOR to PUB-13. readWavProperties does not look at the RIFF size field at all, so this clause is the ONLY thing carrying that rule forward from the old assertWavHeader. It exists to prove the rewrite did not quietly drop it."
+        }
+      ]
+    },
+    {
+      "id": "provider-call-state",
+      "title": "Provider-call state - the ledger written before the billable call, and the retry gate that reads it (research P0)",
+      "targetPaths": [
+        "src/twi/server/jobs-cancel-retry.ts",
+        "src/twi/server/provider-calls.ts",
+        "src/twi/server/queries-provider-calls.ts",
+        "src/twi/server/repository.harness.ts",
+        "twi-migration-002-provider-call-state.sql",
+        "twi-orchestrator/src/generate-step.ts",
+        "twi-orchestrator/src/workflow.ts",
+        "twi-orchestrator/vitest.config.ts"
+      ],
+      "testCommand": "per mutant, named in the harness: npm run test:twi:schema | npx vitest run --config vitest.twi.config.ts src/twi/server | npm test --prefix twi-orchestrator | npm run test:twi:contracts",
+      "fullSuiteCommand": "npm test",
+      "harness": "docs/superpowers/mutants/harnesses/provider_call_state_mutants.py",
+      "historicalNumbering": "PCS-01 to PCS-20, first round for this set. No prior labels, no collisions.",
+      "liveCount": 20,
+      "retiredCount": 0,
+      "provenanceRounds": [
+        "provider-call-state, 2026-09-02, on branch feat/twi-ambiguous-paid-call-state at cd87b87"
+      ],
+      "result": "20 of 20 KILLED, measured by the committed harness. Every mutation was verified to have LANDED (sha256 compared before any suite ran) and restored byte-identically afterwards, and the killing test names were extracted from each runner's own output rather than retyped. PCS-14 survived every test suite and died ONLY in the contract check, by design: it is the measurement that section 16 pins the CALL and not the predicate.",
+      "whatThisSetIsFor": "The research P0 -- model not_submitted -> submitting -> accepted/completed plus ambiguous, persist the request id and the charge certainty, never auto-retry an ambiguous paid call -- landed as a D1 table written BEFORE the billable call, a step body whose order is claim -> pay -> settle, a retry gate that reads the ledger, and a human reconciliation primitive. Every one of those guards fires only on state the happy path never produces: a re-executed step body, a provider that failed with an unknown charge, a retry pressed after a paid attempt, a console writing an illegal pair. That is the exact shape that let nine of twelve publication mutants survive a green suite once before, so each guard here has a mutant that removes or weakens it and a named test that notices.",
+      "supersedes": "Nothing. This set adds behaviour that did not exist at 119ea66; no earlier entry is retired by it.",
+      "mutants": [
+        {
+          "id": "PCS-01",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "schema invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-migration-002-provider-call-state.sql",
+            "construct": "the table-level state/certainty pairing CHECK, deleted"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  CONSTRAINT twi_provider_calls_state_certainty CHECK (\n    (state = 'submitting' AND charge_certainty = 'unknown')\n    OR (state = 'ambiguous' AND charge_certainty = 'unknown')\n    OR (state = 'completed' AND charge_certainty = 'charged')\n    OR (state = 'accepted' AND charge_certainty = 'charged')\n    OR (state = 'abandoned' AND charge_certainty = 'not_charged')\n  ),\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:schema",
+              "file": "scripts/twi-schema-behavior.test.mjs",
+              "test": "provider-call state and charge certainty are paired by the table, and every other pairing is refused",
+              "measured": true
+            }
+          ],
+          "note": "THE ONE THAT MATTERS MOST. With this CHECK gone a console, a script or a bug can store ambiguous/not_charged and the row stops blocking a retry while the money is still unaccounted for. Dies only in the schema suite, which drives the table with RAW SQL -- TypeScript can never produce an illegal pair, so no repository test can see this."
+        },
+        {
+          "id": "PCS-02",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "schema invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-migration-002-provider-call-state.sql",
+            "construct": "the pairing CHECK widened so ambiguous may read not_charged"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    OR (state = 'ambiguous' AND charge_certainty = 'unknown')\n",
+            "replace": "    OR (state = 'ambiguous' AND charge_certainty IN ('unknown','not_charged'))\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:schema",
+              "file": "scripts/twi-schema-behavior.test.mjs",
+              "test": "provider-call state and charge certainty are paired by the table, and every other pairing is refused",
+              "measured": true
+            }
+          ],
+          "note": "The subtler form of PCS-01: the CHECK is still there and still refuses most pairs, just not the one that launders an unknown charge into a known-absent one."
+        },
+        {
+          "id": "PCS-03",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/queries-provider-calls.ts",
+            "construct": "the claim's ON CONFLICT DO NOTHING turned into DO UPDATE"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "       ON CONFLICT(job_id, attempt, label) DO NOTHING`,",
+            "replace": "       ON CONFLICT(job_id, attempt, label) DO UPDATE SET claimed_at = excluded.claimed_at`,",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository.test.ts",
+              "test": "claims a provider call with ON CONFLICT DO NOTHING on its identity, binding state and certainty from the one map",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "claims a submitting row with an unknown charge, and a second claim of the same identity is refused without touching it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "yields exactly one `claimed` when two claims of one identity race",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "reports every ledger write through the event sink with its outcome",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-d1.test.ts",
+              "test": "claims once and reports the second claim as already-claimed from the real changes() meta",
+              "measured": true
+            }
+          ],
+          "note": "A DO UPDATE reports changes() = 1 on the conflict, so every re-executed step body reads 'claimed' and calls the provider again. The sqlite claim-replay test and the scripted statement-shape test both see it."
+        },
+        {
+          "id": "PCS-04",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/provider-calls.ts",
+            "construct": "the claim's changes() read replaced by a constant"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (changes === 1) {\n",
+            "replace": "  if (true) {\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "claims a submitting row with an unknown charge, and a second claim of the same identity is refused without touching it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "yields exactly one `claimed` when two claims of one identity race",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "reports every ledger write through the event sink with its outcome",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-d1.test.ts",
+              "test": "claims once and reports the second claim as already-claimed from the real changes() meta",
+              "measured": true
+            }
+          ],
+          "note": "The outcome no longer comes from the database. The second claim of one identity reports 'claimed' and the raced claim reports two winners."
+        },
+        {
+          "id": "PCS-05",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-orchestrator/src/generate-step.ts",
+            "construct": "the already-claimed refusal deleted from runGenerateStep"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (claim.outcome === 'already-claimed') throw nonRetryable(PROVIDER_CALL_ALREADY_CLAIMED);\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "never calls the provider when the identity is already claimed, and says so as a non-retryable error",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to call the provider again when its claim row already exists, and leaves that row as it found it",
+              "measured": true
+            }
+          ],
+          "note": "The CF-2 defence itself: with the refusal gone a re-executed step body finds its own claim and pays anyway. Dies in the unit suite (the provider double is invoked) and in the integration suite (the planted submitting row no longer stops the run).",
+          "collateralFailures": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "does not register or publish a partial generation when candidate B fails",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "collapses the same job and attempt while a higher attempt creates a distinct instance",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "rejects malformed attempts before Workflow creation",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "terminates the exact job-attempt identity requested by cancel",
+              "measured": true
+            }
+          ],
+          "collateralFailuresNote": "MEASURED in the same run, listed apart from killedBy on purpose: these fail because the mutant let a Workflow keep running while the next test's clearBindings wiped its rows, so they are downstream of the discriminating tests above rather than independent evidence."
+        },
+        {
+          "id": "PCS-06",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-orchestrator/src/generate-step.ts",
+            "construct": "the claim moved AFTER the provider call"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const claim = await store.claimProviderCall({\n    ...identity,\n    providerMode,\n    now,\n    detailJson: JSON.stringify({ schemaVersion: 1, projectId: payload.projectId }),\n  });\n  if (claim.outcome === 'already-claimed') throw nonRetryable(PROVIDER_CALL_ALREADY_CLAIMED);\n\n  // 2. The billable call.\n  let candidate: ProviderCandidate;\n  try {\n    candidate = await provider.generate(spec, label);\n",
+            "replace": "  const early: ProviderCandidate = await provider.generate(spec, label);\n  const claim = await store.claimProviderCall({\n    ...identity,\n    providerMode,\n    now,\n    detailJson: JSON.stringify({ schemaVersion: 1, projectId: payload.projectId }),\n  });\n  if (claim.outcome === 'already-claimed') throw nonRetryable(PROVIDER_CALL_ALREADY_CLAIMED);\n\n  let candidate: ProviderCandidate;\n  try {\n    candidate = early;\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "claims BEFORE calling the provider and settles completed IMMEDIATELY after, request id and all",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "never calls the provider when the identity is already claimed, and says so as a non-retryable error",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles a ProviderError with charged=false as abandoned",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles a ProviderError with charged=true as accepted",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles a ProviderError with charged=null as ambiguous",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "promotes a possibly-paid ProviderError to NonRetryableError and lets a proven-unpaid one keep its retry policy",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles NOTHING on an error that is not a ProviderError: the row stays submitting, which is the truth",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "carries a settlement failure on the rethrown provider error instead of masking or swallowing it",
+              "measured": true
+            }
+          ],
+          "note": "The row no longer precedes the call, so a crash between them leaves NO row -- and absence would then mean 'paid, unrecorded' rather than 'never attempted'. The unit suite records the call order."
+        },
+        {
+          "id": "PCS-07",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-orchestrator/src/generate-step.ts",
+            "construct": "charged null settled as abandoned"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return 'ambiguous';\n};",
+            "replace": "  return 'abandoned';\n};",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles a ProviderError with charged=null as ambiguous",
+              "measured": true
+            }
+          ],
+          "note": "An AMBIGUOUS call written as not_charged unblocks the retry gate while the provider may have billed. The unit case for charged=null asserts the row reads ambiguous/unknown."
+        },
+        {
+          "id": "PCS-08",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "ledger invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/queries-provider-calls.ts",
+            "construct": "the settle guard state = 'submitting' dropped"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "       WHERE job_id = ? AND attempt = ? AND label = ? AND state = 'submitting'`,",
+            "replace": "       WHERE job_id = ? AND attempt = ? AND label = ?`,",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository.test.ts",
+              "test": "settles through a guarded UPDATE that matches only a submitting row",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "settles a row once: every later settlement is already-settled and leaves the row exactly as it was",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "reports every ledger write through the event sink with its outcome",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-d1.test.ts",
+              "test": "settles exactly once and refuses an illegal state/certainty pair at the schema, on D1",
+              "measured": true
+            }
+          ],
+          "note": "A settled row can then be re-settled by any later caller -- a completed/charged row rewritten as abandoned by a replayed failure path. The settle-once test asserts every later settlement is already-settled and the row byte-identical."
+        },
+        {
+          "id": "PCS-09",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/jobs-cancel-retry.ts",
+            "construct": "the retry gate deleted"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  // THE PROVIDER-CALL GATE. Read before the ordinal, before any write.\n  const blocking = (await deps.repo.listProviderCalls(job.id)).find(isUnreconciledProviderCall);\n  if (blocking) {\n    throw new HttpError(\n      409,\n      `attempt ${blocking.attempt} candidate ${blocking.label} left a provider call in state ${blocking.state} ` +\n        `with charge certainty ${blocking.chargeCertainty}; a retry would pay for both candidates again, ` +\n        'so the call must be resolved first',\n      'unreconciled_provider_call',\n    );\n  }\n\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a submitting call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a ambiguous call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a completed call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a accepted call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "is not blocked once a human has resolved the call, whatever its charge turned out to be",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "is blocked by mixed attempts: attempt 0 abandoned does not excuse attempt 1 ambiguous",
+              "measured": true
+            }
+          ],
+          "note": "The P0's acceptance criterion in one mutant: without the gate a retry after a paid attempt re-runs both generate steps and pays again. Six lifecycle cases fail."
+        },
+        {
+          "id": "PCS-10",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/jobs-cancel-retry.ts",
+            "construct": "the retry gate narrowed to ambiguous only"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": ".find(isUnreconciledProviderCall);",
+            "replace": ".find((call) => call.state === 'ambiguous');",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a submitting call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a completed call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a accepted call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "is not blocked once a human has resolved the call, whatever its charge turned out to be",
+              "measured": true
+            }
+          ],
+          "note": "Completed, accepted and submitting rows stop blocking. The gate's rationale is fact 6 of the brief -- every retry re-pays, not only an ambiguous one -- and the lifecycle suite has a case per state so this narrowing is visible."
+        },
+        {
+          "id": "PCS-11",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "audit invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/jobs-cancel-retry.ts",
+            "construct": "the retry gate moved after the retrying transition"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  // THE PROVIDER-CALL GATE. Read before the ordinal, before any write.\n  const blocking = (await deps.repo.listProviderCalls(job.id)).find(isUnreconciledProviderCall);\n  if (blocking) {\n    throw new HttpError(\n      409,\n      `attempt ${blocking.attempt} candidate ${blocking.label} left a provider call in state ${blocking.state} ` +\n        `with charge certainty ${blocking.chargeCertainty}; a retry would pay for both candidates again, ` +\n        'so the call must be resolved first',\n      'unreconciled_provider_call',\n    );\n  }\n\n  const clock = clockOf(deps);\n  // The ordinal comes from the job's own history, so it advances across retries even\n  // across isolates. Attempt 0 is the submission, so the first retry is 1.\n  const attempt = (await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' })) + 1;\n\n  const retrying = await deps.repo.transitionJob(job.id, 'retrying', {\n    fromStatus: 'error',\n    phase: 'retrying',\n    retryCheckpoint: job.retryCheckpoint ?? DEFAULT_RETRY_CHECKPOINT,\n    now: clock.now(),\n    eventKey: eventKey(job.id, attempt, 'retrying'),\n    detailJson: JSON.stringify({ schemaVersion: 1, attempt, resumedFrom: job.retryCheckpoint }),\n  });\n",
+            "replace": "  const clock = clockOf(deps);\n  // The ordinal comes from the job's own history, so it advances across retries even\n  // across isolates. Attempt 0 is the submission, so the first retry is 1.\n  const attempt = (await deps.repo.countJobEvents({ jobId: job.id, toStatus: 'retrying' })) + 1;\n\n  const retrying = await deps.repo.transitionJob(job.id, 'retrying', {\n    fromStatus: 'error',\n    phase: 'retrying',\n    retryCheckpoint: job.retryCheckpoint ?? DEFAULT_RETRY_CHECKPOINT,\n    now: clock.now(),\n    eventKey: eventKey(job.id, attempt, 'retrying'),\n    detailJson: JSON.stringify({ schemaVersion: 1, attempt, resumedFrom: job.retryCheckpoint }),\n  });\n  // THE PROVIDER-CALL GATE. Read before the ordinal, before any write.\n  const blocking = (await deps.repo.listProviderCalls(job.id)).find(isUnreconciledProviderCall);\n  if (blocking) {\n    throw new HttpError(\n      409,\n      `attempt ${blocking.attempt} candidate ${blocking.label} left a provider call in state ${blocking.state} ` +\n        `with charge certainty ${blocking.chargeCertainty}; a retry would pay for both candidates again, ` +\n        'so the call must be resolved first',\n      'unreconciled_provider_call',\n    );\n  }\n\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a submitting call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a ambiguous call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a completed call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a accepted call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "is not blocked once a human has resolved the call, whatever its charge turned out to be",
+              "measured": true
+            }
+          ],
+          "note": "The refusal still happens, but only after the retrying event is written and the job has moved -- a refused retry then leaves the job stuck in retrying. The lifecycle cases assert the event keys are unchanged and the job still error."
+        },
+        {
+          "id": "PCS-12",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "reconciliation invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/provider-calls.ts",
+            "construct": "resolveProviderCall accepts a blank note"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  assertNonBlank('providerCall.note', input.note);\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository.test.ts",
+              "test": "refuses malformed provider-call inputs before anything is bound",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "acknowledges a known charge without rewriting it, refuses a blank note, and resolves only once",
+              "measured": true
+            }
+          ],
+          "note": "The boundary check is gone; the schema still refuses (length(trim(resolution_note)) > 0), so the caller sees a driver error instead of TwiRepositoryValidationError. Both the sqlite and the scripted suites assert the typed error."
+        },
+        {
+          "id": "PCS-13",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "reconciliation invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/provider-calls.ts",
+            "construct": "a resolution leaves a submitting row submitting"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const nextState: ProviderCallState = input.to ?? current.state;",
+            "replace": "  const nextState: ProviderCallState = current.state;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "resolves an unknown charge only when told what it became, and fills settled_at for a row that never settled",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "counts the unreconciled calls estate-wide, and agrees with the TypeScript predicate the retry gate uses",
+              "measured": true
+            }
+          ],
+          "note": "resolve ignores `to`: a submitting row 'resolved' to accepted keeps state submitting. The schema then refuses the write (settled_at present on a submitting row), and the sqlite resolve test asserts the row reads accepted/charged."
+        },
+        {
+          "id": "PCS-14",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "call graph",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-orchestrator/src/workflow.ts",
+            "construct": "runGenerateStep invoked through an alias, so the Workflow's call graph no longer names it"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "        return runGenerateStep({\n          store,\n          provider,\n          providerMode: mode,\n          payload,\n          spec: loaded.spec,\n          label,\n          files: this.env.FILES,\n          now,\n        });\n",
+            "replace": "        const body = runGenerateStep;\n        return body({\n          store,\n          provider,\n          providerMode: mode,\n          payload,\n          spec: loaded.spec,\n          label,\n          files: this.env.FILES,\n          now,\n        });\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the generate step body calls runGenerateStep — the claim-then-pay-then-settle order lives there and nowhere inline (twi-orchestrator/src/workflow.ts)",
+              "measured": true
+            }
+          ],
+          "note": "THE T13 LESSON, MEASURED AGAIN. Behaviour is byte-for-byte identical -- the function still runs -- so every unit and integration test stays green, and ONLY section 16 of the contract check dies. This is the evidence that the contract check reads the AST call graph rather than text or behaviour, and that it is the sole guard of the CALL as opposed to the predicate.",
+          "survivedIn": [
+            "test:twi:orchestrator"
+          ],
+          "survivedInNote": "MEASURED: these suites stayed green under the mutant. For PCS-14 that is the point; for PCS-15 and PCS-20 it records which of the two commands run was the killer."
+        },
+        {
+          "id": "PCS-15",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-orchestrator/src/workflow.ts",
+            "construct": "the pre-P0 step body inlined: provider called, nothing claimed, nothing settled"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "        return runGenerateStep({\n          store,\n          provider,\n          providerMode: mode,\n          payload,\n          spec: loaded.spec,\n          label,\n          files: this.env.FILES,\n          now,\n        });\n",
+            "replace": "        const candidate = await provider.generate(loaded.spec, label);\n        const prefix = objectPrefix(payload, label);\n        const key = `${prefix}/raw.wav`;\n        const provenanceKey = `${prefix}/provenance.json`;\n        const sha256 = await sha256Hex(candidate.bytes);\n        await this.env.FILES.put(key, candidate.bytes, {\n          httpMetadata: { contentType: candidate.contentType },\n          customMetadata: { provider: candidate.provider, model: candidate.model, providerRequestId: candidate.providerRequestId },\n        });\n        void mode;\n        return {\n          id: assetId(payload, label, 'raw'),\n          key,\n          contentType: candidate.contentType,\n          sizeBytes: candidate.bytes.byteLength,\n          sha256,\n          durationSeconds: candidate.durationSeconds,\n          label,\n          provider: candidate.provider,\n          model: candidate.model,\n          providerCostUsd: candidate.providerCostUsd,\n          providerRequestId: candidate.providerRequestId,\n          provenanceKey,\n        };\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "records both billable calls in twi_provider_calls as completed and charged, request ids included",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to call the provider again when its claim row already exists, and leaves that row as it found it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the generate step body calls runGenerateStep — the claim-then-pay-then-settle order lives there and nowhere inline (twi-orchestrator/src/workflow.ts)",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "the generate step body no longer calls the provider itself: neither generate() nor callProvider() appears inside it",
+              "measured": true
+            }
+          ],
+          "note": "The realistic regression -- someone re-inlines the old body. Dies in the integration suite (no ledger rows after a run, the planted row no longer stops the provider) AND in the contract check (the step no longer calls runGenerateStep).",
+          "collateralFailures": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "does not register or publish a partial generation when candidate B fails",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "collapses the same job and attempt while a higher attempt creates a distinct instance",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "rejects malformed attempts before Workflow creation",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "terminates the exact job-attempt identity requested by cancel",
+              "measured": true
+            }
+          ],
+          "collateralFailuresNote": "MEASURED in the same run, listed apart from killedBy on purpose: these fail because the mutant let a Workflow keep running while the next test's clearBindings wiped its rows, so they are downstream of the discriminating tests above rather than independent evidence."
+        },
+        {
+          "id": "PCS-16",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "test-infrastructure invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "src/twi/server/repository.harness.ts",
+            "construct": "migration 002 dropped from src/twi/server/repository.harness.ts"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  new URL('../../../twi-migration-002-provider-call-state.sql', import.meta.url),\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "the migration guards 15 timestamp columns with 2 shapes of the same rule",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "covers the same 15 constraints the migration declares",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "twi_provider_calls_claimed_at_iso rejects 2026-08-16T24:00:00.000Z",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "twi_provider_calls_settled_at_iso rejects 2026-08-16T24:00:00.000Z",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "twi_provider_calls_resolved_at_iso rejects 2026-08-16T24:00:00.000Z",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "still accepts the canonical shape at the same columns",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "is 0 on the submission, then 1 and 2 across two retries — in the PAYLOAD, not only the event key",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "carries the ORIGINAL identity and the paid estimate on a retry, never a second spec",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "cancels a RETRIED job under its OWN ordinal, so the cancel cannot replay attempt 0",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "claims a submitting row with an unknown charge, and a second claim of the same identity is refused without touching it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "yields exactly one `claimed` when two claims of one identity race",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "refuses a claim against a job that does not exist, by name rather than as a driver error",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "settles into each state with the certainty derived from the state, and completed records the request id",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "refuses to settle completed without a request id — at the boundary, and by the schema when the boundary is bypassed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "settles a row once: every later settlement is already-settled and leaves the row exactly as it was",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "answers not-claimed, and writes nothing, when the identity was never claimed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "resolves an unknown charge only when told what it became, and fills settled_at for a row that never settled",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "acknowledges a known charge without rewriting it, refuses a blank note, and resolves only once",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "lists a job’s calls in (attempt, label) order, and only that job’s",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "counts the unreconciled calls estate-wide, and agrees with the TypeScript predicate the retry gate uses",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-sqlite.test.ts",
+              "test": "reports every ledger write through the event sink with its outcome",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "re-queues the failed job without a second spec, job or charge",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "clears the error metadata and the checkpoint once the work is resumed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "advances the attempt ordinal across TWO retries, so the second is not a silent replay",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "returns a refused retry to error rather than leaving it stuck in retrying",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "does not dispatch when the retrying transition was somebody else’s",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a submitting call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a ambiguous call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a completed call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "refuses to retry past a accepted call: 409, no retrying event, no dispatch",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "is not blocked by an abandoned call — the adapter proved the money path was never entered",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "is not blocked once a human has resolved the call, whatever its charge turned out to be",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "is blocked by mixed attempts: attempt 0 abandoned does not excuse attempt 1 ambiguous",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-lifecycle.test.ts",
+              "test": "is not blocked when no call was ever recorded — absence means \"no call\", which is sound only because the claim precedes the call",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "propagates changes() from one batch statement to the next",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "does not fire dependent statements when the guarding statement matched no row",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "applies a guarded transition and writes exactly one audit event",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "fails the whole transition, ghost event included, when the guard loses",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server (see harness output)",
+              "test": "keeps updated_at monotonic through MAX() when a newer cost row lands first",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-d1.test.ts",
+              "test": "claims once and reports the second claim as already-claimed from the real changes() meta",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-d1.test.ts",
+              "test": "settles exactly once and refuses an illegal state/certainty pair at the schema, on D1",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-d1.test.ts",
+              "test": "accepts the partial index and answers the estate-wide inventory through it",
+              "measured": true
+            }
+          ],
+          "note": "The trap the brief names: SqliteD1 is the database every repository test and every jobsWorld() test runs on. Without 002 the twelve ledger tests fail with 'no such table' -- and without those twelve, the whole suite would have stayed green and blind."
+        },
+        {
+          "id": "PCS-17",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "test-infrastructure invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-orchestrator/vitest.config.ts",
+            "construct": "migration 002 dropped from twi-orchestrator/vitest.config.ts"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const TWI_MIGRATIONS = ['twi-migration-001-creation-core.sql', 'twi-migration-002-provider-call-state.sql'];",
+            "replace": "const TWI_MIGRATIONS = ['twi-migration-001-creation-core.sql'];",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "claims BEFORE calling the provider and settles completed IMMEDIATELY after, request id and all",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "never calls the provider when the identity is already claimed, and says so as a non-retryable error",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles a ProviderError with charged=false as abandoned",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles a ProviderError with charged=true as accepted",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles a ProviderError with charged=null as ambiguous",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "promotes a possibly-paid ProviderError to NonRetryableError and lets a proven-unpaid one keep its retry policy",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles NOTHING on an error that is not a ProviderError: the row stays submitting, which is the truth",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "carries a settlement failure on the rethrown provider error instead of masking or swallowing it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "fails the step, leaving the row submitting, when the settlement after a successful call throws",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "records the provider mode on the claim, before the call, from the mode it was handed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "finishes each candidate on its own Modal call and atomically publishes the pair",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "treats a duplicate callback as a no-op the database refuses, not a second event",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses a callback that does not present the shared secret, and stays blocked",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish when a callback names a different Modal call than the one submitted",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish when only one of the two callbacks ever arrives",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish an archive that was given a loudness target",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish a review that overshot the true-peak ceiling the shipped code enforces",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish when the manifest describes an object Modal never uploaded",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish a candidate whose finishing job reported an error",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "serves the raw candidate to the finishing job, and to nothing else",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "keeps every artifact provisional and the job validating when publication fails",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "records both billable calls in twi_provider_calls as completed and charged, request ids included",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to call the provider again when its claim row already exists, and leaves that row as it found it",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "validates the callback route before it can reach a Workflow at all",
+              "measured": true
+            }
+          ],
+          "note": "The same trap on the orchestrator side. The integration suite's D1 has no ledger table; the generate-step unit suite, the two ledger integration tests and clearBindings all fail with D1_ERROR no such table.",
+          "collateralFailures": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "does not register or publish a partial generation when candidate B fails",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "collapses the same job and attempt while a higher attempt creates a distinct instance",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "rejects malformed attempts before Workflow creation",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "terminates the exact job-attempt identity requested by cancel",
+              "measured": true
+            }
+          ],
+          "collateralFailuresNote": "MEASURED in the same run, listed apart from killedBy on purpose: these fail because the mutant let a Workflow keep running while the next test's clearBindings wiped its rows, so they are downstream of the discriminating tests above rather than independent evidence."
+        },
+        {
+          "id": "PCS-18",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-orchestrator/src/generate-step.ts",
+            "construct": "charged true settled as ambiguous"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (charged === true) return 'accepted';\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "settles a ProviderError with charged=true as accepted",
+              "measured": true
+            }
+          ],
+          "note": "A call the adapter PROVED was billed is written as unknown. Weaker than PCS-07 (it still blocks a retry) but wrong in the ledger, and the unit case for charged=true asserts accepted/charged."
+        },
+        {
+          "id": "PCS-19",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "schema invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-migration-002-provider-call-state.sql",
+            "construct": "the completed-needs-request-id CHECK deleted"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  CONSTRAINT twi_provider_calls_completed_has_request_id CHECK (\n    state <> 'completed'\n    OR (\n      typeof(provider_request_id) = 'text'\n      AND length(provider_request_id) > 0\n    )\n  ),\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:schema",
+              "file": "scripts/twi-schema-behavior.test.mjs",
+              "test": "a completed provider call must carry its provider request id",
+              "measured": true
+            }
+          ],
+          "note": "The P0 says persist the request id. Two suites see the deletion: the schema test that inserts completed with NULL, '' and a blob, and the sqlite test that bypasses TypeScript with a raw UPDATE."
+        },
+        {
+          "id": "PCS-20",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "ledger invariant",
+          "appliesAtCommit": "the provider-call-state branch tip (feat/twi-ambiguous-paid-call-state, cd87b87)",
+          "target": {
+            "file": "twi-orchestrator/src/generate-step.ts",
+            "construct": "the completed settlement moved after the R2 put"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const settled = await store.settleProviderCall({\n    ...identity,\n    state: 'completed',\n    providerRequestId: candidate.providerRequestId,\n    provider: candidate.provider,\n    model: candidate.model,\n    now,\n  });\n  if (settled.outcome !== 'settled') {\n    throw new Error(`provider call settlement was ${settled.outcome}, so the candidate cannot be recorded against its charge`);\n  }\n\n  const prefix = objectPrefix(payload, label);\n  const key = `${prefix}/raw.wav`;\n  const provenanceKey = `${prefix}/provenance.json`;\n  const sha256 = await sha256Hex(candidate.bytes);\n  await files.put(key, candidate.bytes, {\n    httpMetadata: { contentType: candidate.contentType },\n    customMetadata: {\n      provider: candidate.provider,\n      model: candidate.model,\n      providerRequestId: candidate.providerRequestId,\n    },\n  });\n",
+            "replace": "  const prefix = objectPrefix(payload, label);\n  const key = `${prefix}/raw.wav`;\n  const provenanceKey = `${prefix}/provenance.json`;\n  const sha256 = await sha256Hex(candidate.bytes);\n  await files.put(key, candidate.bytes, {\n    httpMetadata: { contentType: candidate.contentType },\n    customMetadata: {\n      provider: candidate.provider,\n      model: candidate.model,\n      providerRequestId: candidate.providerRequestId,\n    },\n  });\n  const settled = await store.settleProviderCall({\n    ...identity,\n    state: 'completed',\n    providerRequestId: candidate.providerRequestId,\n    provider: candidate.provider,\n    model: candidate.model,\n    now,\n  });\n  if (settled.outcome !== 'settled') {\n    throw new Error(`provider call settlement was ${settled.outcome}, so the candidate cannot be recorded against its charge`);\n  }\n\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "fails the step, leaving the row submitting, when the settlement after a successful call throws",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/twi-contract-check.mjs",
+              "test": "inside runGenerateStep the successful call is settled BEFORE the R2 put (settleProviderCall precedes files.put)",
+              "measured": true
+            }
+          ],
+          "note": "The request id stops being durable 'as early as possible': a crash during the put leaves a submitting row for a call that returned. The unit case with a broken settle asserts nothing reached R2, and section 16 asserts the settlement precedes files.put."
         }
       ]
     }
