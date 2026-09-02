@@ -446,4 +446,120 @@ describe('POST /api/twi/jobs/:id/retry', () => {
     expect((await rejection(retryJob(UNKNOWN_JOB_ID, deps()))).status).toBe(404);
     expect(world.orchestrator.starts).toBe(0);
   });
+
+  // ── The provider-call gate (research P0) ────────────────────────────────────
+  //
+  // A retried Workflow starts at load-job and re-runs BOTH generate steps, so a retry after an
+  // attempt that reached the provider pays again. The gate therefore refuses while any earlier
+  // call has a charge that is not known to be absent and that no human has resolved -- and it
+  // refuses BEFORE the retrying event and BEFORE the dispatch, which is what these assert: the
+  // event keys are unchanged and the recorded orchestrator saw nothing.
+  describe('the provider-call gate', () => {
+    type Settled = 'completed' | 'accepted' | 'ambiguous' | 'abandoned';
+
+    /** Plants what an earlier attempt's generate step would have left in the ledger. */
+    const priorCall = async (job: JobRecord, attempt: number, label: 'A' | 'B', state?: Settled): Promise<void> => {
+      await world.repo.claimProviderCall({ jobId: job.id, attempt, label, providerMode: 'fake', now: world.clock.now() });
+      if (state) {
+        await world.repo.settleProviderCall({
+          jobId: job.id,
+          attempt,
+          label,
+          state,
+          providerRequestId: state === 'completed' ? `req-${attempt}-${label}` : undefined,
+          now: world.clock.now(),
+        });
+      }
+    };
+
+    it.each([
+      ['submitting', undefined],
+      ['ambiguous', 'ambiguous'],
+      ['completed', 'completed'],
+      ['accepted', 'accepted'],
+    ] as const)('refuses to retry past a %s call: 409, no retrying event, no dispatch', async (expectedState, settle) => {
+      const job = await failedJob();
+      await priorCall(job, 0, 'A', settle);
+      const eventsBefore = world.eventKeys();
+
+      const failure = await rejection(retryJob(job.id, deps()));
+
+      expect(failure.status).toBe(409);
+      expect(failure.code).toBe('unreconciled_provider_call');
+      // The refusal names what to look at: which attempt, which candidate, in which state.
+      expect(failure.message).toContain('attempt 0');
+      expect(failure.message).toContain('A');
+      expect(failure.message).toContain(expectedState);
+      expect(world.orchestrator.calls).toEqual([]);
+      expect(world.eventKeys()).toEqual(eventsBefore);
+      expect((await world.job(job.id))?.status).toBe('error');
+      expect(world.costCount()).toBe(1);
+    });
+
+    it('is not blocked by an abandoned call — the adapter proved the money path was never entered', async () => {
+      const job = await failedJob();
+      await priorCall(job, 0, 'A', 'abandoned');
+      await priorCall(job, 0, 'B', 'abandoned');
+
+      const body = await readJson<JobBody>(await retryJob(job.id, deps()));
+
+      expect(body.attempt).toBe(1);
+      expect(body.job.status).toBe('queued');
+      expect(world.orchestrator.starts).toBe(1);
+    });
+
+    it('is not blocked once a human has resolved the call, whatever its charge turned out to be', async () => {
+      const job = await failedJob();
+      await priorCall(job, 0, 'A', 'ambiguous');
+      await priorCall(job, 0, 'B', 'completed');
+      expect((await rejection(retryJob(job.id, deps()))).code).toBe('unreconciled_provider_call');
+
+      await world.repo.resolveProviderCall({
+        jobId: job.id,
+        attempt: 0,
+        label: 'A',
+        to: 'accepted',
+        note: 'the provider invoice lists this request',
+        now: world.clock.now(),
+      });
+      // Still blocked: B is completed and unacknowledged.
+      expect((await rejection(retryJob(job.id, deps()))).message).toContain('B');
+      expect(world.orchestrator.starts).toBe(0);
+
+      await world.repo.resolveProviderCall({
+        jobId: job.id,
+        attempt: 0,
+        label: 'B',
+        note: 'charge acknowledged, retry accepted as a second paid render',
+        now: world.clock.now(),
+      });
+      const body = await readJson<JobBody>(await retryJob(job.id, deps()));
+
+      expect(body.attempt).toBe(1);
+      expect(world.orchestrator.starts).toBe(1);
+    });
+
+    it('is blocked by mixed attempts: attempt 0 abandoned does not excuse attempt 1 ambiguous', async () => {
+      const job = await failedJob();
+      await priorCall(job, 0, 'A', 'abandoned');
+      await priorCall(job, 0, 'B', 'abandoned');
+      await priorCall(job, 1, 'A', 'ambiguous');
+
+      const failure = await rejection(retryJob(job.id, deps()));
+
+      expect(failure.code).toBe('unreconciled_provider_call');
+      expect(failure.message).toContain('attempt 1');
+      expect(world.orchestrator.calls).toEqual([]);
+    });
+
+    it('is not blocked when no call was ever recorded — absence means "no call", which is sound only because the claim precedes the call', async () => {
+      const job = await failedJob();
+      expect(await world.repo.listProviderCalls(job.id)).toEqual([]);
+
+      const body = await readJson<JobBody>(await retryJob(job.id, deps()));
+
+      expect(body.attempt).toBe(1);
+      expect(world.orchestrator.starts).toBe(1);
+    });
+  });
 });

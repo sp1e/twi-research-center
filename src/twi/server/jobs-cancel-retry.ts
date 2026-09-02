@@ -2,6 +2,7 @@ import { canTransition } from '../domain/job-state';
 import type { CostEstimate } from '../domain/types';
 
 import { HttpError, json } from './http';
+import { isUnreconciledProviderCall } from './provider-call-types';
 import {
   DEFAULT_RETRY_CHECKPOINT,
   ORCHESTRATOR_ORIGIN,
@@ -85,15 +86,45 @@ export async function cancelJob(jobId: string, deps: JobDeps): Promise<Response>
 /**
  * Resumes a failed job on its ORIGINAL frozen spec and idempotency key.
  *
- * Nothing here calls `saveSpec` or `createEstimatedJob`: the specification, the job row
- * and the estimate cost row are the ones the submission already wrote, so a retry
- * cannot become a second paid submission however many times it is pressed. The only
- * new rows are job events, and their keys carry the attempt ordinal.
+ * TWO DIFFERENT KINDS OF MONEY ARE AT STAKE HERE, AND THIS FUNCTION ONLY EVER PROTECTED ONE.
+ *
+ * The job-row argument: nothing here calls `saveSpec` or `createEstimatedJob`, so the
+ * specification, the job row and the estimate cost row are the ones the submission already
+ * wrote, and a retry cannot become a second SUBMISSION however many times it is pressed. The
+ * only new rows are job events, and their keys carry the attempt ordinal. That argument is
+ * true and it says nothing about provider calls.
+ *
+ * The provider-call argument: a retried Workflow starts at `load-job` and re-runs BOTH
+ * `generate` steps -- there is no retryCheckpoint resumption in the orchestrator -- so every
+ * retry after an attempt that reached the provider buys two more renders. That is a second
+ * PAID CALL, not a second submission, and no job-row invariant sees it. The gate below does:
+ * it reads the job's provider calls (`twi_provider_calls`, written by the orchestrator BEFORE
+ * each billable call) and refuses while any of them has a charge that is not known to be
+ * absent and that no human has resolved through `resolveProviderCall`. `abandoned` rows and
+ * resolved rows do not block. NO rows at all does not block either -- and that is sound ONLY
+ * because the claim row precedes the call, so absence means "no call was recorded" and never
+ * "not charged". The refusal comes BEFORE the attempt ordinal is computed and BEFORE any write,
+ * so a refused retry leaves no `retrying` event and dispatches nothing.
+ *
+ * `cancelJob` above is deliberately out of scope for the gate: a cancel stops spending, it
+ * cannot start any.
  */
 export async function retryJob(jobId: string, deps: JobDeps): Promise<Response> {
   const job = await requireJob(jobId, deps.repo);
   if (job.status !== 'error') {
     throw new HttpError(409, `only a failed job can be retried; this one is ${job.status}`, 'retry_not_allowed');
+  }
+
+  // THE PROVIDER-CALL GATE. Read before the ordinal, before any write.
+  const blocking = (await deps.repo.listProviderCalls(job.id)).find(isUnreconciledProviderCall);
+  if (blocking) {
+    throw new HttpError(
+      409,
+      `attempt ${blocking.attempt} candidate ${blocking.label} left a provider call in state ${blocking.state} ` +
+        `with charge certainty ${blocking.chargeCertainty}; a retry would pay for both candidates again, ` +
+        'so the call must be resolved first',
+      'unreconciled_provider_call',
+    );
   }
 
   const clock = clockOf(deps);
