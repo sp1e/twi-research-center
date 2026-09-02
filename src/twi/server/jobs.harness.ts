@@ -137,6 +137,11 @@ export function repoWith(base: TwiRepository, overrides: Partial<TwiRepository>)
     appendCost: (input) => base.appendCost(input),
     registerAsset: (input) => base.registerAsset(input),
     publishCandidates: (input) => base.publishCandidates(input),
+    claimProviderCall: (input) => base.claimProviderCall(input),
+    settleProviderCall: (input) => base.settleProviderCall(input),
+    resolveProviderCall: (input) => base.resolveProviderCall(input),
+    listProviderCalls: (jobId) => base.listProviderCalls(jobId),
+    countUnreconciledProviderCalls: () => base.countUnreconciledProviderCalls(),
     ...overrides,
   };
 }

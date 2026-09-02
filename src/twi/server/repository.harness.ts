@@ -19,9 +19,23 @@ import type { D1DatabaseLike, D1PreparedStatementLike, D1ResultLike } from './d1
 
 const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
 
-export const MIGRATION_URL = new URL('../../../twi-migration-001-creation-core.sql', import.meta.url);
+/**
+ * EVERY TWI migration, in the lexical order the runner applies them. Kept as an explicit list
+ * rather than a glob so that adding a migration is a visible edit here — and so that forgetting
+ * one is a red test (a SELECT from its table fails with "no such table") rather than a suite that
+ * quietly runs against a database missing it. Three consumers hard-code the migration set: this
+ * harness, twi-orchestrator/vitest.config.ts and scripts/twi-schema-behavior.test.mjs.
+ */
+export const MIGRATION_URLS: readonly URL[] = [
+  new URL('../../../twi-migration-001-creation-core.sql', import.meta.url),
+  new URL('../../../twi-migration-002-provider-call-state.sql', import.meta.url),
+];
 
-export const readMigrationSql = (): string => readFileSync(MIGRATION_URL, 'utf8');
+/** Migration 001 alone. Kept for the one consumer that reasons about its text rather than executing it. */
+export const MIGRATION_URL = MIGRATION_URLS[0] as URL;
+
+/** The whole schema as one script: every migration, concatenated in order. */
+export const readMigrationSql = (): string => MIGRATION_URLS.map((url) => readFileSync(url, 'utf8')).join('\n');
 
 export interface RecordedStatement {
   sql: string;

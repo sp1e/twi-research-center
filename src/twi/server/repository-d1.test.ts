@@ -71,7 +71,15 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  for (const table of ['twi_cost_events', 'twi_job_events', 'twi_assets', 'twi_jobs', 'twi_generation_specs', 'twi_projects']) {
+  for (const table of [
+    'twi_provider_calls',
+    'twi_cost_events',
+    'twi_job_events',
+    'twi_assets',
+    'twi_jobs',
+    'twi_generation_specs',
+    'twi_projects',
+  ]) {
     await binding.prepare(`DELETE FROM ${table}`).run();
   }
   await run(
@@ -170,5 +178,66 @@ describe('D1TwiRepository against a workerd D1 binding', () => {
     expect(await text(`SELECT updated_at AS value FROM twi_jobs WHERE id = 'job-1'`)).toBe(
       '2026-08-16T06:00:00.000Z',
     );
+  });
+});
+
+/*
+ * The provider-call ledger against the REAL D1 binding. Two things only this suite can settle:
+ * that `ON CONFLICT ... DO NOTHING` reports `changes: 0` through D1's `run()` meta (the claim's
+ * idempotency rests on that number), and that workerd's SQLite accepts the PARTIAL index
+ * migration 002 creates and uses it for the inventory count. node:sqlite proving either says
+ * nothing about D1.
+ */
+describe('provider-call ledger against a workerd D1 binding', () => {
+  const identity = { jobId: 'job-1', attempt: 0, label: 'A' as const };
+
+  it('claims once and reports the second claim as already-claimed from the real changes() meta', async () => {
+    const first = await repository.claimProviderCall({ ...identity, providerMode: 'fake', now: '2026-08-16T04:00:00.000Z' });
+    expect(first.outcome).toBe('claimed');
+    const second = await repository.claimProviderCall({ ...identity, providerMode: 'fake', now: '2026-08-16T04:00:01.000Z' });
+    expect(second.outcome).toBe('already-claimed');
+    expect(second.call).toMatchObject({ claimedAt: '2026-08-16T04:00:00.000Z', state: 'submitting' });
+    expect(await count(`SELECT COUNT(*) AS value FROM twi_provider_calls`)).toBe(1);
+  });
+
+  it('settles exactly once and refuses an illegal state/certainty pair at the schema, on D1', async () => {
+    await repository.claimProviderCall({ ...identity, providerMode: 'fake', now: '2026-08-16T04:00:00.000Z' });
+    const settled = await repository.settleProviderCall({
+      ...identity,
+      state: 'completed',
+      providerRequestId: 'req-d1',
+      now: '2026-08-16T04:00:05.000Z',
+    });
+    expect(settled.outcome).toBe('settled');
+    const again = await repository.settleProviderCall({ ...identity, state: 'abandoned', now: '2026-08-16T04:00:06.000Z' });
+    expect(again.outcome).toBe('already-settled');
+    expect(await text(`SELECT state AS value FROM twi_provider_calls WHERE attempt = 0`)).toBe('completed');
+    expect(await text(`SELECT provider_request_id AS value FROM twi_provider_calls WHERE attempt = 0`)).toBe('req-d1');
+
+    await expect(
+      run(`UPDATE twi_provider_calls SET charge_certainty = 'not_charged' WHERE job_id = 'job-1'`),
+    ).rejects.toThrow(/twi_provider_calls_state_certainty/);
+  });
+
+  it('accepts the partial index and answers the estate-wide inventory through it', async () => {
+    // The migration already created idx_twi_provider_calls_unresolved during boot; if D1 had
+    // refused the WHERE clause the whole suite would have failed in beforeAll. Pin it by name.
+    expect(
+      await count(
+        `SELECT COUNT(*) AS value FROM sqlite_master WHERE type = 'index' AND name = 'idx_twi_provider_calls_unresolved'`,
+      ),
+    ).toBe(1);
+    await repository.claimProviderCall({ ...identity, providerMode: 'fake', now: '2026-08-16T04:00:00.000Z' });
+    await repository.claimProviderCall({ ...identity, label: 'B', providerMode: 'fake', now: '2026-08-16T04:00:00.000Z' });
+    await repository.settleProviderCall({ ...identity, label: 'B', state: 'abandoned', now: '2026-08-16T04:00:05.000Z' });
+    expect(await repository.countUnreconciledProviderCalls()).toBe(1);
+    const plan = (
+      await binding
+        .prepare(
+          `EXPLAIN QUERY PLAN SELECT COUNT(*) AS total FROM twi_provider_calls WHERE charge_certainty <> 'not_charged' AND resolved_at IS NULL`,
+        )
+        .all<{ detail: string }>()
+    ).results.map(({ detail }) => detail).join(' | ');
+    expect(plan).toMatch(/idx_twi_provider_calls_unresolved/);
   });
 });
