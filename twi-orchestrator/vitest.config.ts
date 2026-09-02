@@ -15,10 +15,22 @@ const MODAL_FINISH_URL = 'https://modal-finishing.invalid/finish/jobs';
 const CALLBACK_ORIGIN = 'https://twi-orchestrator.invalid';
 const STEMS_SECRET = 'test-stems-proxy-secret-0123456789';
 
+/*
+ * EVERY TWI migration, in the order the runner applies them, each found EXACTLY ONCE. This list is
+ * one of three places that hard-code the migration set (with src/twi/server/repository.harness.ts
+ * and scripts/twi-schema-behavior.test.mjs). Leave a migration out and this whole suite runs
+ * against a D1 without its table -- green and blind -- which is why the integration tests SELECT
+ * from twi_provider_calls and why section 16 of the contract check pins the file name here.
+ */
+const TWI_MIGRATIONS = ['twi-migration-001-creation-core.sql', 'twi-migration-002-provider-call-state.sql'];
+
 export default defineConfig(async () => {
   const allMigrations = await readD1Migrations(repositoryRoot);
-  const migrations = allMigrations.filter(({ name }) => name === 'twi-migration-001-creation-core.sql');
-  if (migrations.length !== 1) throw new Error('the real TWI migration was not found exactly once');
+  const migrations = TWI_MIGRATIONS.map((expected) => {
+    const found = allMigrations.filter(({ name }) => name === expected);
+    if (found.length !== 1) throw new Error(`the real TWI migration ${expected} was not found exactly once`);
+    return found[0]!;
+  });
 
   return {
     plugins: [
