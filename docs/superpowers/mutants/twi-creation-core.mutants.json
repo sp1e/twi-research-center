@@ -186,7 +186,7 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "the working tree on top of parent commit c8f693d, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
+      "measuredAt": "the working tree on top of parent commit f4371ef, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (11/11), exit 0",
       "suites": {
@@ -195,14 +195,14 @@
         "test:twi": { "tests": 543, "files": 25 },
         "test:twi:schema": { "tests": 39 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
-        "test:twi:contracts": { "checks": 94, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added, 80 at the Function graph pin, and 85 at Task 8 when section 14 added five for the cross-package start envelope — read independently out of src/twi/server/jobs.ts and twi-orchestrator/src/index.ts with the TypeScript compiler, so the two sides cannot agree merely by sharing a constant. and 94 after the Task 8 publication-guard round, when section 15 added nine asserting that the extracted guards are still INVOKED — a unit test proves a predicate, only the call graph proves the call. Zero check names have ever been removed." },
-        "test:stems:finish": { "checks": 17, "note": "NEW at Task 10. The `ok <name>` lines stems-gpu/test_finish.py prints, counted the same way the contract checks are. It covers the pure finishing helpers: the output-prefix validator, the three ffmpeg command builders, the loudnorm report parser and the manifest gate. Gated because this Python was otherwise unreachable from `npm test`, and an unrun validator is indistinguishable from an absent one. stems-gpu/test_registry.py remains ungated, a pre-existing gap not bundled into this change." },
+        "test:twi:contracts": { "checks": 109, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added, 80 at the Function graph pin, and 85 at Task 8 when section 14 added five for the cross-package start envelope — read independently out of src/twi/server/jobs.ts and twi-orchestrator/src/index.ts with the TypeScript compiler, so the two sides cannot agree merely by sharing a constant. and 94 after the Task 8 publication-guard round, when section 15 added nine asserting that the extracted guards are still INVOKED — a unit test proves a predicate, only the call graph proves the call. Zero check names have ever been removed." },
+        "test:stems:finish": { "checks": 21, "note": "NEW at Task 10. The `ok <name>` lines stems-gpu/test_finish.py prints, counted the same way the contract checks are. It covers the pure finishing helpers: the output-prefix validator, the three ffmpeg command builders, the loudnorm report parser and the manifest gate. Gated because this Python was otherwise unreachable from `npm test`, and an unrun validator is indistinguishable from an absent one. stems-gpu/test_registry.py remains ungated, a pre-existing gap not bundled into this change." },
         "test:migrations": { "tests": 10 },
-        "test:twi:orchestrator:guard": { "tests": 8, "note": "NEW at Task 8. Drives scripts/twi-orchestrator-suite.mjs's preconditions through an INJECTED file system, so it asserts what the guard REFUSES rather than what the running machine happens to have installed — without injection it would pass while returning the empty array unconditionally. It runs immediately BEFORE test:twi:orchestrator for the same reason test:twi:structure precedes test:twi:contracts: the guard decides whether the suite it protects means anything." },
-        "test:twi:orchestrator": { "tests": 80, "files": 6, "note": "NEW at Task 8, grown at Task 9. The twi-orchestrator sub-package: wav including the chunk-walking header reader (11), the deterministic fake provider (1), the official Lyria adapter and its failure taxonomy (17), provider selection and the do-not-pay-twice retry rule (13), the publication guards extracted after a campaign found NINE of twelve mutants surviving the integration suite (30), and the Workflow integration suite (8) driven against REAL Workflow, D1 and R2 through @cloudflare/vitest-plugin rather than doubles. Its toolchain (wrangler 4, workers-types 5, vitest 4) is deliberately not the root's, so a missing nested install would make it vacuous — which is what the guard above refuses." },
+        "test:twi:orchestrator:guard": { "tests": 14, "note": "NEW at Task 8. Drives scripts/twi-orchestrator-suite.mjs's preconditions through an INJECTED file system, so it asserts what the guard REFUSES rather than what the running machine happens to have installed — without injection it would pass while returning the empty array unconditionally. It runs immediately BEFORE test:twi:orchestrator for the same reason test:twi:structure precedes test:twi:contracts: the guard decides whether the suite it protects means anything." },
+        "test:twi:orchestrator": { "tests": 172, "files": 9, "note": "NEW at Task 8, grown at Task 9. The twi-orchestrator sub-package: wav including the chunk-walking header reader (11), the deterministic fake provider (1), the official Lyria adapter and its failure taxonomy (17), provider selection and the do-not-pay-twice retry rule (13), the publication guards extracted after a campaign found NINE of twelve mutants surviving the integration suite (30), and the Workflow integration suite (8) driven against REAL Workflow, D1 and R2 through @cloudflare/vitest-plugin rather than doubles. Its toolchain (wrangler 4, workers-types 5, vitest 4) is deliberately not the root's, so a missing nested install would make it vacuous — which is what the guard above refuses." },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "1017 tests plus 119 script checks",
+      "totals": "1115 tests plus 138 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 208-entry set against any single commit (the figure read 138 while the manifest was v1.4.0 and was not revised as the set grew; corrected in v1.8.0, and corrected again to 208 when the two concurrent v1.8.0 rounds merged — the two sides carried 181 and 203, each true against its own base of 176, and 208 is the union COUNTED from the resolved entries). This block records the suite the mutants would be measured against, not a score."
@@ -10057,10 +10057,11 @@
       "testCommand": "npm test --prefix twi-orchestrator -- src/publication-guards.test.ts && npm run test:twi:contracts",
       "fullSuiteCommand": "npm test",
       "historicalNumbering": "PUB-01 to PUB-20, first round for this set. No prior labels, no collisions.",
-      "liveCount": 20,
-      "retiredCount": 0,
+      "liveCount": 14,
+      "retiredCount": 6,
       "provenanceRounds": [
-        "task-8-publication-guards, 2026-08-30, at db289a1"
+        "task-8-publication-guards, 2026-08-30, at db289a1",
+        "task-11-modal-finishing, 2026-08-30 -- six entries retired as behaviour-removed when the fake in-Worker finishing step was replaced by a real Modal job. Successors are in the modal-finishing set."
       ],
       "precedingEvidence": {
         "round": "task-8-publication-guards, first pass, at 9377337",
@@ -10073,8 +10074,15 @@
       "mutants": [
         {
           "id": "PUB-01",
-          "status": "killed",
-          "expected": "killed",
+          "status": "retired",
+          "expected": "retired",
+          "retirement": {
+            "kind": "behaviour-removed",
+            "retiredAt": "task-11-modal-finishing, 2026-08-30",
+            "whatWasRemoved": "the raw/archive/review digest EQUALITY comparison it reverted",
+            "why": "Task 11 replaced the in-Worker fake finishing step with a real Modal job. assertWavHeader became assertRawWavIntegrity -- the old one assumed the canonical 44-byte layout and read `data` at offset 36, which real provider audio is entitled not to have -- and assertCandidateAudio became assertStoredObject, because the old one asserted that raw, master and preview share a digest, which was true only of the fake path and is FALSE once a FLAC and an MP3 are involved. The construct this mutant reverts is GONE, so the mutation is no longer expressible. Retired rather than deleted, per the README: a real coverage loss must never look like tidy housekeeping. The successor below covers the same invariant against the code that replaced it, and was MEASURED killed on the Task 11 branch.",
+            "successor": "FIN-10"
+          },
           "severity": "publication invariant",
           "appliesAtCommit": "db289a1",
           "target": {
@@ -10099,8 +10107,15 @@
         },
         {
           "id": "PUB-02",
-          "status": "killed",
-          "expected": "killed",
+          "status": "retired",
+          "expected": "retired",
+          "retirement": {
+            "kind": "behaviour-removed",
+            "retiredAt": "task-11-modal-finishing, 2026-08-30",
+            "whatWasRemoved": "the raw/archive/review digest EQUALITY comparison it reverted",
+            "why": "Task 11 replaced the in-Worker fake finishing step with a real Modal job. assertWavHeader became assertRawWavIntegrity -- the old one assumed the canonical 44-byte layout and read `data` at offset 36, which real provider audio is entitled not to have -- and assertCandidateAudio became assertStoredObject, because the old one asserted that raw, master and preview share a digest, which was true only of the fake path and is FALSE once a FLAC and an MP3 are involved. The construct this mutant reverts is GONE, so the mutation is no longer expressible. Retired rather than deleted, per the README: a real coverage loss must never look like tidy housekeeping. The successor below covers the same invariant against the code that replaced it, and was MEASURED killed on the Task 11 branch.",
+            "successor": "FIN-10"
+          },
           "severity": "publication invariant",
           "appliesAtCommit": "db289a1",
           "target": {
@@ -10125,8 +10140,15 @@
         },
         {
           "id": "PUB-03",
-          "status": "killed",
-          "expected": "killed",
+          "status": "retired",
+          "expected": "retired",
+          "retirement": {
+            "kind": "behaviour-removed",
+            "retiredAt": "task-11-modal-finishing, 2026-08-30",
+            "whatWasRemoved": "the assertWavHeader call on a finished master",
+            "why": "Task 11 replaced the in-Worker fake finishing step with a real Modal job. assertWavHeader became assertRawWavIntegrity -- the old one assumed the canonical 44-byte layout and read `data` at offset 36, which real provider audio is entitled not to have -- and assertCandidateAudio became assertStoredObject, because the old one asserted that raw, master and preview share a digest, which was true only of the fake path and is FALSE once a FLAC and an MP3 are involved. The construct this mutant reverts is GONE, so the mutation is no longer expressible. Retired rather than deleted, per the README: a real coverage loss must never look like tidy housekeeping. The successor below covers the same invariant against the code that replaced it, and was MEASURED killed on the Task 11 branch.",
+            "successor": "FIN-10"
+          },
           "severity": "publication invariant",
           "appliesAtCommit": "db289a1",
           "target": {
@@ -10385,8 +10407,15 @@
         },
         {
           "id": "PUB-13",
-          "status": "killed",
-          "expected": "killed",
+          "status": "retired",
+          "expected": "retired",
+          "retirement": {
+            "kind": "behaviour-removed",
+            "retiredAt": "task-11-modal-finishing, 2026-08-30",
+            "whatWasRemoved": "assertWavHeader's declared-RIFF-length clause, inside a function that no longer exists",
+            "why": "Task 11 replaced the in-Worker fake finishing step with a real Modal job. assertWavHeader became assertRawWavIntegrity -- the old one assumed the canonical 44-byte layout and read `data` at offset 36, which real provider audio is entitled not to have -- and assertCandidateAudio became assertStoredObject, because the old one asserted that raw, master and preview share a digest, which was true only of the fake path and is FALSE once a FLAC and an MP3 are involved. The construct this mutant reverts is GONE, so the mutation is no longer expressible. Retired rather than deleted, per the README: a real coverage loss must never look like tidy housekeeping. The successor below covers the same invariant against the code that replaced it, and was MEASURED killed on the Task 11 branch.",
+            "successor": "FIN-14"
+          },
           "severity": "publication invariant",
           "appliesAtCommit": "db289a1",
           "target": {
@@ -10411,8 +10440,15 @@
         },
         {
           "id": "PUB-14",
-          "status": "killed",
-          "expected": "killed",
+          "status": "retired",
+          "expected": "retired",
+          "retirement": {
+            "kind": "behaviour-removed",
+            "retiredAt": "task-11-modal-finishing, 2026-08-30",
+            "whatWasRemoved": "the assertCandidateAudio call site in the Workflow",
+            "why": "Task 11 replaced the in-Worker fake finishing step with a real Modal job. assertWavHeader became assertRawWavIntegrity -- the old one assumed the canonical 44-byte layout and read `data` at offset 36, which real provider audio is entitled not to have -- and assertCandidateAudio became assertStoredObject, because the old one asserted that raw, master and preview share a digest, which was true only of the fake path and is FALSE once a FLAC and an MP3 are involved. The construct this mutant reverts is GONE, so the mutation is no longer expressible. Retired rather than deleted, per the README: a real coverage loss must never look like tidy housekeeping. The successor below covers the same invariant against the code that replaced it, and was MEASURED killed on the Task 11 branch.",
+            "successor": "FIN-10"
+          },
           "severity": "guard wiring",
           "appliesAtCommit": "db289a1",
           "target": {
@@ -10515,8 +10551,15 @@
         },
         {
           "id": "PUB-18",
-          "status": "killed",
-          "expected": "killed",
+          "status": "retired",
+          "expected": "retired",
+          "retirement": {
+            "kind": "behaviour-removed",
+            "retiredAt": "task-11-modal-finishing, 2026-08-30",
+            "whatWasRemoved": "the assertWavHeader call site in the Workflow",
+            "why": "Task 11 replaced the in-Worker fake finishing step with a real Modal job. assertWavHeader became assertRawWavIntegrity -- the old one assumed the canonical 44-byte layout and read `data` at offset 36, which real provider audio is entitled not to have -- and assertCandidateAudio became assertStoredObject, because the old one asserted that raw, master and preview share a digest, which was true only of the fake path and is FALSE once a FLAC and an MP3 are involved. The construct this mutant reverts is GONE, so the mutation is no longer expressible. Retired rather than deleted, per the README: a real coverage loss must never look like tidy housekeeping. The successor below covers the same invariant against the code that replaced it, and was MEASURED killed on the Task 11 branch.",
+            "successor": "FIN-13"
+          },
           "severity": "guard wiring",
           "appliesAtCommit": "db289a1",
           "target": {
@@ -10590,6 +10633,407 @@
               "measured": true
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "modal-finishing",
+      "title": "Modal finishing - the seam between a generated candidate and a published one",
+      "targetPaths": [
+        "twi-orchestrator/src/finishing/manifest.ts",
+        "twi-orchestrator/src/finishing/callback-auth.ts",
+        "twi-orchestrator/src/publication-guards.ts",
+        "twi-orchestrator/src/workflow.ts",
+        "twi-orchestrator/src/db.ts",
+        "twi-orchestrator/src/providers/select.ts"
+      ],
+      "testCommand": "npm test --prefix twi-orchestrator && npm run test:twi:contracts",
+      "fullSuiteCommand": "npm test",
+      "harness": "docs/superpowers/mutants/harnesses/task11_finishing_mutants.py",
+      "historicalNumbering": "FIN-01 to FIN-14, first round for this set. No prior labels, no collisions.",
+      "liveCount": 14,
+      "retiredCount": 0,
+      "provenanceRounds": [
+        "task-11-modal-finishing, 2026-08-30, on branch feat/twi-task11-modal-finishing"
+      ],
+      "result": "14 of 14 KILLED, measured by the committed harness. Every mutation was verified to have LANDED (sha256 compared before the suite ran) and restored byte-identically afterwards, because a mutation that fails to apply is indistinguishable from one that got killed - this project has been fooled that way three times.",
+      "whatThisSetIsFor": "Task 11 replaced the in-Worker fake finish step with a real Modal job, a waitForEvent per candidate and an authenticated callback route. Almost every guard it added fires only on state the happy path cannot produce - a forged callback, a replayed callback, a mastered archive, an object Modal never uploaded - which is the exact shape that let NINE of twelve publication mutants survive the full suite once before.",
+      "supersedes": "PUB-01, PUB-02, PUB-03, PUB-13, PUB-14 and PUB-18 in the publication-guards set are retired as behaviour-removed by this round. FIN-10 succeeds the four object-integrity entries, FIN-13 succeeds PUB-18 and FIN-14 succeeds PUB-13.",
+      "mutants": [
+        {
+          "id": "FIN-01",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/manifest.ts",
+            "construct": "the archive's refusal of any loudness target"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (archive.loudness_target_lufs !== null) throw new Error('archive must never carry a loudness target');\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/finishing/manifest.test.ts",
+              "test": "refuses an archive that carries a loudness target at all",
+              "measured": true
+            }
+          ],
+          "note": "THE ONE THAT MATTERS MOST. The orchestrator-side twin of Task 10's F1/F2/F10. If this ever survives, the archive is being mastered and only the Python half of the system notices."
+        },
+        {
+          "id": "FIN-02",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/manifest.ts",
+            "construct": "the archive's refusal, narrowed to admit the review's own target"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (archive.loudness_target_lufs !== null) throw",
+            "replace": "if (archive.loudness_target_lufs !== REVIEW_TARGET_LUFS && archive.loudness_target_lufs !== null) throw",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/finishing/manifest.test.ts",
+              "test": "refuses an archive that carries a loudness target at all",
+              "measured": true
+            }
+          ],
+          "note": "The subtler form of FIN-01: the guard is still there and still refuses SOME values, just not the one that means the archive was normalised to -14 LUFS."
+        },
+        {
+          "id": "FIN-03",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/manifest.ts",
+            "construct": "the review true-peak ceiling constant"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "export const REVIEW_MAX_TRUE_PEAK_DBTP = -1;",
+            "replace": "export const REVIEW_MAX_TRUE_PEAK_DBTP = -0.5;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/finishing/manifest.test.ts",
+              "test": "refuses a review true peak of -0.7 dBTP, which the plan's superseded range would have accepted",
+              "measured": true
+            }
+          ],
+          "note": "Restores the PLAN's superseded number. Its -1.5 .. -0.5 window ACCEPTS -0.7, which stems-gpu/finish.py already REJECTS. Two gates disagreeing about the same object is the defect this guards against."
+        },
+        {
+          "id": "FIN-04",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/manifest.ts",
+            "construct": "the review true-peak ceiling check"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if ((review.true_peak_dbtp as number) > REVIEW_MAX_TRUE_PEAK_DBTP) {\n    throw new Error('review true peak exceeds the ceiling');\n  }\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/finishing/manifest.test.ts",
+              "test": "refuses a review true peak of -0.7 dBTP, which the plan's superseded range would have accepted",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "FIN-05",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/manifest.ts",
+            "construct": "the duration-drift tolerance"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "export const DURATION_TOLERANCE_SECONDS = 0.25;",
+            "replace": "export const DURATION_TOLERANCE_SECONDS = 25;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/finishing/manifest.test.ts",
+              "test": "refuses a rendition whose duration drifted from the raw",
+              "measured": true
+            }
+          ],
+          "note": "A rendition that is not the same LENGTH as the raw is not the same recording."
+        },
+        {
+          "id": "FIN-06",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/manifest.ts",
+            "construct": "the clauses binding a callback to the Modal call, the callback id and the nonce"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    envelope.callId !== call.callId ||\n    envelope.callbackId !== call.callbackId ||\n    envelope.nonce !== call.nonce\n",
+            "replace": "    false\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish when a callback names a different Modal call than the one submitted",
+              "measured": true
+            }
+          ],
+          "note": "A callback that does not name the exact call identity is not evidence. Without this the shared secret is the only thing between an attacker and a published render whose audio they chose."
+        },
+        {
+          "id": "FIN-07",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/manifest.ts",
+            "construct": "the refusal of a callback reporting a finishing failure"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (envelope.status !== 'done') {",
+            "replace": "  if (false) {",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish a candidate whose finishing job reported an error",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "FIN-08",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/callback-auth.ts",
+            "construct": "the shared-secret comparison on /callback/modal"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "if (!secretsMatch(presentedSecret, expectedSecret)) throw new Error('callback_unauthorized');",
+            "replace": "if (false) throw new Error('callback_unauthorized');",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses a callback that does not present the shared secret, and stays blocked",
+              "measured": true
+            }
+          ],
+          "note": "/callback/modal is the ONLY way an event reaches a Workflow from outside. Unauthenticated, it is a public sendEvent."
+        },
+        {
+          "id": "FIN-09",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/finishing/callback-auth.ts",
+            "construct": "the replay window"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "export const CALLBACK_REPLAY_WINDOW_MS = 5 * 60 * 1000;",
+            "replace": "export const CALLBACK_REPLAY_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses a callback that does not present the shared secret, and stays blocked",
+              "measured": true
+            }
+          ]
+        },
+        {
+          "id": "FIN-10",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the refusal of a finished object that is not in storage"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "    throw new Error(`finished object is missing from storage: ${claim.key}`);",
+            "replace": "    return;",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "refuses to publish when the manifest describes an object Modal never uploaded",
+              "measured": true
+            }
+          ],
+          "note": "SUCCESSOR to PUB-01, PUB-02, PUB-03 and PUB-14. The invariant they protected -- that the renditions about to be published are the objects the pipeline actually produced -- is now a cross-check between the manifest Modal reported and what R2 holds, because a digest EQUALITY across raw, archive and review is false once the three are genuinely different codecs."
+        },
+        {
+          "id": "FIN-11",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/db.ts",
+            "construct": "the database-enforced replay refusal on the callback receipt"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "return result.meta.changes === 1 ? 'recorded' : 'replayed';",
+            "replace": "return 'recorded';",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/test/workflow.test.ts",
+              "test": "treats a duplicate callback as a no-op the database refuses, not a second event",
+              "measured": true
+            }
+          ],
+          "note": "The callback id lives in twi_job_events.event_key, which is UNIQUE (job_id, event_key), so a replay is refused by a CONSTRAINT rather than detected by parsing JSON out of detail_json."
+        },
+        {
+          "id": "FIN-12",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/providers/select.ts",
+            "construct": "the requirement that Modal finishing be configured before a render may start"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  finishing !== null && finishing !== undefined && FINISHABLE_MODES.has(mode ?? '');",
+            "replace": "  FINISHABLE_MODES.has(mode ?? '');",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/providers/select.test.ts",
+              "test": "refuses EVERY mode when Modal finishing is not configured, so no render is bought that cannot be finished",
+              "measured": true
+            }
+          ],
+          "note": "The money-path rule. Task 11 added 'lyria' to FINISHABLE_MODES; this is what stops that meaning any deployment may buy a paid render, because an unconfigured one can finish nothing."
+        },
+        {
+          "id": "FIN-13",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/workflow.ts",
+            "construct": "the call site of assertRawWavIntegrity"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "        assertRawWavIntegrity(rawBytes);\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-guards.mjs",
+              "test": "the raw candidate is still read as a real RIFF/WAVE before publication (twi-orchestrator/src/workflow.ts calls assertRawWavIntegrity)",
+              "measured": true
+            }
+          ],
+          "note": "MEASURED SEPARATELY, and the result is the whole reason section 15 exists: with this mutation applied, `npm test --prefix twi-orchestrator` PASSES and only `npm run test:twi:contracts` fails. A unit test proves a predicate; only the call graph proves the call. SUCCESSOR to PUB-18."
+        },
+        {
+          "id": "FIN-14",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "finishing invariant",
+          "appliesAtCommit": "the Task 11 branch tip (feat/twi-task11-modal-finishing)",
+          "target": {
+            "file": "twi-orchestrator/src/publication-guards.ts",
+            "construct": "the declared-RIFF-length clause inside assertRawWavIntegrity"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (view.getUint32(4, true) !== bytes.byteLength - 8) throw new Error('candidate WAV length is invalid');\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/publication-guards.test.ts",
+              "test": "rejects a payload whose declared RIFF length disagrees with its size",
+              "measured": true
+            }
+          ],
+          "note": "SUCCESSOR to PUB-13. readWavProperties does not look at the RIFF size field at all, so this clause is the ONLY thing carrying that rule forward from the old assertWavHeader. It exists to prove the rewrite did not quietly drop it."
         }
       ]
     }

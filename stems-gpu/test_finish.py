@@ -214,6 +214,65 @@ def test_loudness_measurement_maps_the_input_report_not_the_target():
     assert mapped == {"integrated_lufs": -18.7, "true_peak_dbtp": -3.2, "loudness_range": 9.4}
 
 
+CONTEXT = {"callback_id": "cb-0123456789abcdef", "nonce": "nc-0123456789abcdef"}
+
+
+def test_timestamp_is_the_only_shape_the_twi_schema_accepts():
+    import datetime
+
+    moment = datetime.datetime(2026, 8, 30, 10, 0, 0, 123456, tzinfo=datetime.timezone.utc)
+    assert finish.iso_millis(moment) == "2026-08-30T10:00:00.123Z"
+    # isoformat() would print six fractional digits and +00:00; both are refused by the
+    # CHECK constraint on twi_job_events.created_at.
+    assert finish.iso_millis(moment) != moment.isoformat()
+
+
+def test_twi_callback_names_the_exact_call_it_answers():
+    payload = finish.build_twi_callback_payload(
+        "job-1", 0, "A", PREFIX, CONTEXT, "fc-99", "2026-08-30T10:00:00.000Z",
+        manifest={"schema_version": 1},
+    )
+    assert payload["schemaVersion"] == 1
+    assert payload["callbackId"] == "cb-0123456789abcdef"
+    assert payload["nonce"] == "nc-0123456789abcdef"
+    assert payload["callId"] == "fc-99"
+    assert payload["jobId"] == "job-1"
+    assert payload["attempt"] == 0
+    assert payload["label"] == "A"
+    assert payload["prefix"] == PREFIX
+    assert payload["status"] == "done"
+    assert payload["error"] is None
+
+
+def test_twi_callback_reports_a_failure_without_a_manifest():
+    payload = finish.build_twi_callback_payload(
+        "job-1", 1, "B", PREFIX, CONTEXT, "fc-99", "2026-08-30T10:00:00.000Z", error="ffmpeg died",
+    )
+    assert payload["status"] == "error"
+    assert payload["manifest"] is None
+    assert payload["error"] == "ffmpeg died"
+
+
+def test_twi_callback_refuses_to_be_built_without_a_call_identity():
+    for bad in (None, {}, {"callback_id": "cb-0123456789abcdef"}, {"nonce": "nc-0123456789abcdef"},
+                {"callback_id": "same-token-value", "nonce": "same-token-value"}):
+        try:
+            finish.build_twi_callback_payload(
+                "job-1", 0, "A", PREFIX, bad, "fc-99", "2026-08-30T10:00:00.000Z", manifest={},
+            )
+        except ValueError:
+            continue
+        raise AssertionError("a callback with no usable identity was built: " + repr(bad))
+
+    try:
+        finish.build_twi_callback_payload(
+            "job-1", 0, "A", PREFIX, CONTEXT, None, "2026-08-30T10:00:00.000Z", manifest={},
+        )
+    except ValueError:
+        return
+    raise AssertionError("a callback naming no Modal call was built")
+
+
 TESTS = [
     test_prefix_accepts_the_layout_task_8_actually_writes,
     test_prefix_rejects_anything_that_could_escape_the_job,
@@ -232,6 +291,10 @@ TESTS = [
     test_status_defaults_to_the_stem_lab_shape_when_a_result_carries_neither,
     test_status_reports_a_finish_manifest_without_pretending_it_has_stems,
     test_loudness_measurement_maps_the_input_report_not_the_target,
+    test_timestamp_is_the_only_shape_the_twi_schema_accepts,
+    test_twi_callback_names_the_exact_call_it_answers,
+    test_twi_callback_reports_a_failure_without_a_manifest,
+    test_twi_callback_refuses_to_be_built_without_a_call_identity,
 ]
 
 if __name__ == "__main__":
