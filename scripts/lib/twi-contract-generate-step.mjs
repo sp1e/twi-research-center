@@ -121,6 +121,11 @@ export const checkProviderCallLedger = (context, check) => {
     precedes(body, 'provider.generate(', "state: 'completed'") && precedes(body, "state: 'completed'", 'files.put('),
   );
   check(
+    "inside runGenerateStep a settlement that is not 'settled' fails the step BEFORE the R2 put "
+      + "(the outcome is compared against 'settled', not merely read)",
+    /settled\.outcome !== 'settled'/.test(body) && precedes(body, "settled.outcome !== 'settled'", 'files.put('),
+  );
+  check(
     'the ProviderError path maps charged false/true/null to abandoned/accepted/ambiguous, in that order, in one place',
     (() => {
       const mapping = declarationOf(step, 'settledStateFor');
@@ -163,11 +168,25 @@ export const checkProviderCallLedger = (context, check) => {
   // ── 16e. Every consumer that hard-codes the migration set names migration 002 ──
 
   for (const [file, why] of [
-    ['scripts/twi-schema-behavior.test.mjs', 'the schema suite'],
+    ['scripts/lib/twi-schema-harness.mjs', "the schema suites' shared fixture"],
     ['src/twi/server/repository.harness.ts', 'the repository harness, which every repository and jobs test runs on'],
     ['twi-orchestrator/vitest.config.ts', 'the orchestrator integration suite'],
   ]) {
     check(`${why} loads ${MIGRATION_002} (${file})`, read(file).includes(MIGRATION_002));
   }
   check(`${MIGRATION_002} exists at the repository root`, read(MIGRATION_002).length > 0);
+  // The provider-call schema tests live in their OWN file (the behaviour file crossed the
+  // 800-line ceiling). `node --test <file>` runs only the files it is given, so a file dropped
+  // from this script is a suite that silently stops running -- and its ten raw-SQL tests are the
+  // only ones that can refuse an illegal state/certainty pair.
+  check(
+    'npm run test:twi:schema runs BOTH schema behaviour files, so migration 002’s raw-SQL tests cannot be silently dropped (package.json)',
+    (() => {
+      const script = /"test:twi:schema":\s*"([^"]+)"/.exec(context.packageJson ?? '')?.[1] ?? '';
+      return (
+        script.includes('scripts/twi-schema-behavior.test.mjs') &&
+        script.includes('scripts/twi-schema-provider-calls.test.mjs')
+      );
+    })(),
+  );
 };

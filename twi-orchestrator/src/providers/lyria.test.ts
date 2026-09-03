@@ -163,6 +163,35 @@ describe('LyriaMusicProvider failure taxonomy', () => {
     expect(error.charged).toBeNull();
   });
 
+  /*
+   * The 4xx catch-all. `charged: false` is the verdict that lets the retry gate spend again with
+   * no human consulted (an `abandoned`/`not_charged` row does not block), so only statuses the
+   * adapter can positively argue are PRE-BILLING may claim it. A 408 Request Timeout, a 425 Too
+   * Early and a 499 from an intermediary are the shapes a front door returns while the upstream
+   * render proceeds -- they prove nothing about billing, exactly as the 5xx comment says of 5xx.
+   */
+  it.each([408, 425, 499, 402, 418, 451] as const)(
+    'leaves an unrecognised %s ambiguous: below 500 is not by itself proof that nothing was billed',
+    async (status) => {
+      const { fetchImpl } = respondingWith({ error: { message: 'no verdict' } }, status);
+      const error = await generateFailure(fetchImpl);
+      expect(error.charged).toBeNull();
+    },
+  );
+
+  it.each([
+    [400, 'a malformed request'],
+    [401, 'a rejected key'],
+    [403, 'a forbidden key'],
+    [404, 'an unknown model'],
+    [422, 'a request the provider would not process'],
+  ] as const)('still states %s (%s) was not billed, because it never reached a render', async (status, _why) => {
+    const { fetchImpl } = respondingWith({ error: { message: 'nope' } }, status);
+    const error = await generateFailure(fetchImpl);
+    expect(error.code).toBe('provider_rejected');
+    expect(error.charged).toBe(false);
+  });
+
   it('leaves a transport failure ambiguous, because the request may still have been served', async () => {
     const { fetchImpl } = throwingFetch();
     const error = await generateFailure(fetchImpl);

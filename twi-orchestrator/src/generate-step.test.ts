@@ -234,6 +234,76 @@ describe('runGenerateStep', () => {
     expect((await env.FILES.list()).objects).toHaveLength(0);
   });
 
+  /*
+   * A settlement outcome that is not `settled` after a SUCCESSFUL call. Nothing on the happy path
+   * produces it -- it needs a writer that moved the row between the claim and the settlement, the
+   * race section 7.7 of the report names -- and until these two cases existed the comparison
+   * `settled.outcome !== 'settled'` was invisible to every suite: narrowing it to `=== 'not-claimed'`
+   * left 184/184 green and published paid audio against a row saying the money was never spent.
+   * Both cases drive the REAL ledger, so the outcome comes from the guarded UPDATE rather than
+   * from a double told what to answer.
+   */
+  it('refuses to publish paid audio when the row was resolved out from under the call: already-settled fails the step', async () => {
+    const order: string[] = [];
+    const real = recordingStore(order);
+    const racing: GenerateStepStore = {
+      claimProviderCall: (input) => real.claimProviderCall(input),
+      settleProviderCall: async (input) => {
+        // A human reconciles the claim while the paid call is in flight. The row leaves
+        // `submitting`, so the settlement's guarded UPDATE matches nothing.
+        await env.DB.prepare(
+          `UPDATE twi_provider_calls
+             SET state = 'abandoned', charge_certainty = 'not_charged', settled_at = ?,
+                 resolved_at = ?, resolution_note = 'resolved by hand while the call was in flight'
+           WHERE job_id = ? AND attempt = 0 AND label = 'A'`,
+        )
+          .bind(NOW, NOW, JOB_ID)
+          .run();
+        return real.settleProviderCall(input);
+      },
+    };
+
+    const failure = await run(order, new DeterministicFakeMusicProvider(), racing).then(
+      () => null,
+      (error: unknown) => error as Error,
+    );
+
+    expect(failure).not.toBeNull();
+    expect(failure!.message).toContain('already-settled');
+    // The paid audio is NOT adopted, and the row keeps what the human wrote.
+    expect((await env.FILES.list()).objects).toHaveLength(0);
+    expect(await row()).toMatchObject({
+      state: 'abandoned',
+      charge_certainty: 'not_charged',
+      provider_request_id: null,
+    });
+    expect(order).toEqual(['claim', 'generate', 'settle:completed']);
+  });
+
+  it('refuses to publish paid audio when the claim row has vanished: not-claimed fails the step', async () => {
+    const order: string[] = [];
+    const real = recordingStore(order);
+    const racing: GenerateStepStore = {
+      claimProviderCall: (input) => real.claimProviderCall(input),
+      settleProviderCall: async (input) => {
+        await env.DB.prepare(`DELETE FROM twi_provider_calls WHERE job_id = ? AND attempt = 0 AND label = 'A'`)
+          .bind(JOB_ID)
+          .run();
+        return real.settleProviderCall(input);
+      },
+    };
+
+    const failure = await run(order, new DeterministicFakeMusicProvider(), racing).then(
+      () => null,
+      (error: unknown) => error as Error,
+    );
+
+    expect(failure).not.toBeNull();
+    expect(failure!.message).toContain('not-claimed');
+    expect((await env.FILES.list()).objects).toHaveLength(0);
+    expect(await rowCount()).toBe(0);
+  });
+
   it('records the provider mode on the claim, before the call, from the mode it was handed', async () => {
     await runGenerateStep({
       store: new TwiWorkflowStore(env.DB),

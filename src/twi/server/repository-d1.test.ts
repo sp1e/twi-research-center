@@ -191,6 +191,35 @@ describe('D1TwiRepository against a workerd D1 binding', () => {
 describe('provider-call ledger against a workerd D1 binding', () => {
   const identity = { jobId: 'job-1', attempt: 0, label: 'A' as const };
 
+  /*
+   * D1 enforces the foreign key -- ASSERTED, not assumed. `ON DELETE CASCADE` and the
+   * unknown-job refusal are the schema's whole answer to an orphaned ledger row, and both are
+   * inert with `PRAGMA foreign_keys` off. The node:sqlite suites pin the pragma explicitly
+   * (scripts/lib/twi-schema-harness.mjs, repository.harness.ts) precisely because an engine that
+   * defaults it OFF would turn every FK test into a tautology; this suite was the one place
+   * relying on a workerd/miniflare DEFAULT, so a release flipping it would have left the suite
+   * green while the cascade quietly stopped existing.
+   */
+  it('enforces the job foreign key on D1 itself: the pragma is on, an unknown job is refused, deletion cascades', async () => {
+    const pragma = await binding.prepare(`PRAGMA foreign_keys`).first<{ foreign_keys: number }>();
+    expect(pragma?.foreign_keys).toBe(1);
+
+    await expect(
+      run(
+        `INSERT INTO twi_provider_calls
+           (job_id, attempt, label, claim_key, state, charge_certainty, provider_mode, detail_json, claimed_at)
+         VALUES ('no-such-job', 0, 'A', 'orphan', 'submitting', 'unknown', 'fake', '{}', '2026-08-16T04:00:00.000Z')`,
+      ),
+    ).rejects.toThrow(/FOREIGN KEY constraint failed/);
+
+    await repository.claimProviderCall({ ...identity, providerMode: 'fake', now: '2026-08-16T04:00:00.000Z' });
+    await repository.claimProviderCall({ ...identity, label: 'B', providerMode: 'fake', now: '2026-08-16T04:00:00.000Z' });
+    expect(await count(`SELECT COUNT(*) AS value FROM twi_provider_calls`)).toBe(2);
+
+    await run(`DELETE FROM twi_jobs WHERE id = 'job-1'`);
+    expect(await count(`SELECT COUNT(*) AS value FROM twi_provider_calls`)).toBe(0);
+  });
+
   it('claims once and reports the second claim as already-claimed from the real changes() meta', async () => {
     const first = await repository.claimProviderCall({ ...identity, providerMode: 'fake', now: '2026-08-16T04:00:00.000Z' });
     expect(first.outcome).toBe('claimed');

@@ -175,7 +175,11 @@ export const selectProviderCalls = (db: D1DatabaseLike, jobId: string): Promise<
  *
  * The predicate is the SQL twin of `isUnreconciledProviderCall` in `./provider-call-types` and
  * is spelled byte for byte as the partial index `idx_twi_provider_calls_unresolved` spells its
- * WHERE clause, which is the condition SQLite places on using that index at all.
+ * WHERE clause. SQLite's rule is IMPLICATION, not identical spelling -- the index's predicate
+ * must be implied by this query's -- so the byte-for-byte agreement is a convention that keeps
+ * the implication obviously true rather than the engine's own requirement. Narrowing the index
+ * past this predicate is what costs the read its index, and the schema suite pins the index's
+ * exact text against this one.
  */
 export const countUnreconciledProviderCalls = async (db: D1DatabaseLike): Promise<number> => {
   const row = await db

@@ -31,9 +31,6 @@ export const MIGRATION_URLS: readonly URL[] = [
   new URL('../../../twi-migration-002-provider-call-state.sql', import.meta.url),
 ];
 
-/** Migration 001 alone. Kept for the one consumer that reasons about its text rather than executing it. */
-export const MIGRATION_URL = MIGRATION_URLS[0] as URL;
-
 /** The whole schema as one script: every migration, concatenated in order. */
 export const readMigrationSql = (): string => MIGRATION_URLS.map((url) => readFileSync(url, 'utf8')).join('\n');
 
@@ -211,4 +208,38 @@ export class SqliteD1 implements D1DatabaseLike {
   close(): void {
     this.database.close();
   }
+}
+
+/**
+ * The one project / spec / job a repository test needs before it can write anything else.
+ *
+ * Shared by `repository-sqlite.test.ts` and `repository-provider-calls.test.ts` (split off it at
+ * the 800-line ceiling) rather than copied, so the two suites cannot seed subtly different rows
+ * and then disagree about what the schema allows. `SqliteD1.exec` binds, so nothing here is
+ * interpolated into SQL.
+ */
+export function seedProjectSpecJob(
+  db: SqliteD1,
+  options: { status?: string; phase?: string | null; jobId?: string; idempotencyKey?: string } = {},
+): void {
+  const jobId = options.jobId ?? 'job-1';
+  db.exec(
+    `INSERT INTO twi_projects (id, name, lifecycle_state, created_at, updated_at)
+     VALUES ('project-1', 'Night Signal', 'active', '2026-08-16T00:00:00.000Z', '2026-08-16T00:00:00.000Z')`,
+  );
+  db.exec(
+    `INSERT INTO twi_generation_specs
+       (id, project_id, spec_json, spec_sha256, rights_assertion_version, created_at)
+     VALUES ('spec-1', 'project-1', '{}', 'spec-sha', 'v1', '2026-08-16T00:00:00.000Z')`,
+  );
+  db.exec(
+    `INSERT INTO twi_jobs
+       (id, project_id, spec_id, kind, status, phase, idempotency_key, estimate_json, created_at, updated_at)
+     VALUES (?, 'project-1', 'spec-1', 'full-song', ?, ?, ?, '{}',
+             '2026-08-16T00:00:00.000Z', '2026-08-16T00:00:00.000Z')`,
+    jobId,
+    options.status ?? 'queued',
+    options.phase ?? options.status ?? 'queued',
+    options.idempotencyKey ?? 'submission-1',
+  );
 }

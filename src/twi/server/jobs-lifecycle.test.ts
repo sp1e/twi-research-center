@@ -552,7 +552,7 @@ describe('POST /api/twi/jobs/:id/retry', () => {
       expect(world.orchestrator.calls).toEqual([]);
     });
 
-    it('is not blocked when no call was ever recorded — absence means "no call", which is sound only because the claim precedes the call', async () => {
+    it('is not blocked when no call was ever recorded — absence means "no call was RECORDED", which is sound because the claim precedes the CALL', async () => {
       const job = await failedJob();
       expect(await world.repo.listProviderCalls(job.id)).toEqual([]);
 
@@ -560,6 +560,52 @@ describe('POST /api/twi/jobs/:id/retry', () => {
 
       expect(body.attempt).toBe(1);
       expect(world.orchestrator.starts).toBe(1);
+    });
+
+    /*
+     * THE ABSENCE WINDOW, recorded rather than hidden.
+     *
+     * The claim precedes the CALL. It does not precede the DISPATCH, so between this route asking
+     * the orchestrator to start attempt N and the ledger's first row for attempt N, absence means
+     * "not claimed YET" rather than "never called". A dispatch that REPORTS failure does not
+     * prove nothing was created -- the orchestrator calls create() and only then builds its
+     * answer (twi-orchestrator/src/index.ts) -- yet failDispatch moves the job to `error`, which
+     * is the one status a retry is allowed from. The next retry then takes attempt N+1, a
+     * DISTINCT Workflow instance id, and this gate sees an empty ledger.
+     *
+     * Two /start dispatches for one job is what that produces, and it is asserted here so the
+     * window has a name and a location. This test PINS today's behaviour: whoever closes the
+     * window (refuse while an earlier attempt's instance is non-terminal, or hold a failed
+     * dispatch out of `error`) must come here and rewrite it deliberately. Both of those
+     * contradict behaviour tested elsewhere, which is why the fix round that found this recorded
+     * it as a spec decision instead of taking one.
+     */
+    it('THE ABSENCE WINDOW: a retry whose dispatch reported failure lets a second attempt out while the first may still be alive', async () => {
+      const job = await failedJob();
+      world.orchestrator.status = 502;
+
+      const first = await retryJob(job.id, deps());
+      expect(first.status).toBe(502);
+      expect(world.orchestrator.starts).toBe(1);
+      // The job is back in `error`, so it is retryable again -- and the ledger is still empty,
+      // because the instance that may be running has not reached its claim.
+      expect((await world.job(job.id))?.status).toBe('error');
+      expect(await world.repo.listProviderCalls(job.id)).toEqual([]);
+      expect(await world.repo.countUnreconciledProviderCalls()).toBe(0);
+
+      world.orchestrator.status = 202;
+      const second = await readJson<JobBody>(await retryJob(job.id, deps()));
+
+      expect(second.attempt).toBe(2);
+      expect(world.orchestrator.starts).toBe(2);
+      // Two distinct attempt ordinals went out, so the orchestrator minted two distinct instance
+      // ids (`${jobId}_${attempt}`) and its same-identity collapse cannot merge them.
+      expect(
+        world.orchestrator.calls
+          .filter((call) => call.url.endsWith('/start'))
+          .map((call) => (JSON.parse(call.body) as { attempt: number }).attempt),
+      ).toEqual([1, 2]);
+      expect(world.costCount()).toBe(1);
     });
   });
 });

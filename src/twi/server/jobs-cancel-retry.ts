@@ -101,10 +101,27 @@ export async function cancelJob(jobId: string, deps: JobDeps): Promise<Response>
  * it reads the job's provider calls (`twi_provider_calls`, written by the orchestrator BEFORE
  * each billable call) and refuses while any of them has a charge that is not known to be
  * absent and that no human has resolved through `resolveProviderCall`. `abandoned` rows and
- * resolved rows do not block. NO rows at all does not block either -- and that is sound ONLY
- * because the claim row precedes the call, so absence means "no call was recorded" and never
- * "not charged". The refusal comes BEFORE the attempt ordinal is computed and BEFORE any write,
- * so a refused retry leaves no `retrying` event and dispatches nothing.
+ * resolved rows do not block. The refusal comes BEFORE the attempt ordinal is computed and
+ * BEFORE any write, so a refused retry leaves no `retrying` event and dispatches nothing.
+ *
+ * NO ROWS AT ALL does not block, and the exact reach of that argument matters. The claim row
+ * precedes the CALL, so an absent row means no call was ever RECORDED and never "not charged" --
+ * that much is sound, and it is what keeps the gate free on a job that failed before `generate-A`
+ * ran. What the claim row does NOT precede is the DISPATCH. Between this route asking the
+ * orchestrator to start attempt N and the ledger's first row for attempt N there is a window in
+ * which absence means "not claimed YET": if that dispatch reports failure (a lost answer, a 5xx
+ * from the binding) `failDispatch` moves the job to `error` while a live Workflow instance may
+ * still be running, and the next retry allocates attempt N+1 -- a DISTINCT instance id -- and
+ * passes this gate on an empty ledger. Both instances then claim and pay.
+ *
+ * That window is measured, not theoretical: "THE ABSENCE WINDOW" in
+ * src/twi/server/jobs-lifecycle.test.ts drives two `/start` dispatches out of one job and pins
+ * the behaviour. It is not closed here because both ways of closing it contradict behaviour this
+ * project deliberately chose and tested: refusing while an earlier attempt's instance is
+ * non-terminal contradicts "a higher attempt creates a distinct instance"
+ * (twi-orchestrator/test/workflow.test.ts), and holding a failed dispatch in `retrying` instead
+ * of `error` contradicts `failDispatch`'s own documented queued-then-failed path. Which to take
+ * is a spec decision, recorded in the fix round's report rather than made here.
  *
  * `cancelJob` above is deliberately out of scope for the gate: a cancel stops spending, it
  * cannot start any.

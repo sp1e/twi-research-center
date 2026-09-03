@@ -591,7 +591,20 @@ describe('TWI render Workflow', () => {
     }
   });
 
-  it('refuses to call the provider again when its claim row already exists, and leaves that row as it found it', async () => {
+  /*
+   * WHAT THIS TEST CAN AND CANNOT SEE. It proves the CONSEQUENCES of the refusal: no R2 object,
+   * no cost row, no asset, the planted claim row byte-for-byte as planted, and the job still
+   * `generating`. It does NOT prove the ORDER -- the fake provider is a pure function, so this
+   * suite has no way to observe whether `generate()` was invoked. Moving the claim to AFTER the
+   * provider call leaves every assertion below true (the call is made, the claim then reports
+   * already-claimed, the step throws, and the R2 put -- which comes after the settlement -- never
+   * runs), and it leaves this whole file green: measured as mutant PCS-06.
+   *
+   * The order is proven by src/generate-step.test.ts, which records the call sequence against the
+   * real ledger, and pinned in the call graph by contract-check section 16
+   * ('inside runGenerateStep the claim is written BEFORE the provider is called').
+   */
+  it('leaves no artifact, no cost row and the planted claim row untouched when the identity is already claimed', async () => {
     const payload = await seedJob();
     // What a crashed earlier execution of generate-A leaves behind: the claim, unsettled.
     await env.DB.prepare(
