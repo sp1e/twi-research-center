@@ -28,6 +28,16 @@ Five groups:
   PCS-16/17      THE THREE CONSUMERS THAT HARD-CODE THE MIGRATION SET. Migration 002 dropped from
                  the repository harness (a repository test must go red) and from the orchestrator's
                  vitest config (the integration suite must go red).
+  PCS-21 to 26   ADDED IN FIX ROUND 1, five of them because a verifier's own hand mutant SURVIVED
+                 this harness's first campaign and one because the round added a guard. PCS-21 is
+                 the worst of them: the step READ the settlement outcome without comparing it, so
+                 narrowing the comparison left 184/184 green while paid audio was published against
+                 a row saying the money was never spent. PCS-22 is the adapter's 4xx catch-all
+                 answering charged:false for a 408 or a 499 -- the one verdict that lets a retry
+                 buy a second render with no human consulted. PCS-23 is the half of resolve's WHERE
+                 clause its sibling state guard was hiding. PCS-24/25 are the schema's two
+                 whitespace/laundering holes, and PCS-26 widens the partial index, which no
+                 EXPLAIN QUERY PLAN assertion can see -- only the pinned index text can.
 
     python docs/superpowers/mutants/harnesses/provider_call_state_mutants.py
 
@@ -59,6 +69,7 @@ HARNESS = ROOT / "src" / "twi" / "server" / "repository.harness.ts"
 STEP = PKG / "src" / "generate-step.ts"
 WORKFLOW = PKG / "src" / "workflow.ts"
 VITEST_CONFIG = PKG / "vitest.config.ts"
+LYRIA = PKG / "src" / "providers" / "lyria.ts"
 
 SCHEMA = "npm run test:twi:schema"
 SERVER = "npx vitest run --config vitest.twi.config.ts src/twi/server"
@@ -76,14 +87,43 @@ STATE_CERTAINTY_CHECK = (
     + "    OR (state = 'abandoned' AND charge_certainty = 'not_charged')" + NL
     + "  )," + NL
 )
+TRIMMED_REQUEST_ID = (
+    "      AND length(trim(provider_request_id, ' ' || char(9) || char(10) || char(13))) > 0" + NL
+)
+UNTRIMMED_REQUEST_ID = (
+    "      AND length(provider_request_id) > 0" + NL
+)
 REQUEST_ID_CHECK = (
     "  CONSTRAINT twi_provider_calls_completed_has_request_id CHECK (" + NL
     + "    state <> 'completed'" + NL
     + "    OR (" + NL
     + "      typeof(provider_request_id) = 'text'" + NL
-    + "      AND length(provider_request_id) > 0" + NL
+    + TRIMMED_REQUEST_ID
     + "    )" + NL
     + "  )," + NL
+)
+ABANDONED_CHECK = (
+    "  CONSTRAINT twi_provider_calls_abandoned_has_no_request_id CHECK (" + NL
+    + "    state <> 'abandoned' OR provider_request_id IS NULL" + NL
+    + "  )," + NL
+)
+UNRESOLVED_INDEX_PREDICATE = (
+    "  WHERE charge_certainty <> 'not_charged' AND resolved_at IS NULL;" + NL
+)
+SETTLEMENT_OUTCOME_GUARD = "  if (settled.outcome !== 'settled') {" + NL
+SETTLEMENT_OUTCOME_NARROWED = "  if (settled.outcome === 'not-claimed') {" + NL
+RESOLVE_GUARD = (
+    "       WHERE job_id = ? AND attempt = ? AND label = ? AND state = ? AND resolved_at IS NULL`," + NL
+)
+RESOLVE_GUARD_NARROWED = (
+    "       WHERE job_id = ? AND attempt = ? AND label = ? AND state = ?`," + NL
+)
+HTTP_CATCH_ALL = (
+    "  return new ProviderError('provider_unavailable', 'the provider did not answer this request conclusively', null);" + NL
+)
+HTTP_CATCH_ALL_NOT_CHARGED = (
+    "  return new ProviderError('provider_rejected', 'the provider rejected this request', false);" + NL
+    + "  // the pre-P0 catch-all: every status below 500 declared unpaid" + NL
 )
 CLAIM_THEN_CALL = (
     "  const claim = await store.claimProviderCall({" + NL
@@ -268,6 +308,21 @@ M = [
     ("PCS-19", "completed-needs-request-id CHECK deleted", MIGRATION, REQUEST_ID_CHECK, "", [SCHEMA]),
     ("PCS-20", "settlement moved after the R2 put", STEP,
      SETTLE_BLOCK + KEYS_BLOCK + PUT_BLOCK, KEYS_BLOCK + PUT_BLOCK + SETTLE_BLOCK, [ORCHESTRATOR, CONTRACTS]),
+    # --- fix round 1. Each of the five below is a guard a verifier's own hand mutant SURVIVED, or
+    # --- a guard added in that round; PCS-21 and PCS-23 are the two survivors, reproduced here so
+    # --- the committed harness measures them from now on.
+    ("PCS-21", "the settlement outcome is read but not compared: 'already-settled' publishes anyway", STEP,
+     SETTLEMENT_OUTCOME_GUARD, SETTLEMENT_OUTCOME_NARROWED, [ORCHESTRATOR, CONTRACTS]),
+    ("PCS-22", "the 4xx catch-all reports every unrecognised status as PROVEN not charged", LYRIA,
+     HTTP_CATCH_ALL, HTTP_CATCH_ALL_NOT_CHARGED, [ORCHESTRATOR]),
+    ("PCS-23", "resolve's resolved_at IS NULL guard dropped: a landed resolution can be overwritten", QUERIES,
+     RESOLVE_GUARD, RESOLVE_GUARD_NARROWED, [SERVER]),
+    ("PCS-24", "the completed-request-id CHECK stops trimming: a whitespace request id is admitted", MIGRATION,
+     TRIMMED_REQUEST_ID, UNTRIMMED_REQUEST_ID, [SCHEMA]),
+    ("PCS-25", "the abandoned-has-no-request-id CHECK deleted: a charged row can be laundered in one UPDATE", MIGRATION,
+     ABANDONED_CHECK, "", [SCHEMA]),
+    ("PCS-26", "the unresolved partial index predicate WIDENED, which no plan assertion can see", MIGRATION,
+     UNRESOLVED_INDEX_PREDICATE, "  WHERE resolved_at IS NULL;" + NL, [SCHEMA]),
 ]
 
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")

@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.12.0",
+  "manifestVersion": "1.13.0",
   "recordedAt": "2026-08-19",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -115,9 +115,18 @@
       "round": "provider-call-state",
       "at": "feat/twi-ambiguous-paid-call-state, base 119ea66, tip cd87b87",
       "what": "Added the provider-call-state set, PCS-01 to PCS-20 (20 entries). Total entries 267 -> 287, COUNTED from the sets in this file rather than carried forward: the v1.11.0 note says 233, but the publication-guards (20) and modal-finishing (14) sets landed after it without a revision entry, so 233 was already stale. No entry retired, no id reused, no existing entry edited, no killedBy weakened. Every find/replace pair is read out of the committed harness by the script that wrote this set, so the manifest and the harness cannot disagree about a mutation's text.",
-      "why": "The research file's P0 row (docs/superpowers/research/report-source.md line 27) and its acceptance criterion at line 192, 'Ambiguous paid calls cannot be blindly repeated', measured at 119ea66 as: the generate step's FIRST statement was the billable call with nothing in D1 before it, the provider cost row was written only after BOTH calls returned, ProviderError.charged died with the isolate, retryJob consulted nothing about prior provider calls, and a retried Workflow re-runs both generate steps. The fix is a table written BEFORE the call (twi_provider_calls), a step body whose order is claim -> pay -> settle, a retry gate, and a reconciliation primitive; each is a guard the happy path never exercises, which is the shape of coverage this manifest exists to keep honest.",
+      "why": "CITATION CORRECTED in fix round 1: the two quotes are in docs/superpowers/TWI-AUDIO-AI-DEEP-RESEARCH-2026-08-30.md, not in report-source.md, which has only 95 lines. The P0 row is that file's line 27 ('Model not_submitted -> submitting -> accepted/completed plus ambiguous; persist request ID and charge certainty. Never auto-retry ambiguous paid timeouts without provider idempotency/reconciliation.') and the acceptance criterion its line 192 ('Ambiguous paid calls cannot be blindly repeated'). The matching caveat in docs/superpowers/research/report-source.md is CF-2 at line 45 ('Never blindly retry an ambiguous paid call. Persist submission claim/request ID and charged: null; reconcile.'). Measured at 119ea66 as: the generate step's FIRST statement was the billable call with nothing in D1 before it, the provider cost row was written only after BOTH calls returned, ProviderError.charged died with the isolate, retryJob consulted nothing about prior provider calls, and a retried Workflow re-runs both generate steps. The fix is a table written BEFORE the call (twi_provider_calls), a step body whose order is claim -> pay -> settle, a retry gate, and a reconciliation primitive; each is a guard the happy path never exercises, which is the shape of coverage this manifest exists to keep honest.",
       "scopeNote": "20/20 killed was measured per mutant against the suite named for it in the harness, at the sizes on this branch (test:twi:schema 49, test:twi 572 in 25 files, test:twi:orchestrator 184 in 10 files, test:twi:contracts 129), and must not be added to any earlier round's score. Three mutants were run against TWO commands and the record says which killed: PCS-14 survived npm test --prefix twi-orchestrator (184/184 green) and died only in npm run test:twi:contracts -- the measured proof that section 16 pins the call and no test does; PCS-15 and PCS-20 died in both.",
       "notClosedHere": "resolveProviderCall is the reconciliation primitive the P0 requires and is proved through the repository in both directions, but no HTTP route, script or operator surface calls it yet, and nothing runs countUnreconciledProviderCalls against the deployed database. Building either is new authenticated surface and did not belong in this round. Recorded so the seam is not read as an operator tool."
+    },
+    {
+      "version": "1.13.0",
+      "round": "provider-call-state fix round 1",
+      "at": "feat/twi-ambiguous-paid-call-state, base 586eabc",
+      "what": "Added PCS-21 to PCS-26 (6 entries) to the provider-call-state set, taking it 20 -> 26 live and total entries 287 -> 293, COUNTED from the sets in this file. No entry retired, no id reused, no killedBy weakened. TWELVE existing killedBy records had their `file` corrected and two their `test`, because fix round 1 split three test files at the 800-line ceiling (the twelve ledger tests and three statement-shape tests into src/twi/server/repository-provider-calls.test.ts, migration 002 raw-SQL tests into scripts/twi-schema-provider-calls.test.mjs) and renamed two tests that claimed more than they proved. Every corrected value was read out of the harness re-run, not retyped, and each was checked to exist in the file it now names. Every find/replace pair for the six new entries is imported from the committed harness by the script that wrote them, so the manifest and the harness cannot disagree about a mutation text.",
+      "why": "Three independent verifier lenses attacked the provider-call-state round. Five of their hand mutants BEAT the committed harness -- VM-06 (the step read the settlement outcome without comparing it, so paid audio published against a not_charged row while 184/184 stayed green), VM-02 (resolve resolved_at IS NULL guard, hidden by its sibling state guard), V-01b (the partial index predicate widened, invisible to every EXPLAIN QUERY PLAN assertion), and two schema holes a lens reached with raw SQL (a whitespace request id, and a completed/charged row laundered to not_charged in ONE update while still carrying the request id). A harness that scores 20/20 against guards nobody attacked from outside is measuring its own imagination, which is why each of the five is now an entry here.",
+      "scopeNote": "26/26 killed was measured per mutant against the suite named for it in the harness, at the sizes on this branch after fix round 1 (test:twi:schema 51 in two files, test:twi 575 in 26 files, test:twi:orchestrator 197 in 10 files, test:twi:contracts 131), and must not be added to any earlier round score. Four mutants are run against TWO commands and the record says which killed: PCS-14 survives npm test --prefix twi-orchestrator and dies only in npm run test:twi:contracts, while PCS-15, PCS-20 and PCS-21 die in both.",
+      "alsoRecorded": "The requirement citation on the v1.12.0 entry was WRONG and is corrected in place: the P0 row and its acceptance criterion are lines 27 and 192 of docs/superpowers/TWI-AUDIO-AI-DEEP-RESEARCH-2026-08-30.md, not of docs/superpowers/research/report-source.md, which has 95 lines. The matching caveat in report-source.md is CF-2 at line 45. Also: docs/superpowers/mutants/README.md id row now lists PUB-*, FIN-* and PCS-*, which it had never gained."
     }
   ],
 
@@ -195,23 +204,23 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "0d9043e, tree clean at measurement (measured by npm test -- --update-baselines)",
+      "measuredAt": "the working tree on top of parent commit 586eabc, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (11/11), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 572, "files": 25 },
-        "test:twi:schema": { "tests": 49 },
+        "test:twi": { "tests": 575, "files": 26 },
+        "test:twi:schema": { "tests": 51 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
-        "test:twi:contracts": { "checks": 129, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added, 80 at the Function graph pin, and 85 at Task 8 when section 14 added five for the cross-package start envelope — read independently out of src/twi/server/jobs.ts and twi-orchestrator/src/index.ts with the TypeScript compiler, so the two sides cannot agree merely by sharing a constant. and 94 after the Task 8 publication-guard round, when section 15 added nine asserting that the extracted guards are still INVOKED — a unit test proves a predicate, only the call graph proves the call. 109 -> 129 at the provider-call-state round (research P0), all in section 16: the generate step still calls runGenerateStep, the claim/pay/settle order inside it, the retry gate's position, and the three consumers naming migration 002. ONE name changed in place because it embeds the walked module count (23 -> 26: the route's graph now reaches provider-call-types.ts through jobs-cancel-retry.ts, and provider-calls.ts plus queries-provider-calls.ts through repository.ts), the same way the M7 split recorded 22 -> 23. Zero check names have ever been removed." },
+        "test:twi:contracts": { "checks": 131, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added, 80 at the Function graph pin, and 85 at Task 8 when section 14 added five for the cross-package start envelope — read independently out of src/twi/server/jobs.ts and twi-orchestrator/src/index.ts with the TypeScript compiler, so the two sides cannot agree merely by sharing a constant. and 94 after the Task 8 publication-guard round, when section 15 added nine asserting that the extracted guards are still INVOKED — a unit test proves a predicate, only the call graph proves the call. 109 -> 129 at the provider-call-state round (research P0), all in section 16: the generate step still calls runGenerateStep, the claim/pay/settle order inside it, the retry gate's position, and the three consumers naming migration 002. ONE name changed in place because it embeds the walked module count (23 -> 26: the route's graph now reaches provider-call-types.ts through jobs-cancel-retry.ts, and provider-calls.ts plus queries-provider-calls.ts through repository.ts), the same way the M7 split recorded 22 -> 23. Zero check names have ever been removed." },
         "test:stems:finish": { "checks": 21, "note": "NEW at Task 10. The `ok <name>` lines stems-gpu/test_finish.py prints, counted the same way the contract checks are. It covers the pure finishing helpers: the output-prefix validator, the three ffmpeg command builders, the loudnorm report parser and the manifest gate. Gated because this Python was otherwise unreachable from `npm test`, and an unrun validator is indistinguishable from an absent one. stems-gpu/test_registry.py remains ungated, a pre-existing gap not bundled into this change." },
         "test:migrations": { "tests": 10 },
         "test:twi:orchestrator:guard": { "tests": 14, "note": "NEW at Task 8. Drives scripts/twi-orchestrator-suite.mjs's preconditions through an INJECTED file system, so it asserts what the guard REFUSES rather than what the running machine happens to have installed — without injection it would pass while returning the empty array unconditionally. It runs immediately BEFORE test:twi:orchestrator for the same reason test:twi:structure precedes test:twi:contracts: the guard decides whether the suite it protects means anything." },
-        "test:twi:orchestrator": { "tests": 184, "files": 10, "note": "NEW at Task 8, grown at Task 9. The twi-orchestrator sub-package: wav including the chunk-walking header reader (11), the deterministic fake provider (1), the official Lyria adapter and its failure taxonomy (17), provider selection and the do-not-pay-twice retry rule (13), the publication guards extracted after a campaign found NINE of twelve mutants surviving the integration suite (30), and the Workflow integration suite (8) driven against REAL Workflow, D1 and R2 through @cloudflare/vitest-plugin rather than doubles. Its toolchain (wrangler 4, workers-types 5, vitest 4) is deliberately not the root's, so a missing nested install would make it vacuous — which is what the guard above refuses." },
+        "test:twi:orchestrator": { "tests": 197, "files": 10, "note": "NEW at Task 8, grown at Task 9. The twi-orchestrator sub-package: wav including the chunk-walking header reader (11), the deterministic fake provider (1), the official Lyria adapter and its failure taxonomy (17), provider selection and the do-not-pay-twice retry rule (13), the publication guards extracted after a campaign found NINE of twelve mutants surviving the integration suite (30), and the Workflow integration suite (8) driven against REAL Workflow, D1 and R2 through @cloudflare/vitest-plugin rather than doubles. Its toolchain (wrangler 4, workers-types 5, vitest 4) is deliberately not the root's, so a missing nested install would make it vacuous — which is what the guard above refuses." },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "1166 tests plus 158 script checks",
+      "totals": "1184 tests plus 160 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 208-entry set against any single commit (the figure read 138 while the manifest was v1.4.0 and was not revised as the set grew; corrected in v1.8.0, and corrected again to 208 when the two concurrent v1.8.0 rounds merged — the two sides carried 181 and 203, each true against its own base of 176, and 208 is the union COUNTED from the resolved entries). This block records the suite the mutants would be measured against, not a score."
@@ -11056,20 +11065,22 @@
         "src/twi/server/repository.harness.ts",
         "twi-migration-002-provider-call-state.sql",
         "twi-orchestrator/src/generate-step.ts",
+        "twi-orchestrator/src/providers/lyria.ts",
         "twi-orchestrator/src/workflow.ts",
         "twi-orchestrator/vitest.config.ts"
       ],
       "testCommand": "per mutant, named in the harness: npm run test:twi:schema | npx vitest run --config vitest.twi.config.ts src/twi/server | npm test --prefix twi-orchestrator | npm run test:twi:contracts",
       "fullSuiteCommand": "npm test",
       "harness": "docs/superpowers/mutants/harnesses/provider_call_state_mutants.py",
-      "historicalNumbering": "PCS-01 to PCS-20, first round for this set. No prior labels, no collisions.",
-      "liveCount": 20,
+      "historicalNumbering": "PCS-01 to PCS-20 at the provider-call-state round, PCS-21 to PCS-26 added in fix round 1. No prior labels, no collisions, no id reused.",
+      "liveCount": 26,
       "retiredCount": 0,
       "provenanceRounds": [
-        "provider-call-state, 2026-09-02, on branch feat/twi-ambiguous-paid-call-state at cd87b87"
+        "provider-call-state, 2026-09-02, on branch feat/twi-ambiguous-paid-call-state at cd87b87",
+        "provider-call-state fix round 1, 2026-09-03, on branch feat/twi-ambiguous-paid-call-state (base 586eabc) -- PCS-21 to PCS-26 added, all 26 re-measured in one campaign"
       ],
-      "result": "20 of 20 KILLED, measured by the committed harness. Every mutation was verified to have LANDED (sha256 compared before any suite ran) and restored byte-identically afterwards, and the killing test names were extracted from each runner's own output rather than retyped. PCS-14 survived every test suite and died ONLY in the contract check, by design: it is the measurement that section 16 pins the CALL and not the predicate.",
-      "whatThisSetIsFor": "The research P0 -- model not_submitted -> submitting -> accepted/completed plus ambiguous, persist the request id and the charge certainty, never auto-retry an ambiguous paid call -- landed as a D1 table written BEFORE the billable call, a step body whose order is claim -> pay -> settle, a retry gate that reads the ledger, and a human reconciliation primitive. Every one of those guards fires only on state the happy path never produces: a re-executed step body, a provider that failed with an unknown charge, a retry pressed after a paid attempt, a console writing an illegal pair. That is the exact shape that let nine of twelve publication mutants survive a green suite once before, so each guard here has a mutant that removes or weakens it and a named test that notices.",
+      "result": "26 of 26 KILLED, measured by the committed harness in one campaign at fix round 1 (TOTAL 26 KILLED 26 PROBLEMS 0, exit 0). Every mutation was verified to have LANDED (sha256 compared before any suite ran) and restored byte-identically afterwards, and the killing test names were extracted from each runner own output rather than retyped. PCS-14 survived every test suite and died ONLY in the contract check, by design: it is the measurement that section 16 pins the CALL and not the predicate. PCS-21 needs BOTH a suite and the contract check for the same reason -- the suite proves the refusal, the contract check proves the comparison is still there to make it. FIVE of the six entries added in fix round 1 are guards a verifier hand mutant SURVIVED in the first campaign (PCS-21 = VM-06, PCS-23 = VM-02, PCS-26 = V-01b) or guards that round added because of one (PCS-22, PCS-24, PCS-25), so this set now measures what the first campaign could not see.",
+      "whatThisSetIsFor": "The research P0 -- model not_submitted -> submitting -> accepted/completed plus ambiguous, persist the request id and the charge certainty, never auto-retry an ambiguous paid call -- landed as a D1 table written BEFORE the billable call, a step body whose order is claim -> pay -> settle, a retry gate that reads the ledger, and a human reconciliation primitive. Every one of those guards fires only on state the happy path never produces: a re-executed step body, a provider that failed with an unknown charge, a retry pressed after a paid attempt, a console writing an illegal pair. That is the exact shape that let nine of twelve publication mutants survive a green suite once before, so each guard here has a mutant that removes or weakens it and a named test that notices. Fix round 1 added the second lesson: three of the guards this set was built to protect had no mutant at all, and independent verifiers found them by hand. A guard with a test is not the same as a guard with a mutant, and only the mutant tells you the test would notice.",
       "supersedes": "Nothing. This set adds behaviour that did not exist at 119ea66; no earlier entry is retired by it.",
       "mutants": [
         {
@@ -11092,7 +11103,7 @@
           "killedBy": [
             {
               "suite": "test:twi:schema",
-              "file": "scripts/twi-schema-behavior.test.mjs",
+              "file": "scripts/twi-schema-provider-calls.test.mjs",
               "test": "provider-call state and charge certainty are paired by the table, and every other pairing is refused",
               "measured": true
             }
@@ -11119,7 +11130,7 @@
           "killedBy": [
             {
               "suite": "test:twi:schema",
-              "file": "scripts/twi-schema-behavior.test.mjs",
+              "file": "scripts/twi-schema-provider-calls.test.mjs",
               "test": "provider-call state and charge certainty are paired by the table, and every other pairing is refused",
               "measured": true
             }
@@ -11146,25 +11157,25 @@
           "killedBy": [
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "claims a provider call with ON CONFLICT DO NOTHING on its identity, binding state and certainty from the one map",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "claims a submitting row with an unknown charge, and a second claim of the same identity is refused without touching it",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "yields exactly one `claimed` when two claims of one identity race",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "reports every ledger write through the event sink with its outcome",
               "measured": true
             },
@@ -11197,19 +11208,19 @@
           "killedBy": [
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "claims a submitting row with an unknown charge, and a second claim of the same identity is refused without touching it",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "yields exactly one `claimed` when two claims of one identity race",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "reports every ledger write through the event sink with its outcome",
               "measured": true
             },
@@ -11249,7 +11260,7 @@
             {
               "suite": "test:twi:orchestrator",
               "file": "twi-orchestrator/test/workflow.test.ts",
-              "test": "refuses to call the provider again when its claim row already exists, and leaves that row as it found it",
+              "test": "leaves no artifact, no cost row and the planted claim row untouched when the identity is already claimed",
               "measured": true
             }
           ],
@@ -11398,19 +11409,19 @@
           "killedBy": [
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "settles through a guarded UPDATE that matches only a submitting row",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "settles a row once: every later settlement is already-settled and leaves the row exactly as it was",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "reports every ledger write through the event sink with its outcome",
               "measured": true
             },
@@ -11596,13 +11607,13 @@
           "killedBy": [
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "refuses malformed provider-call inputs before anything is bound",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "acknowledges a known charge without rewriting it, refuses a blank note, and resolves only once",
               "measured": true
             }
@@ -11629,13 +11640,13 @@
           "killedBy": [
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "resolves an unknown charge only when told what it became, and fills settled_at for a row that never settled",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "counts the unreconciled calls estate-wide, and agrees with the TypeScript predicate the retry gate uses",
               "measured": true
             }
@@ -11700,7 +11711,7 @@
             {
               "suite": "test:twi:orchestrator",
               "file": "twi-orchestrator/test/workflow.test.ts",
-              "test": "refuses to call the provider again when its claim row already exists, and leaves that row as it found it",
+              "test": "leaves no artifact, no cost row and the planted claim row untouched when the identity is already claimed",
               "measured": true
             },
             {
@@ -11819,73 +11830,73 @@
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "claims a submitting row with an unknown charge, and a second claim of the same identity is refused without touching it",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "yields exactly one `claimed` when two claims of one identity race",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "refuses a claim against a job that does not exist, by name rather than as a driver error",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "settles into each state with the certainty derived from the state, and completed records the request id",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "refuses to settle completed without a request id — at the boundary, and by the schema when the boundary is bypassed",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "settles a row once: every later settlement is already-settled and leaves the row exactly as it was",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "answers not-claimed, and writes nothing, when the identity was never claimed",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "resolves an unknown charge only when told what it became, and fills settled_at for a row that never settled",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "acknowledges a known charge without rewriting it, refuses a blank note, and resolves only once",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "lists a job’s calls in (attempt, label) order, and only that job’s",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "counts the unreconciled calls estate-wide, and agrees with the TypeScript predicate the retry gate uses",
               "measured": true
             },
             {
               "suite": "test:twi",
-              "file": "src/twi/server/repository-sqlite.test.ts",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
               "test": "reports every ledger write through the event sink with its outcome",
               "measured": true
             },
@@ -11964,7 +11975,7 @@
             {
               "suite": "test:twi",
               "file": "src/twi/server/jobs-lifecycle.test.ts",
-              "test": "is not blocked when no call was ever recorded — absence means \"no call\", which is sound only because the claim precedes the call",
+              "test": "is not blocked when no call was ever recorded — absence means \"no call was RECORDED\", which is sound because the claim precedes the CALL",
               "measured": true
             },
             {
@@ -12171,7 +12182,7 @@
             {
               "suite": "test:twi:orchestrator",
               "file": "twi-orchestrator/test/workflow.test.ts",
-              "test": "refuses to call the provider again when its claim row already exists, and leaves that row as it found it",
+              "test": "leaves no artifact, no cost row and the planted claim row untouched when the identity is already claimed",
               "measured": true
             },
             {
@@ -12257,7 +12268,7 @@
           "killedBy": [
             {
               "suite": "test:twi:schema",
-              "file": "scripts/twi-schema-behavior.test.mjs",
+              "file": "scripts/twi-schema-provider-calls.test.mjs",
               "test": "a completed provider call must carry its provider request id",
               "measured": true
             }
@@ -12296,6 +12307,174 @@
             }
           ],
           "note": "The request id stops being durable 'as early as possible': a crash during the put leaves a submitting row for a call that returned. The unit case with a broken settle asserts nothing reached R2, and section 16 asserts the settlement precedes files.put."
+        },
+        {
+          "id": "PCS-21",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path — paid audio published against a not_charged row",
+          "appliesAtCommit": "the provider-call-state branch tip after fix round 1 (feat/twi-ambiguous-paid-call-state)",
+          "target": {
+            "file": "twi-orchestrator/src/generate-step.ts",
+            "construct": "the settlement-outcome comparison in runGenerateStep, narrowed so 'already-settled' passes"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  if (settled.outcome !== 'settled') {\n",
+            "replace": "  if (settled.outcome === 'not-claimed') {\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/generate-step.test.ts",
+              "test": "refuses to publish paid audio when the row was resolved out from under the call: already-settled fails the step",
+              "measured": true
+            },
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-generate-step.mjs",
+              "test": "inside runGenerateStep a settlement that is not 'settled' fails the step BEFORE the R2 put (the outcome is compared against 'settled', not merely read)",
+              "measured": true
+            }
+          ],
+          "note": "THE WORST OF THE FIX-ROUND ADDITIONS, and it survived the first campaign: the money-path verifier landed this exact narrowing as VM-06 and the whole estate stayed green (184/184, 129 contract checks). With it applied the step ACCEPTS 'already-settled' after a successful paid call and publishes the audio: R2 holds paid output while the ledger row reads abandoned/not_charged with no request id, so isUnreconciledProviderCall answers false and the retry gate stops blocking. Nothing on the happy path produces that outcome -- it needs a writer that moved the row between the claim and the settlement -- so the killing test injects exactly that race against the REAL ledger. Section 16 had pinned only the ORDER (settle precedes files.put), which is why the contract check needed a second name for the COMPARISON."
+        },
+        {
+          "id": "PCS-22",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path — an unknown charge recorded as PROVEN not charged",
+          "appliesAtCommit": "the provider-call-state branch tip after fix round 1 (feat/twi-ambiguous-paid-call-state)",
+          "target": {
+            "file": "twi-orchestrator/src/providers/lyria.ts",
+            "construct": "the Lyria adapter's sub-500 catch-all, reverted to answering charged:false for every unrecognised status"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return new ProviderError('provider_unavailable', 'the provider did not answer this request conclusively', null);\n",
+            "replace": "  return new ProviderError('provider_rejected', 'the provider rejected this request', false);\n  // the pre-P0 catch-all: every status below 500 declared unpaid\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:orchestrator",
+              "file": "twi-orchestrator/src/providers/lyria.test.ts",
+              "test": "leaves an unrecognised 408 ambiguous: below 500 is not by itself proof that nothing was billed",
+              "measured": true
+            }
+          ],
+          "note": "The pre-fix-round behaviour, kept as a mutant. charged:false settles the row abandoned/not_charged, which is the ONE verdict that stops blocking a retry -- so a 408 Request Timeout, a 425 Too Early or a 499 from an intermediary answered false is enough to buy a second render with no human consulted (the money-path verifier measured exactly that: 'an abandoned row is enough to buy a second render'). Only 400/401/403/404/422 and the 429 branch may claim false now; everything else below 500 answers null, the same reasoning the 5xx branch already carried. The five pre-billing cases in the same suite are the non-vacuous control, so 'call everything ambiguous' does not pass either."
+        },
+        {
+          "id": "PCS-23",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "audit integrity — a landed reconciliation overwritten",
+          "appliesAtCommit": "the provider-call-state branch tip after fix round 1 (feat/twi-ambiguous-paid-call-state)",
+          "target": {
+            "file": "src/twi/server/queries-provider-calls.ts",
+            "construct": "the resolved_at IS NULL conjunct dropped from the resolution's guarded WHERE clause"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "       WHERE job_id = ? AND attempt = ? AND label = ? AND state = ? AND resolved_at IS NULL`,\n",
+            "replace": "       WHERE job_id = ? AND attempt = ? AND label = ? AND state = ?`,\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/repository-provider-calls.test.ts",
+              "test": "will not overwrite a resolution that landed between the read and the write, even in the same state",
+              "measured": true
+            }
+          ],
+          "note": "SURVIVED the first campaign (money-path verifier's VM-02) because its sibling `AND state = ?` hides it: every scenario where the rival resolution CHANGED the state fails on the state instead, so the row survives for the wrong reason. The killing test resolves a row whose charge is already KNOWN (accepted), where `to` must be omitted and the state therefore does not move, and injects the rival through SqliteD1.beforeNextStandaloneRun. What this guard protects is the resolution note and its timestamp, not the charge -- the verifier tried and failed to escalate it to money, and that is recorded here so the severity is not read as higher than it is."
+        },
+        {
+          "id": "PCS-24",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "schema invariant",
+          "appliesAtCommit": "the provider-call-state branch tip after fix round 1 (feat/twi-ambiguous-paid-call-state)",
+          "target": {
+            "file": "twi-migration-002-provider-call-state.sql",
+            "construct": "the completed-needs-request-id CHECK stops trimming, so a whitespace-only request id is admitted"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "      AND length(trim(provider_request_id, ' ' || char(9) || char(10) || char(13))) > 0\n",
+            "replace": "      AND length(provider_request_id) > 0\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:schema",
+              "file": "scripts/twi-schema-provider-calls.test.mjs",
+              "test": "a completed provider call must carry its provider request id",
+              "measured": true
+            }
+          ],
+          "note": "The P0 lens found that length(x) > 0 admitted a single space while the column's own comment called the value non-blank, and while the sibling resolution CHECK used trim(). The fix went further than one-argument trim(), which strips SPACES only: the character set is space, tab, LF, CR, so the schema is the STRICTER of itself and the repository boundary's JS .trim(), never the looser. A whitespace request id reconciles nothing -- it is a charge on the account with an invisible string to match it against."
+        },
+        {
+          "id": "PCS-25",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money path — a charged row laundered into not_charged",
+          "appliesAtCommit": "the provider-call-state branch tip after fix round 1 (feat/twi-ambiguous-paid-call-state)",
+          "target": {
+            "file": "twi-migration-002-provider-call-state.sql",
+            "construct": "the abandoned-has-no-request-id CHECK deleted"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  CONSTRAINT twi_provider_calls_abandoned_has_no_request_id CHECK (\n    state <> 'abandoned' OR provider_request_id IS NULL\n  ),\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:schema",
+              "file": "scripts/twi-schema-provider-calls.test.mjs",
+              "test": "an abandoned call carries no request id, so a charged row cannot be laundered into one",
+              "measured": true
+            }
+          ],
+          "note": "Added in fix round 1 because the money-path verifier showed what the state/certainty CHECK does NOT do: it constrains one row's PAIR, not a TRANSITION, so a single UPDATE moving state and charge_certainty together turned a completed/charged row into not_charged while it still carried the request id of the charge it now denied -- and the row stopped blocking a retry. 'Never charged' and 'here is the charge's id' cannot both be true. Unreachable from TypeScript (the claim writes no request id, the failure path settles abandoned with null, and a resolution to abandoned is reachable only from a charge that was UNKNOWN), so this refuses raw SQL and costs the application nothing."
+        },
+        {
+          "id": "PCS-26",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "read-path regression no plan assertion can see",
+          "appliesAtCommit": "the provider-call-state branch tip after fix round 1 (feat/twi-ambiguous-paid-call-state)",
+          "target": {
+            "file": "twi-migration-002-provider-call-state.sql",
+            "construct": "the unresolved partial index's predicate WIDENED to `WHERE resolved_at IS NULL`"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  WHERE charge_certainty <> 'not_charged' AND resolved_at IS NULL;\n",
+            "replace": "  WHERE resolved_at IS NULL;\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:schema",
+              "file": "scripts/twi-schema-provider-calls.test.mjs",
+              "test": "the partial index carries exactly the predicate the inventory query spells",
+              "measured": true
+            }
+          ],
+          "note": "SURVIVED the first campaign (migration lens's V-01b) and taught the round something about SQLite: the engine requires the index's predicate to be IMPLIED BY the query's, not spelled identically, so widening it leaves both EXPLAIN QUERY PLAN readings naming the index and both suites green -- while the index stops being the exact reconciliation inventory it is documented as. The NARROWING direction is caught by the plan assertion (the migration lens's V-16 died there). Only pinning the index's own text from sqlite_master catches this direction, which is what the killing test does."
         }
       ]
     }
