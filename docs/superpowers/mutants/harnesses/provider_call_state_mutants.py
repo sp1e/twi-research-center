@@ -6,7 +6,7 @@ has been weakened? Every guard the P0 landed as fires only on state the happy pa
 paid attempt -- which is exactly the shape that let nine of twelve publication mutants survive a
 green suite once before on this project.
 
-Five groups:
+Six groups (the sixth added in fix round 1):
 
   PCS-01/02/19   THE SCHEMA IS THE SECOND LINE OF DEFENCE. The state/certainty pairing CHECK
                  deleted, widened to admit ambiguous/not_charged, and the completed-needs-request-id

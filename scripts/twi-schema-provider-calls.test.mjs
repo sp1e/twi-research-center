@@ -18,7 +18,16 @@ import {
 /*
  * Split out of scripts/twi-schema-behavior.test.mjs, which this section had taken to 1577 lines
  * against the project's 800-line ceiling. Same `node --test` invocation (npm run test:twi:schema),
- * same fixture (scripts/lib/twi-schema-harness.mjs), same tests -- one file each.
+ * so the two files' counts add into one floor, and the same fixture
+ * (scripts/lib/twi-schema-harness.mjs), so they cannot end up with two databases that disagree.
+ *
+ * TEN of the twelve tests below moved here with their bodies untouched. The other two were added by
+ * the same fix round, because a verifier reached past the ten with raw SQL: `an abandoned call
+ * carries no request id` (a completed/charged row laundered to not_charged in ONE update, still
+ * carrying the request id of the charge it denied) and `the partial index carries exactly the
+ * predicate the inventory query spells` (widening that predicate is invisible to every EXPLAIN
+ * QUERY PLAN assertion). The whitespace cases in the request-id and resolution-note tests were
+ * added for the same reason.
  */
 
 const PROVIDER_CALL_STATES = ['submitting', 'accepted', 'completed', 'ambiguous', 'abandoned'];
