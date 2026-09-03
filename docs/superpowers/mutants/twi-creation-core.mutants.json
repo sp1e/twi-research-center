@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.13.0",
+  "manifestVersion": "1.14.0",
   "recordedAt": "2026-08-19",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -127,6 +127,15 @@
       "why": "Three independent verifier lenses attacked the provider-call-state round. Five of their hand mutants BEAT the committed harness -- VM-06 (the step read the settlement outcome without comparing it, so paid audio published against a not_charged row while 184/184 stayed green), VM-02 (resolve resolved_at IS NULL guard, hidden by its sibling state guard), V-01b (the partial index predicate widened, invisible to every EXPLAIN QUERY PLAN assertion), and two schema holes a lens reached with raw SQL (a whitespace request id, and a completed/charged row laundered to not_charged in ONE update while still carrying the request id). A harness that scores 20/20 against guards nobody attacked from outside is measuring its own imagination, which is why each of the five is now an entry here.",
       "scopeNote": "26/26 killed was measured per mutant against the suite named for it in the harness, at the sizes on this branch after fix round 1 (test:twi:schema 51 in two files, test:twi 575 in 26 files, test:twi:orchestrator 197 in 10 files, test:twi:contracts 131), and must not be added to any earlier round score. Four mutants are run against TWO commands and the record says which killed: PCS-14 survives npm test --prefix twi-orchestrator and dies only in npm run test:twi:contracts, while PCS-15, PCS-20 and PCS-21 die in both.",
       "alsoRecorded": "The requirement citation on the v1.12.0 entry was WRONG and is corrected in place: the P0 row and its acceptance criterion are lines 27 and 192 of docs/superpowers/TWI-AUDIO-AI-DEEP-RESEARCH-2026-08-30.md, not of docs/superpowers/research/report-source.md, which has 95 lines. The matching caveat in report-source.md is CF-2 at line 45. Also: docs/superpowers/mutants/README.md id row now lists PUB-*, FIN-* and PCS-*, which it had never gained."
+    },
+    {
+      "version": "1.14.0",
+      "round": "resolve-provider-call route",
+      "at": "feat/twi-resolve-provider-call-route, base 4f37961",
+      "what": "Added PCS-27 to PCS-32 (6 entries) to the provider-call-state set, taking it 26 -> 32 live and total entries 293 -> 299, COUNTED from the sets in this file. No entry retired, no id reused, no killedBy weakened. Two CHECK NAMES changed in place in scripts/lib/twi-contract-jobs.mjs because they embed counts that had been written as prose: \"all six job routes\" and \"the six job handlers ... from the two job use-case modules\" now interpolate JOB_ROUTES.length and JOB_USE_CASE_FILES.length, so neither can go stale again the way the hard-coded \"six\" just did. Zero check names were removed; the contract check went 129 -> 131.",
+      "why": "The route this round built is the operator surface the provider-call-state round left open: retryJob refuses while a provider call is unreconciled, and until now the only way to clear one was to run a repository method against the real database by hand. Every guard on it fires only on state the happy path cannot reach -- a charge that is already known, a row somebody else resolved, an attempt D1 INTEGER affinity would silently convert from a string -- which is the exact shape that has beaten this project four times. PCS-29 is the one that matters most: without it a charged call can be relabelled abandoned through the public API in one request, which sets not_charged on a call that really was paid for and unblocks a retry that pays again. The table CHECK does not refuse that transition, because the pair it produces is legal.",
+      "scopeNote": "32/32 killed was measured per mutant against the suite named for it in the harness, at the sizes on this branch (test:twi:contracts 131, test:twi grown by the 29 handler tests and 2 dispatch tests this round added). It must not be added to any earlier round score. PCS-27 is the round’s T13: it deletes the route branch, all 29 handler tests stay green because every one calls the handler directly, and only section 13 dies.",
+      "alsoRecorded": "PCS-30 reproduces a defect this round’s own first implementation had. The already-resolved short circuit sat BEFORE the charge rules, so a request asking to relabel a charged call answered 200 already-resolved: nothing was written and the caller was told its relabel had landed. The handler test caught it on its first run, the order was inverted, and the mutant keeps it from drifting back."
     }
   ],
 
@@ -204,13 +213,13 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "the working tree on top of parent commit 586eabc, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
+      "measuredAt": "the working tree on top of parent commit 4f37961, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (11/11), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 575, "files": 26 },
+        "test:twi": { "tests": 609, "files": 27 },
         "test:twi:schema": { "tests": 51 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
         "test:twi:contracts": { "checks": 131, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added, 80 at the Function graph pin, and 85 at Task 8 when section 14 added five for the cross-package start envelope — read independently out of src/twi/server/jobs.ts and twi-orchestrator/src/index.ts with the TypeScript compiler, so the two sides cannot agree merely by sharing a constant. and 94 after the Task 8 publication-guard round, when section 15 added nine asserting that the extracted guards are still INVOKED — a unit test proves a predicate, only the call graph proves the call. 109 -> 129 at the provider-call-state round (research P0), all in section 16: the generate step still calls runGenerateStep, the claim/pay/settle order inside it, the retry gate's position, and the three consumers naming migration 002. ONE name changed in place because it embeds the walked module count (23 -> 26: the route's graph now reaches provider-call-types.ts through jobs-cancel-retry.ts, and provider-calls.ts plus queries-provider-calls.ts through repository.ts), the same way the M7 split recorded 22 -> 23. Zero check names have ever been removed." },
@@ -220,7 +229,7 @@
         "test:twi:orchestrator": { "tests": 197, "files": 10, "note": "NEW at Task 8, grown at Task 9. The twi-orchestrator sub-package: wav including the chunk-walking header reader (11), the deterministic fake provider (1), the official Lyria adapter and its failure taxonomy (17), provider selection and the do-not-pay-twice retry rule (13), the publication guards extracted after a campaign found NINE of twelve mutants surviving the integration suite (30), and the Workflow integration suite (8) driven against REAL Workflow, D1 and R2 through @cloudflare/vitest-plugin rather than doubles. Its toolchain (wrangler 4, workers-types 5, vitest 4) is deliberately not the root's, so a missing nested install would make it vacuous — which is what the guard above refuses." },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "1184 tests plus 160 script checks",
+      "totals": "1218 tests plus 160 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 208-entry set against any single commit (the figure read 138 while the manifest was v1.4.0 and was not revised as the set grew; corrected in v1.8.0, and corrected again to 208 when the two concurrent v1.8.0 rounds merged — the two sides carried 181 and 203, each true against its own base of 176, and 208 is the union COUNTED from the resolved entries). This block records the suite the mutants would be measured against, not a score."
@@ -11072,8 +11081,8 @@
       "testCommand": "per mutant, named in the harness: npm run test:twi:schema | npx vitest run --config vitest.twi.config.ts src/twi/server | npm test --prefix twi-orchestrator | npm run test:twi:contracts",
       "fullSuiteCommand": "npm test",
       "harness": "docs/superpowers/mutants/harnesses/provider_call_state_mutants.py",
-      "historicalNumbering": "PCS-01 to PCS-20 at the provider-call-state round, PCS-21 to PCS-26 added in fix round 1. No prior labels, no collisions, no id reused.",
-      "liveCount": 26,
+      "historicalNumbering": "PCS-01 to PCS-20 at the provider-call-state round, PCS-21 to PCS-26 added in fix round 1, PCS-27 to PCS-32 added by the resolve-provider-call route round. No prior labels, no collisions, no id reused.",
+      "liveCount": 32,
       "retiredCount": 0,
       "provenanceRounds": [
         "provider-call-state, 2026-09-02, on branch feat/twi-ambiguous-paid-call-state at cd87b87",
@@ -12475,6 +12484,216 @@
             }
           ],
           "note": "SURVIVED the first campaign (migration lens's V-01b) and taught the round something about SQLite: the engine requires the index's predicate to be IMPLIED BY the query's, not spelled identically, so widening it leaves both EXPLAIN QUERY PLAN readings naming the index and both suites green -- while the index stops being the exact reconciliation inventory it is documented as. The NARROWING direction is caught by the plan assertion (the migration lens's V-16 died there). Only pinning the index's own text from sqlite_master catches this direction, which is what the killing test does."
+        },
+        {
+          "id": "PCS-27",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "reachability regression only the call graph can see",
+          "appliesAtCommit": "the resolve-provider-call route round (feat/twi-resolve-provider-call-route, base 4f37961)",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the resolve-provider-call branch of the route table"
+          },
+          "mutation": {
+            "kind": "delete",
+            "find": "    if (resource === 'jobs' && id && sub === 'resolve-provider-call' && segments.length === 3 && method === 'POST') {\n      return await resolveProviderCallRoute(id, request, jobs);\n    }\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-jobs.mjs",
+              "test": "all 7 job routes sit BELOW the owner gate and are awaited handlers in src/twi/server/jobs — missing branch: resource === 'jobs' && id && sub === 'resolve-provider-call' && segments.length === 3 && method === 'POST'",
+              "measured": true
+            }
+          ],
+          "note": "The route file is a route table, so the handler suite cannot see whether the table still reaches it: all 29 of its tests call the handler directly and stay green with the branch deleted. Only section 13 JOB_ROUTES walk dies. Same distinction FIN-13/FIN-14 and PUB-13 record: a unit test proves the predicate, only the call graph proves the call."
+        },
+        {
+          "id": "PCS-28",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money-path invariant",
+          "appliesAtCommit": "the resolve-provider-call route round (feat/twi-resolve-provider-call-route, base 4f37961)",
+          "target": {
+            "file": "src/twi/server/jobs-provider-calls.ts",
+            "construct": "the `to` REQUIRED clause of assertResolutionMatchesCharge, for an unknown charge"
+          },
+          "mutation": {
+            "kind": "delete",
+            "find": "  if (chargeUnknown && to === undefined) {\n    throw new HttpError(\n      409,\n      `attempt ${call.attempt} candidate ${call.label} is ${call.state}, so its charge is unknown; ` +\n        `resolving it requires to=${PROVIDER_CALL_RESOLUTIONS.join(' or to=')}`,\n      'resolution_requires_charge',\n    );\n  }\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > resolving an unknown charge > refuses without `to`: an unknown charge must become known, not merely be noted",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "server/jobs-provider-calls.test.ts > POST /api/twi/jobs/:id/resolve-provider-call > resolving an unknown charge > refuses without `to`: an unknown charge must become known, not merely be noted",
+              "measured": true
+            }
+          ],
+          "note": "Without this clause an ambiguous row can be resolved with no `to`, so charge_certainty stays unknown while resolved_at is set. The retry gate excludes resolved rows, so the row stops blocking WITHOUT the charge ever becoming known. That reaches the P0 prohibition by a different path than a blind retry, and no schema CHECK refuses it."
+        },
+        {
+          "id": "PCS-29",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "money-path invariant",
+          "appliesAtCommit": "the resolve-provider-call route round (feat/twi-resolve-provider-call-route, base 4f37961)",
+          "target": {
+            "file": "src/twi/server/jobs-provider-calls.ts",
+            "construct": "the `to` FORBIDDEN clause of assertResolutionMatchesCharge, for a known charge"
+          },
+          "mutation": {
+            "kind": "delete",
+            "find": "  if (!chargeUnknown && to !== undefined) {\n    throw new HttpError(\n      409,\n      `attempt ${call.attempt} candidate ${call.label} is ${call.state}, so its charge is already ` +\n        `${call.chargeCertainty}; a resolution acknowledges a known charge and cannot change it`,\n      'resolution_cannot_rewrite_charge',\n    );\n  }\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > acknowledging a known charge > refuses to relabel a completed call: a resolution acknowledges a charge, it does not rewrite one",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > acknowledging a known charge > refuses to relabel a accepted call: a resolution acknowledges a charge, it does not rewrite one",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > acknowledging a known charge > refuses to relabel a abandoned call: a resolution acknowledges a charge, it does not rewrite one",
+              "measured": true
+            }
+          ],
+          "note": "THE LAUNDERING REFUSAL. With it gone, accepted or completed can be relabelled abandoned through the public API in one request, setting charge_certainty to not_charged on a call that really was paid for and unblocking a retry that pays again. The table CHECK is no second line of defence here: the pair (abandoned, not_charged) is legal, so this guard is the only thing refusing the transition."
+        },
+        {
+          "id": "PCS-30",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "misreported outcome on the money path",
+          "appliesAtCommit": "the resolve-provider-call route round (feat/twi-resolve-provider-call-route, base 4f37961)",
+          "target": {
+            "file": "src/twi/server/jobs-provider-calls.ts",
+            "construct": "the order of the charge rules and the already-resolved short circuit in resolveProviderCallRoute"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  assertResolutionMatchesCharge(call, body.to);\n\n  // An already-resolved row is then reported, never rewritten: the note that landed first is\n  // the audit trail, and a repeat with no `to` is the safe retry an operator makes when a\n  // request times out.\n  if (call.resolvedAt !== null) return json({ call, outcome: 'already-resolved' }, 200);\n",
+            "replace": "  if (call.resolvedAt !== null) return json({ call, outcome: 'already-resolved' }, 200);\n\n  assertResolutionMatchesCharge(call, body.to);\n\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > idempotence > refuses a second call that tries to relabel, rather than reporting already-resolved",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "server/jobs-provider-calls.test.ts > POST /api/twi/jobs/:id/resolve-provider-call > idempotence > refuses a second call that tries to relabel, rather than reporting already-resolved",
+              "measured": true
+            }
+          ],
+          "note": "The ordering defect this round first implementation actually had, reproduced. Answering 200 already-resolved to a request that asked to relabel a charged call reports SUCCESS for a write that never happens: the ledger is safe and the caller is misinformed, so a script cannot tell a refused relabel from an applied one. The test caught it on the first run; this keeps the order from drifting back."
+        },
+        {
+          "id": "PCS-31",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "identity boundary the schema cannot enforce",
+          "appliesAtCommit": "the resolve-provider-call route round (feat/twi-resolve-provider-call-route, base 4f37961)",
+          "target": {
+            "file": "src/twi/server/jobs-provider-calls.ts",
+            "construct": "the Number.isInteger guard on attempt in parseResolveProviderCallRequest"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "!Number.isInteger(attempt)",
+            "replace": "attempt === undefined",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "/api/twi/* dispatch > the job routes > refuses a malformed resolution through the error envelope, not as a 500",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > what it refuses at the boundary, so no request reaches the repository as a 500 > refuses a non-integer attempt with 400 { attempt: 1.5, label: 'A', note: 'x' }",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > what it refuses at the boundary, so no request reaches the repository as a 500 > refuses a numeric-string attempt with 400 { attempt: '0', label: 'A', note: 'x' }",
+              "measured": true
+            }
+          ],
+          "note": "D1 stores attempt in an INTEGER column whose CHECK refuses a REAL, but INTEGER affinity converts the numeric STRING to an integer BEFORE that CHECK runs, so the schema cannot refuse it and this boundary is the only place that can. The migration lens Minor about what the CHECK really reaches is what made this worth a mutant."
+        },
+        {
+          "id": "PCS-32",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "boundary regression that turns a 400 into a 500",
+          "appliesAtCommit": "the resolve-provider-call route round (feat/twi-resolve-provider-call-route, base 4f37961)",
+          "target": {
+            "file": "src/twi/server/jobs-provider-calls.ts",
+            "construct": "the toSingleLineText normalization of the note in parseResolveProviderCallRequest"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "const note = toSingleLineText(rawNote);",
+            "replace": "const note = rawNote.trim();",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > what it refuses at the boundary, so no request reaches the repository as a 500 > refuses a note that is blank only after normalization",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "POST /api/twi/jobs/:id/resolve-provider-call > what it refuses at the boundary, so no request reaches the repository as a 500 > stores the note normalized rather than as typed",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "server/jobs-provider-calls.test.ts > POST /api/twi/jobs/:id/resolve-provider-call > what it refuses at the boundary, so no request reaches the repository as a 500 > refuses a note that is blank only after normalization",
+              "measured": true
+            }
+          ],
+          "note": "trim() leaves a note of zero-width spaces non-empty, so it passes the route, fails the repository nonblank assertion, and reaches the owner as internal_error with a correlation id: a 500 for a bad request. The same failure parseProjectName records for project names, and normalization rather than trimming is the fix in both."
         }
       ]
     }

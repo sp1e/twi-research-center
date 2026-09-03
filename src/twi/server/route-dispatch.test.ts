@@ -129,15 +129,18 @@ describe('/api/twi/* dispatch', () => {
       // this is the parametrised list that proves a route is BEHIND the gate, and a
       // route absent from it is a route nobody checked.
       ['projects/some-id/assets', { method: 'POST', origin: 'https://sp1e.se', body: imageForm() }],
-      // Task 7's six job routes, for the same reason: this list is what proves a route
-      // is BEHIND the gate. These are the ones that cost provider money, so an ungated
-      // one is not a disclosure, it is a stranger spending the owner's balance.
+      // The job routes, for the same reason: this list is what proves a route is BEHIND
+      // the gate. These are the ones that cost provider money, so an ungated one is not a
+      // disclosure, it is a stranger spending the owner's balance. `resolve-provider-call`
+      // belongs here for a sharper version of that: it is the write that makes the retry
+      // gate stop refusing, so an ungated one would let a stranger unlock a second render.
       ['jobs/estimate', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
       ['jobs', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
       ['jobs', {}],
       ['jobs/some-id', {}],
       ['jobs/some-id/cancel', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
       ['jobs/some-id/retry', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
+      ['jobs/some-id/resolve-provider-call', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
       ['unknown-resource', {}],
     ];
 
@@ -498,11 +501,64 @@ describe('/api/twi/* dispatch', () => {
       expect(orchestrator.cancels).toBe(1);
     });
 
+    /**
+     * The reconciliation route, driven through the real table rather than called directly:
+     * the handler's own suite proves its rules, and this proves the table reaches it and
+     * maps its refusal through the error envelope instead of Pages' own 500.
+     */
+    it('dispatches a provider-call resolution and answers 404 when no such call is recorded', async () => {
+      const projectId = await owningProject();
+      const submitted = await call(['jobs'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: JSON.stringify(specFor(projectId, '88888888-8888-4888-8888-888888888887')),
+      });
+      const { job } = (await submitted.json()) as { job: { id: string } };
+      // The submission above already dispatched /start, so the claim is that THIS route adds
+      // nothing — a resolution reconciles a ledger row and must never reach the orchestrator.
+      const dispatchesBefore = orchestrator.calls.length;
+
+      const resolved = await call(['jobs', job.id, 'resolve-provider-call'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: JSON.stringify({ attempt: 0, label: 'A', note: 'nothing to reconcile' }),
+      });
+
+      expect(resolved.status).toBe(404);
+      expect(await resolved.json()).toMatchObject({ code: 'provider_call_not_found' });
+      expect(orchestrator.calls).toHaveLength(dispatchesBefore);
+    });
+
+    it('refuses a malformed resolution through the error envelope, not as a 500', async () => {
+      const projectId = await owningProject();
+      const submitted = await call(['jobs'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: JSON.stringify(specFor(projectId, '88888888-8888-4888-8888-888888888886')),
+      });
+      const { job } = (await submitted.json()) as { job: { id: string } };
+
+      const refused = await call(['jobs', job.id, 'resolve-provider-call'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: JSON.stringify({ attempt: '0', label: 'A', note: 'x' }),
+      });
+
+      expect(refused.status).toBe(400);
+      expect(await refused.json()).toMatchObject({ code: 'invalid_provider_call_identity' });
+    });
+
     it.each([
       [['jobs', 'estimate', 'extra'], 'POST'],
       [['jobs', 'some-id', 'cancel', 'extra'], 'POST'],
       [['jobs', 'some-id', 'retry', 'extra'], 'POST'],
+      [['jobs', 'some-id', 'resolve-provider-call', 'extra'], 'POST'],
       [['jobs', 'some-id', 'unknown'], 'GET'],
+      [['jobs', 'some-id', 'resolve-provider-call'], 'GET'],
     ])('does not claim %s as a job route', async (route, method) => {
       const response = await call(route, {
         method,
