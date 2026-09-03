@@ -149,7 +149,15 @@ export const checkJobApi = (context, check) => {
    * That is the enumerated-versus-walked lesson from section 6 applied here: a check whose
    * corpus can silently shrink is not a check.
    */
-  const JOB_USE_CASE_FILES = ['src/twi/server/jobs.ts', 'src/twi/server/jobs-cancel-retry.ts'];
+  const JOB_USE_CASE_FILES = [
+    'src/twi/server/jobs.ts',
+    'src/twi/server/jobs-cancel-retry.ts',
+    // The reconciliation route. A third module for the reason the second one exists: it acts
+    // on a job whose money is already spent and may never create a job, a specification or a
+    // cost row. Listed here so every absence scan below reads it too — a corpus that does not
+    // grow with the code is the enumerated-versus-walked defect this file was written about.
+    'src/twi/server/jobs-provider-calls.ts',
+  ];
 
   const jobSources = JOB_USE_CASE_FILES.map((file) => [file, read(file)]);
   const missingJobModules = jobSources.filter(([, source]) => source.trim().length === 0).map(([file]) => file);
@@ -173,7 +181,7 @@ export const checkJobApi = (context, check) => {
   const referencesCanonical = canonicalStatements(references, 'job-references.ts').join('\n');
 
   check(
-    `the job use case is exactly ${JOB_USE_CASE_FILES.length} modules and section 13 reads both, so no absence assertion here can pass over a corpus that shrank${
+    `the job use case is exactly ${JOB_USE_CASE_FILES.length} modules and section 13 reads every one, so no absence assertion here can pass over a corpus that shrank${
       missingJobModules.length ? ` — MISSING: ${missingJobModules.join(', ')}` : ` (${JOB_USE_CASE_FILES.join(', ')})`
     }`,
     missingJobModules.length === 0,
@@ -209,6 +217,10 @@ export const checkJobApi = (context, check) => {
     ["resource === 'jobs' && id && !sub && method === 'GET'", 'getJob(id, repo)'],
     ["resource === 'jobs' && id && sub === 'cancel' && segments.length === 3 && method === 'POST'", 'cancelJob(id, jobs)'],
     ["resource === 'jobs' && id && sub === 'retry' && segments.length === 3 && method === 'POST'", 'retryJob(id, jobs)'],
+    [
+      "resource === 'jobs' && id && sub === 'resolve-provider-call' && segments.length === 3 && method === 'POST'",
+      'resolveProviderCallRoute(id, request, jobs)',
+    ],
   ];
 
   const routeOffenders = JOB_ROUTES.flatMap(([condition, call]) => {
@@ -220,7 +232,7 @@ export const checkJobApi = (context, check) => {
   });
 
   check(
-    `all six job routes sit BELOW the owner gate and are awaited handlers in src/twi/server/jobs${
+    `all ${JOB_ROUTES.length} job routes sit BELOW the owner gate and are awaited handlers in src/twi/server/jobs${
       routeOffenders.length ? ` — ${routeOffenders.join(' | ')}` : ''
     }`,
     routeOffenders.length === 0,
@@ -236,10 +248,12 @@ export const checkJobApi = (context, check) => {
    * exists to refuse. The route file is a route table; the use cases live in `src/twi/server`.
    */
   check(
-    'the six job handlers are imported from the two job use-case modules and nowhere else, so the route file stays a route table',
+    `the ${JOB_ROUTES.length} job handlers are imported from the ${JOB_USE_CASE_FILES.length} job use-case modules and nowhere else, so the route file stays a route table`,
     /import \{ estimateJob, getJob, listJobs, submitJob \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs'/.test(route) &&
       /import \{ cancelJob, retryJob \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs-cancel-retry'/.test(route) &&
-      (route.match(/from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs(?:-[a-z-]+)?'/g) ?? []).length === 2,
+      /import \{ resolveProviderCallRoute \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs-provider-calls'/.test(route) &&
+      (route.match(/from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs(?:-[a-z-]+)?'/g) ?? []).length ===
+        JOB_USE_CASE_FILES.length,
   );
 
   /**

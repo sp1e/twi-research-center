@@ -65,6 +65,8 @@ MIGRATION = ROOT / "twi-migration-002-provider-call-state.sql"
 QUERIES = ROOT / "src" / "twi" / "server" / "queries-provider-calls.ts"
 LEDGER = ROOT / "src" / "twi" / "server" / "provider-calls.ts"
 RETRY = ROOT / "src" / "twi" / "server" / "jobs-cancel-retry.ts"
+ROUTE_HANDLER = ROOT / "src" / "twi" / "server" / "jobs-provider-calls.ts"
+ROUTE_TABLE = ROOT / "functions" / "api" / "twi" / "[[route]].ts"
 HARNESS = ROOT / "src" / "twi" / "server" / "repository.harness.ts"
 STEP = PKG / "src" / "generate-step.ts"
 WORKFLOW = PKG / "src" / "workflow.ts"
@@ -265,6 +267,48 @@ PRE_P0_BODY = (
 )
 
 # (id, label, file, find, replace, [commands that should kill it])
+ROUTE_BRANCH = (
+    "    if (resource === 'jobs' && id && sub === 'resolve-provider-call'"
+    " && segments.length === 3 && method === 'POST') {" + NL
+    + "      return await resolveProviderCallRoute(id, request, jobs);" + NL
+    + "    }" + NL
+)
+
+REQUIRES_CHARGE_GUARD = (
+    "  if (chargeUnknown && to === undefined) {" + NL
+    + "    throw new HttpError(" + NL
+    + "      409," + NL
+    + "      `attempt ${call.attempt} candidate ${call.label} is ${call.state},"
+    " so its charge is unknown; ` +" + NL
+    + "        `resolving it requires to=${PROVIDER_CALL_RESOLUTIONS.join(' or to=')}`," + NL
+    + "      'resolution_requires_charge'," + NL
+    + "    );" + NL
+    + "  }" + NL
+)
+
+CANNOT_REWRITE_GUARD = (
+    "  if (!chargeUnknown && to !== undefined) {" + NL
+    + "    throw new HttpError(" + NL
+    + "      409," + NL
+    + "      `attempt ${call.attempt} candidate ${call.label} is ${call.state},"
+    " so its charge is already ` +" + NL
+    + "        `${call.chargeCertainty}; a resolution acknowledges a known charge"
+    " and cannot change it`," + NL
+    + "      'resolution_cannot_rewrite_charge'," + NL
+    + "    );" + NL
+    + "  }" + NL
+)
+
+CHARGE_RULES_BLOCK = "  assertResolutionMatchesCharge(call, body.to);" + NL + NL
+RESOLVED_COMMENT = (
+    "  // An already-resolved row is then reported, never rewritten: the note that landed first is" + NL
+    + "  // the audit trail, and a repeat with no `to` is the safe retry an operator makes when a" + NL
+    + "  // request times out." + NL
+)
+RESOLVED_SHORT_CIRCUIT = (
+    "  if (call.resolvedAt !== null) return json({ call, outcome: 'already-resolved' }, 200);" + NL
+)
+
 M = [
     ("PCS-01", "state/certainty pairing CHECK deleted", MIGRATION, STATE_CERTAINTY_CHECK, "", [SCHEMA]),
     ("PCS-02", "pairing CHECK widened: ambiguous may read not_charged", MIGRATION,
@@ -323,6 +367,24 @@ M = [
      ABANDONED_CHECK, "", [SCHEMA]),
     ("PCS-26", "the unresolved partial index predicate WIDENED, which no plan assertion can see", MIGRATION,
      UNRESOLVED_INDEX_PREDICATE, "  WHERE resolved_at IS NULL;" + NL, [SCHEMA]),
+    # --- the reconciliation route. Every guard below fires only on a state the happy path
+    # --- cannot reach -- a charge that is already known, a row somebody else resolved, an
+    # --- identity D1 affinity would have converted -- which is the exact shape a green
+    # --- integration suite cannot see. PCS-29 is the laundering refusal; if it survives, a
+    # --- charged call can be relabelled as never charged through the public API.
+    ("PCS-27", "the route is dropped from the table: reconciliation becomes unreachable again", ROUTE_TABLE,
+     ROUTE_BRANCH, "", [CONTRACTS]),
+    ("PCS-28", "resolving an unknown charge no longer requires `to`, so the row stays unknown", ROUTE_HANDLER,
+     REQUIRES_CHARGE_GUARD, "", [SERVER]),
+    ("PCS-29", "a KNOWN charge may be relabelled: accepted becomes abandoned on request", ROUTE_HANDLER,
+     CANNOT_REWRITE_GUARD, "", [SERVER]),
+    ("PCS-30", "the charge rules move AFTER the already-resolved short circuit, so a relabel reads as success",
+     ROUTE_HANDLER, CHARGE_RULES_BLOCK + RESOLVED_COMMENT + RESOLVED_SHORT_CIRCUIT,
+     RESOLVED_SHORT_CIRCUIT + NL + CHARGE_RULES_BLOCK, [SERVER]),
+    ("PCS-31", "the attempt identity accepts a numeric string, which D1 affinity would convert", ROUTE_HANDLER,
+     "!Number.isInteger(attempt)", "attempt === undefined", [SERVER]),
+    ("PCS-32", "the note is trimmed instead of normalized, so a zero-width note reaches the CHECK as a 500",
+     ROUTE_HANDLER, "const note = toSingleLineText(rawNote);", "const note = rawNote.trim();", [SERVER]),
 ]
 
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
