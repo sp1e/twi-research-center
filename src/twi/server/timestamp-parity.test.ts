@@ -272,8 +272,8 @@ function messageOf(call: () => void): string | null {
 // ---------------------------------------------------------------------------
 
 describe('timestamp enforcement is the same rule in the schema and at the repository boundary', () => {
-  it('the migration guards 12 timestamp columns with 2 shapes of the same rule', () => {
-    // Hardcoded on purpose. A 13th timestamp column, or a second spelling of the
+  it('the migration guards 15 timestamp columns with 2 shapes of the same rule', () => {
+    // Hardcoded on purpose. A 16th timestamp column, or a second spelling of the
     // rule, has to come here and be swept rather than sliding in unguarded.
     expect(ISO_CHECKS.map((check) => check.name)).toEqual([
       'twi_projects_deleted_at_iso',
@@ -288,6 +288,10 @@ describe('timestamp enforcement is the same rule in the schema and at the reposi
       'twi_assets_created_at_iso',
       'twi_assets_deleted_at_iso',
       'twi_cost_events_created_at_iso',
+      // Migration 002, the provider-call ledger: one NOT NULL claim time and two nullable ones.
+      'twi_provider_calls_claimed_at_iso',
+      'twi_provider_calls_settled_at_iso',
+      'twi_provider_calls_resolved_at_iso',
     ]);
 
     const shapes = new Map<string, number>();
@@ -298,11 +302,11 @@ describe('timestamp enforcement is the same rule in the schema and at the reposi
     expect([...shapes.entries()].sort((a, b) => b[1] - a[1])).toEqual([
       [
         "typeof($v) = 'text' AND $v IS strftime('%Y-%m-%dT%H:%M:%fZ', $v) AND substr($v, 12, 2) <> '24'",
-        9,
+        10,
       ],
       [
         "$v IS NULL OR ( typeof($v) = 'text' AND $v IS strftime('%Y-%m-%dT%H:%M:%fZ', $v) AND substr($v, 12, 2) <> '24' )",
-        3,
+        5,
       ],
     ]);
 
@@ -334,7 +338,7 @@ describe('timestamp enforcement is the same rule in the schema and at the reposi
     60_000,
   );
 
-  it('every one of the 12 CHECK expressions agrees with the boundary on the curated edges', () => {
+  it('every one of the 15 CHECK expressions agrees with the boundary on the curated edges', () => {
     const offenders: string[] = [];
     for (const check of ISO_CHECKS) {
       const accepts = schemaPredicate(withColumnBound(check));
@@ -410,7 +414,7 @@ const T0 = '2026-08-16T00:00:00.000Z';
 const HOUR_24 = '2026-08-16T24:00:00.000Z';
 
 /**
- * Every column the 12 CHECKs guard, reached through a real statement. The sweep
+ * Every column the 15 CHECKs guard, reached through a real statement. The sweep
  * above evaluates the expressions, which is the only way to probe 70k vectors —
  * this proves the expression form and the constraint form are the same rule, at
  * every column, by making SQLite name the constraint it rejected on.
@@ -480,6 +484,26 @@ const DML: ReadonlyArray<readonly [constraint: string, sql: string, bindings: re
      VALUES ('j-seed','c-1','provider',1.0,?)`,
     [HOUR_24],
   ],
+  // Migration 002. Three distinct identities so the canonical-shape pass below can land all three.
+  [
+    'twi_provider_calls_claimed_at_iso',
+    `INSERT INTO twi_provider_calls (job_id,attempt,label,claim_key,state,charge_certainty,provider_mode,claimed_at)
+     VALUES ('j-seed',0,'A','j-seed:0:provider-call:A','submitting','unknown','fake',?)`,
+    [HOUR_24],
+  ],
+  [
+    'twi_provider_calls_settled_at_iso',
+    `INSERT INTO twi_provider_calls (job_id,attempt,label,claim_key,state,charge_certainty,provider_mode,claimed_at,settled_at)
+     VALUES ('j-seed',0,'B','j-seed:0:provider-call:B','accepted','charged','fake',?,?)`,
+    [T0, HOUR_24],
+  ],
+  [
+    'twi_provider_calls_resolved_at_iso',
+    `INSERT INTO twi_provider_calls
+       (job_id,attempt,label,claim_key,state,charge_certainty,provider_mode,claimed_at,settled_at,resolved_at,resolution_note)
+     VALUES ('j-seed',1,'A','j-seed:1:provider-call:A','accepted','charged','fake',?,?,?,'acknowledged')`,
+    [T0, T0, HOUR_24],
+  ],
 ];
 
 describe('real INSERT and UPDATE statements reject hour 24 at every guarded column', () => {
@@ -503,7 +527,7 @@ describe('real INSERT and UPDATE statements reject hour 24 at every guarded colu
 
   afterAll(() => db.close());
 
-  it('covers the same 12 constraints the migration declares', () => {
+  it('covers the same 15 constraints the migration declares', () => {
     expect(DML.map(([constraint]) => constraint).sort()).toEqual(
       ISO_CHECKS.map((check) => check.name).sort(),
     );

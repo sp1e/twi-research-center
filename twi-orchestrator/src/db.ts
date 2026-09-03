@@ -2,6 +2,12 @@ import { generationSpecSchema, type NormalizedGenerationSpec } from '../../src/t
 import type { JobPhase, JobStatus } from '../../src/twi/domain/types';
 import { D1TwiRepository } from '../../src/twi/server/repository';
 import type {
+  ClaimProviderCallInput,
+  ClaimProviderCallResult,
+  SettleProviderCallInput,
+  SettleProviderCallResult,
+} from '../../src/twi/server/provider-call-types';
+import type {
   AppendCostInput,
   JobRecord,
   PublishCandidatesInput,
@@ -103,6 +109,19 @@ export class TwiWorkflowStore {
 
   appendProviderCost(input: AppendCostInput): Promise<void> {
     return this.repository.appendCost(input).then(() => undefined);
+  }
+
+  /**
+   * The provider-call ledger (research P0). Two writes, both owned by D1TwiRepository and merely
+   * reached through here: the claim BEFORE the billable call and the settlement immediately after.
+   * `generate-step.ts` is the only caller, and the order it calls them in is the whole point.
+   */
+  claimProviderCall(input: ClaimProviderCallInput): Promise<ClaimProviderCallResult> {
+    return this.repository.claimProviderCall(input);
+  }
+
+  settleProviderCall(input: SettleProviderCallInput): Promise<SettleProviderCallResult> {
+    return this.repository.settleProviderCall(input);
   }
 
   async assertAssetsProvisional(projectId: string, jobId: string, assetIds: string[]): Promise<void> {

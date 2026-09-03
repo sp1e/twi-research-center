@@ -1,5 +1,15 @@
 import type { AssetKind, JobPhase, JobStatus } from '../domain/types';
 
+import type {
+  ClaimProviderCallInput,
+  ClaimProviderCallResult,
+  ProviderCallRecord,
+  ResolveProviderCallInput,
+  ResolveProviderCallResult,
+  SettleProviderCallInput,
+  SettleProviderCallResult,
+} from './provider-call-types';
+
 export type ProjectLifecycleState = 'active' | 'deleted';
 export type AssetLifecycleState = 'provisional' | 'active' | 'hidden' | 'deleted';
 export type JobKind = 'full-song' | 'finish';
@@ -336,7 +346,10 @@ export interface TwiRepositoryEvent {
     | 'transitionJob'
     | 'appendCost'
     | 'registerAsset'
-    | 'publishCandidates';
+    | 'publishCandidates'
+    | 'claimProviderCall'
+    | 'settleProviderCall'
+    | 'resolveProviderCall';
   jobId?: string;
   projectId?: string;
   outcome: string;
@@ -442,6 +455,36 @@ export interface TwiRepository {
    * the same fact.
    */
   publishCandidates(input: PublishCandidatesInput): Promise<PublishCandidatesResult>;
+  /**
+   * Writes the `submitting` row for ONE billable provider call, BEFORE the call is made.
+   *
+   * The research P0's first half: a paid call must leave a durable trace before it can be paid
+   * for, so that a re-executed step body (CF-2: an evicted isolate re-runs an incomplete step)
+   * finds its own claim and refuses to pay twice. `already-claimed` returns the existing row
+   * unchanged; the caller must then NOT call the provider.
+   */
+  claimProviderCall(input: ClaimProviderCallInput): Promise<ClaimProviderCallResult>;
+  /**
+   * Moves a claimed call out of `submitting` to `completed`, `accepted`, `ambiguous` or
+   * `abandoned`. The charge certainty is derived from the state inside the repository — no
+   * caller supplies it — and `completed` must carry the provider request id. A row settles once;
+   * `already-settled` and `not-claimed` write nothing.
+   */
+  settleProviderCall(input: SettleProviderCallInput): Promise<SettleProviderCallResult>;
+  /**
+   * The human reconciliation seam: resolves an unresolved call with a nonblank note, and — while
+   * its charge is unknown — with the state the human has established. This is the only way a
+   * `submitting` or `ambiguous` row ever stops blocking a retry. No HTTP route yet.
+   */
+  resolveProviderCall(input: ResolveProviderCallInput): Promise<ResolveProviderCallResult>;
+  /** Every provider call of one job, ordered by `(attempt, label)`. The retry gate reads this. */
+  listProviderCalls(jobId: string): Promise<ProviderCallRecord[]>;
+  /**
+   * The reconciliation inventory: how many calls, across the whole estate, have a charge that is
+   * not known to be absent and that no human has resolved. Same character as
+   * {@link countOrphanedSpecs} — read-only, estate-wide, no telemetry.
+   */
+  countUnreconciledProviderCalls(): Promise<number>;
 }
 
 export interface ProjectRow {

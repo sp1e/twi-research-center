@@ -35,6 +35,7 @@ const json = async <T>(response: Response): Promise<T> => response.json<T>();
 
 async function clearBindings(): Promise<void> {
   await env.DB.batch([
+    env.DB.prepare('DELETE FROM twi_provider_calls'),
     env.DB.prepare('DELETE FROM twi_job_events'),
     env.DB.prepare('DELETE FROM twi_cost_events'),
     env.DB.prepare('DELETE FROM twi_assets'),
@@ -540,6 +541,100 @@ describe('TWI render Workflow', () => {
     expect(assets.every(({ lifecycle_state }) => lifecycle_state === 'provisional')).toBe(true);
     expect(await queryAll(`SELECT id FROM twi_jobs WHERE status = 'complete'`)).toHaveLength(0);
     expect(await queryAll(`SELECT id FROM twi_jobs WHERE status = 'validating'`)).toHaveLength(1);
+  });
+
+  /*
+   * The provider-call ledger (research P0), against the REAL Workflow, D1 and R2. Neither test
+   * uses introspector.mockStepError: that replaces the step body and would prove nothing about
+   * what the body does. The first drives the happy path and reads the ledger back; the second
+   * plants the row a crashed earlier execution would have left and shows the re-run refusing to
+   * pay -- no provider call reached R2, no cost row, the row untouched.
+   */
+  it('records both billable calls in twi_provider_calls as completed and charged, request ids included', async () => {
+    const payload = await seedJob();
+    await using introspector = await introspectWorkflow(env.TWI_RENDER_WORKFLOW);
+    expect((await start(payload)).status).toBe(202);
+    const [instance] = await introspector.get();
+    const calls = await submittedCalls(instance!);
+    for (const label of ['A', 'B'] as const) {
+      await postCallback(callbackBody(calls[label], await finishOnFakeModal(calls[label])));
+    }
+    await instance!.waitForStatus('complete');
+
+    const ledger = await queryAll<{
+      attempt: number; label: string; claim_key: string; state: string; charge_certainty: string;
+      provider_mode: string; provider: string; model: string; provider_request_id: string;
+      claimed_at: string; settled_at: string; resolved_at: string | null;
+    }>('SELECT * FROM twi_provider_calls ORDER BY attempt, label');
+    expect(ledger).toHaveLength(2);
+    expect(ledger).toEqual(
+      ['A', 'B'].map((label) =>
+        expect.objectContaining({
+          attempt: 0,
+          label,
+          claim_key: `${JOB_ID}:0:provider-call:${label}`,
+          state: 'completed',
+          charge_certainty: 'charged',
+          provider_mode: 'fake',
+          provider: 'fake',
+          model: 'deterministic-sine-v1',
+          provider_request_id: `${payload.specSha256}-${label}`,
+          resolved_at: null,
+        }),
+      ),
+    );
+    // Both timestamps are the Workflow's event timestamp -- real, not the seed's NOW -- in the one
+    // shape the schema admits, and the settlement never precedes the claim.
+    for (const call of ledger) {
+      expect(call.claimed_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(call.settled_at >= call.claimed_at).toBe(true);
+    }
+  });
+
+  /*
+   * WHAT THIS TEST CAN AND CANNOT SEE. It proves the CONSEQUENCES of the refusal: no R2 object,
+   * no cost row, no asset, the planted claim row byte-for-byte as planted, and the job still
+   * `generating`. It does NOT prove the ORDER -- the fake provider is a pure function, so this
+   * suite has no way to observe whether `generate()` was invoked. Moving the claim to AFTER the
+   * provider call leaves every assertion below true (the call is made, the claim then reports
+   * already-claimed, the step throws, and the R2 put -- which comes after the settlement -- never
+   * runs), and it leaves this whole file green: measured as mutant PCS-06.
+   *
+   * The order is proven by src/generate-step.test.ts, which records the call sequence against the
+   * real ledger, and pinned in the call graph by contract-check section 16
+   * ('inside runGenerateStep the claim is written BEFORE the provider is called').
+   */
+  it('leaves no artifact, no cost row and the planted claim row untouched when the identity is already claimed', async () => {
+    const payload = await seedJob();
+    // What a crashed earlier execution of generate-A leaves behind: the claim, unsettled.
+    await env.DB.prepare(
+      `INSERT INTO twi_provider_calls
+         (job_id, attempt, label, claim_key, state, charge_certainty, provider_mode, detail_json, claimed_at)
+       VALUES (?, 0, 'A', ?, 'submitting', 'unknown', 'fake', '{"planted":true}', ?)`,
+    )
+      .bind(JOB_ID, `${JOB_ID}:0:provider-call:A`, '2026-08-29T11:59:00.000Z')
+      .run();
+    await using introspector = await introspectWorkflow(env.TWI_RENDER_WORKFLOW);
+
+    expect((await start(payload)).status).toBe(202);
+    const [instance] = await introspector.get();
+    await instance!.waitForStatus('errored');
+    // The local engine reports a NonRetryableError generically ("a step threw an NonRetryableError
+    // and it was not handled") rather than echoing its message, so the refusal's CODE is proven by
+    // the unit suite (generate-step.test.ts) and by the facts below; here only its KIND is visible.
+    expect((await instance!.getError()).message).toContain('NonRetryableError');
+
+    // No render was bought: nothing in R2, no cost row, B never claimed.
+    expect((await env.FILES.list()).objects.map(({ key }) => key)).toEqual([]);
+    expect(await queryAll('SELECT id FROM twi_cost_events')).toHaveLength(0);
+    expect(await queryAll('SELECT id FROM twi_assets')).toHaveLength(0);
+    const ledger = await queryAll<{ label: string; state: string; charge_certainty: string; claimed_at: string; detail_json: string }>(
+      'SELECT label, state, charge_certainty, claimed_at, detail_json FROM twi_provider_calls',
+    );
+    expect(ledger).toEqual([
+      { label: 'A', state: 'submitting', charge_certainty: 'unknown', claimed_at: '2026-08-29T11:59:00.000Z', detail_json: '{"planted":true}' },
+    ]);
+    expect(await queryAll(`SELECT id FROM twi_jobs WHERE status = 'generating'`)).toHaveLength(1);
   });
 
   it('does not register or publish a partial generation when candidate B fails', async () => {
