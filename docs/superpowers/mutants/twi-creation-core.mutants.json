@@ -1,6 +1,6 @@
 {
   "manifest": "twi-creation-core-mutants",
-  "manifestVersion": "1.14.0",
+  "manifestVersion": "1.15.0",
   "recordedAt": "2026-08-19",
   "baselineCommit": "ac034a4",
   "baselineCommitNote": "This is the commit the ANCHORS were verified against, and it does not move. It is not a statement about the current suite — see `baselines.currentAtHead`.",
@@ -136,6 +136,15 @@
       "why": "The route this round built is the operator surface the provider-call-state round left open: retryJob refuses while a provider call is unreconciled, and until now the only way to clear one was to run a repository method against the real database by hand. Every guard on it fires only on state the happy path cannot reach -- a charge that is already known, a row somebody else resolved, an attempt D1 INTEGER affinity would silently convert from a string -- which is the exact shape that has beaten this project four times. PCS-29 is the one that matters most: without it a charged call can be relabelled abandoned through the public API in one request, which sets not_charged on a call that really was paid for and unblocks a retry that pays again. The table CHECK does not refuse that transition, because the pair it produces is legal.",
       "scopeNote": "32/32 killed was measured per mutant against the suite named for it in the harness, at the sizes on this branch (test:twi:contracts 131, test:twi grown by the 29 handler tests and 2 dispatch tests this round added). It must not be added to any earlier round score. PCS-27 is the round’s T13: it deletes the route branch, all 29 handler tests stay green because every one calls the handler directly, and only section 13 dies.",
       "alsoRecorded": "PCS-30 reproduces a defect this round’s own first implementation had. The already-resolved short circuit sat BEFORE the charge rules, so a request asking to relabel a charged call answered 200 already-resolved: nothing was written and the caller was told its relabel had landed. The handler test caught it on its first run, the order was inverted, and the mutant keeps it from drifting back."
+    },
+    {
+      "version": "1.15.0",
+      "round": "provider-call ledger read",
+      "at": "feat/twi-resolve-provider-call-route, base a9cbefa",
+      "what": "Added PCS-33 to PCS-35 (3 entries) to the provider-call-state set, taking it 32 -> 35 live and total entries 299 -> 302, COUNTED from the sets in this file. No entry retired, no id reused, no killedBy weakened. Two check NAMES changed in place because they interpolate their counts and the route table grew: 7 -> 8 job routes and 7 -> 8 handlers. The check COUNT is unchanged at 131: the new branch is covered by the existing single walk over JOB_ROUTES, so the list grew without adding a check. Zero names removed.",
+      "why": "GET /api/twi/jobs/:id/provider-calls is the read half of reconciliation. Without it the resolve route is barely usable: retryJob 409 names only the FIRST blocking call, so an owner with two unreconciled candidates across two attempts discovers them one refusal at a time and never sees the ones already settled. The route derives `blocking` with isUnreconciledProviderCall, the same function the gate filters with, and PCS-34 is what keeps that sharing honest: it replaces the shared predicate with a plausible hand-written one (ambiguous and unresolved) that omits completed and accepted, so the route would report a job clear that the gate then refuses.",
+      "scopeNote": "35/35 killed was measured per mutant against the suite named for it in the harness, at the sizes on this branch (test:twi 626 in 27 files, contracts 131). It must not be added to any earlier round score. PCS-33 dies ONLY in the contract check, like PCS-27 and FIN-13 before it.",
+      "alsoRecorded": "The disclosure test for the read route greps the SERIALIZED body for credential-shaped names rather than checking the record type, so a field added to ProviderCallRecord later cannot carry a binding into a response unnoticed."
     }
   ],
 
@@ -213,13 +222,13 @@
       "closed, not the fix for it."
     ],
     "currentAtHead": {
-      "measuredAt": "the working tree on top of parent commit 4f37961, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
+      "measuredAt": "the working tree on top of parent commit 395123b, which had uncommitted changes (npm test -- --update-baselines runs BEFORE the commit these figures describe, so it can only name the parent)",
       "measuredBy": "scripts/run-tests.mjs, parsed per suite from one `npm test` run (npm test -- --update-baselines)",
       "npmTest": "ALL SUITES PASSED (11/11), exit 0",
       "suites": {
         "test:legacy": { "tests": 128, "composition": [35, 6, 1, 78, 4, 4], "note": "the six figures in `composition` are the six `node --test` processes the chain runs, in order. Beside them it runs EIGHT contract-check scripts (v1.4.0's note said six) which print 199 `ok` lines and no total of their own, so no count of theirs is recorded here; scripts/run-tests.mjs floors those 199 lines instead." },
         "test:sp1epacker": { "tests": 149, "files": 8 },
-        "test:twi": { "tests": 609, "files": 27 },
+        "test:twi": { "tests": 626, "files": 27 },
         "test:twi:schema": { "tests": 51 },
         "test:twi:structure": { "tests": 60, "note": "NEW in fix round 3. Drives scripts/lib/twi-route-structure.mjs and scripts/lib/functions-registry.mjs directly, taking this manifest's own exact-from-source find/replace pairs as its corpus. Runs immediately BEFORE test:twi:contracts on purpose: a permissive rewrite of the analysis leaves the contract check green at an unchanged check count, so the count is not a kill signal and this suite is." },
         "test:twi:contracts": { "checks": 131, "note": "26 at Task 5, 29 after fix round 1, 33 after round 2, 38 after round 3, 52 after Task 6, 78 at Task 7 (section 13, the job API) and 79 once the Function graph’s exact-pin assertion was added, 80 at the Function graph pin, and 85 at Task 8 when section 14 added five for the cross-package start envelope — read independently out of src/twi/server/jobs.ts and twi-orchestrator/src/index.ts with the TypeScript compiler, so the two sides cannot agree merely by sharing a constant. and 94 after the Task 8 publication-guard round, when section 15 added nine asserting that the extracted guards are still INVOKED — a unit test proves a predicate, only the call graph proves the call. 109 -> 129 at the provider-call-state round (research P0), all in section 16: the generate step still calls runGenerateStep, the claim/pay/settle order inside it, the retry gate's position, and the three consumers naming migration 002. ONE name changed in place because it embeds the walked module count (23 -> 26: the route's graph now reaches provider-call-types.ts through jobs-cancel-retry.ts, and provider-calls.ts plus queries-provider-calls.ts through repository.ts), the same way the M7 split recorded 22 -> 23. Zero check names have ever been removed." },
@@ -229,7 +238,7 @@
         "test:twi:orchestrator": { "tests": 197, "files": 10, "note": "NEW at Task 8, grown at Task 9. The twi-orchestrator sub-package: wav including the chunk-walking header reader (11), the deterministic fake provider (1), the official Lyria adapter and its failure taxonomy (17), provider selection and the do-not-pay-twice retry rule (13), the publication guards extracted after a campaign found NINE of twelve mutants surviving the integration suite (30), and the Workflow integration suite (8) driven against REAL Workflow, D1 and R2 through @cloudflare/vitest-plugin rather than doubles. Its toolchain (wrangler 4, workers-types 5, vitest 4) is deliberately not the root's, so a missing nested install would make it vacuous — which is what the guard above refuses." },
         "test:twi:bundle": { "checks": 8 }
       },
-      "totals": "1218 tests plus 160 script checks",
+      "totals": "1235 tests plus 160 script checks",
       "heldTrueBy": "scripts/lib/mutant-baselines.mjs, run from scripts/run-tests.mjs after the suites. It compares EVERY figure in this block against what the suites reported in that same run — per-suite `tests`/`files`/`checks`, test:legacy's `composition`, the suite roster in both directions, `npmTest`'s (N/N) and both sums in `totals` — and fails `npm test` naming the drifted figure, the recorded value and the measured one. `npm test -- --update-baselines` applies the corrections in place; it is unreachable while any count floor in scripts/run-tests.mjs is breached, so it can record growth and never a deletion. `note`, `gates` and `whatThisIsNot` are prose about intent and are not compared.",
       "gates": "typecheck:twi exit 0; typecheck:sp1epacker exit 0 (both projects); npm run build exit 0 with index-D77bP6e0.js / index-CnBvLnyW.css unchanged; git status --porcelain EMPTY after the build",
       "whatThisIsNot": "NOT a mutation measurement. No round has applied the combined 208-entry set against any single commit (the figure read 138 while the manifest was v1.4.0 and was not revised as the set grew; corrected in v1.8.0, and corrected again to 208 when the two concurrent v1.8.0 rounds merged — the two sides carried 181 and 203, each true against its own base of 176, and 208 is the union COUNTED from the resolved entries). This block records the suite the mutants would be measured against, not a score."
@@ -11081,8 +11090,8 @@
       "testCommand": "per mutant, named in the harness: npm run test:twi:schema | npx vitest run --config vitest.twi.config.ts src/twi/server | npm test --prefix twi-orchestrator | npm run test:twi:contracts",
       "fullSuiteCommand": "npm test",
       "harness": "docs/superpowers/mutants/harnesses/provider_call_state_mutants.py",
-      "historicalNumbering": "PCS-01 to PCS-20 at the provider-call-state round, PCS-21 to PCS-26 added in fix round 1, PCS-27 to PCS-32 added by the resolve-provider-call route round. No prior labels, no collisions, no id reused.",
-      "liveCount": 32,
+      "historicalNumbering": "PCS-01 to PCS-20 at the provider-call-state round, PCS-21 to PCS-26 added in fix round 1, PCS-27 to PCS-32 added by the resolve-provider-call route round, PCS-33 to PCS-35 by the ledger read round. No prior labels, no collisions, no id reused.",
+      "liveCount": 35,
       "retiredCount": 0,
       "provenanceRounds": [
         "provider-call-state, 2026-09-02, on branch feat/twi-ambiguous-paid-call-state at cd87b87",
@@ -12694,6 +12703,111 @@
             }
           ],
           "note": "trim() leaves a note of zero-width spaces non-empty, so it passes the route, fails the repository nonblank assertion, and reaches the owner as internal_error with a correlation id: a 500 for a bad request. The same failure parseProjectName records for project names, and normalization rather than trimming is the fix in both."
+        },
+        {
+          "id": "PCS-33",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "reachability regression only the call graph can see",
+          "appliesAtCommit": "the provider-call ledger read round (feat/twi-resolve-provider-call-route, base a9cbefa)",
+          "target": {
+            "file": "functions/api/twi/[[route]].ts",
+            "construct": "the provider-calls GET branch of the route table"
+          },
+          "mutation": {
+            "kind": "delete",
+            "find": "    if (resource === 'jobs' && id && sub === 'provider-calls' && segments.length === 3 && method === 'GET') {\n      return await listProviderCallsRoute(id, jobs);\n    }\n",
+            "replace": "",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi:contracts",
+              "file": "scripts/lib/twi-contract-jobs.mjs",
+              "test": "all 8 job routes sit BELOW the owner gate and are awaited handlers in src/twi/server/jobs — missing branch: resource === 'jobs' && id && sub === 'provider-calls' && segments.length === 3 && method === 'GET'",
+              "measured": true
+            }
+          ],
+          "note": "The route file is a route table, so the handler suite cannot see whether the table reaches it: all 42 tests call the handler directly and stay green with the branch gone. Only section 13 JOB_ROUTES walk dies. Third time this distinction is measured on new code (FIN-13, PCS-27, this): a unit test proves the predicate, only the call graph proves the call. The consequence if it survived is not a crash but a regression to discovery by 409: the gate names one blocking call at a time and never the settled ones."
+        },
+        {
+          "id": "PCS-34",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "predicate drift between the ledger read and the gate that spends money",
+          "appliesAtCommit": "the provider-call ledger read round (feat/twi-resolve-provider-call-route, base a9cbefa)",
+          "target": {
+            "file": "src/twi/server/jobs-provider-calls.ts",
+            "construct": "the isUnreconciledProviderCall filter in listProviderCallsRoute, shared with retryJob"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  const blocking = calls.filter(isUnreconciledProviderCall);\n",
+            "replace": "  const blocking = calls.filter((c) => c.state === 'ambiguous' && c.resolvedAt === null);\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "GET /api/twi/jobs/:id/provider-calls > agrees with the retry gate about one submitting call",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "GET /api/twi/jobs/:id/provider-calls > agrees with the retry gate about one completed call",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "GET /api/twi/jobs/:id/provider-calls > agrees with the retry gate about one accepted call",
+              "measured": true
+            }
+          ],
+          "note": "THE DRIFT THIS ROUTE IS DESIGNED AGAINST. blocking is calls.filter(isUnreconciledProviderCall), the same function retryJob filters with. The mutant replaces it with a hand-written predicate that looks right - ambiguous rows that nobody resolved - and is wrong: completed and accepted rows also block, because a retried Workflow re-runs both generate steps. With the fork in place the route reports a job as clear and the gate then refuses it, which reads to an owner as a broken retry rather than as an unreconciled charge. Killed by the fixture table that pairs the two directly."
+        },
+        {
+          "id": "PCS-35",
+          "status": "killed",
+          "expected": "killed",
+          "severity": "reported-safe flag independent of the rows beside it",
+          "appliesAtCommit": "the provider-call ledger read round (feat/twi-resolve-provider-call-route, base a9cbefa)",
+          "target": {
+            "file": "src/twi/server/jobs-provider-calls.ts",
+            "construct": "the retryBlocked field of listProviderCallsRoute, derived from blocking.length"
+          },
+          "mutation": {
+            "kind": "replace",
+            "find": "  return json({ calls, blocking, retryBlocked: blocking.length > 0 }, 200);\n",
+            "replace": "  return json({ calls, blocking, retryBlocked: false }, 200);\n",
+            "anchorUnique": true
+          },
+          "substantiation": "exact-from-source",
+          "killedBy": [
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "GET /api/twi/jobs/:id/provider-calls > agrees with the retry gate about one submitting call",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "GET /api/twi/jobs/:id/provider-calls > agrees with the retry gate about one ambiguous call",
+              "measured": true
+            },
+            {
+              "suite": "test:twi",
+              "file": "src/twi/server/jobs-provider-calls.test.ts",
+              "test": "GET /api/twi/jobs/:id/provider-calls > agrees with the retry gate about one completed call",
+              "measured": true
+            }
+          ],
+          "note": "retryBlocked hardcoded false while blocking still lists the rows. The response then contradicts itself, and a caller that reads the flag - the cheap thing to read - is told a job with an unreconciled charge is ready to retry. Same failure family as the two Criticals the money-path lens found in the round before this one: a field that signals safety while being independent of the state beside it."
         }
       ]
     }

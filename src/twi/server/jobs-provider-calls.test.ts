@@ -31,7 +31,7 @@ import { draft } from '../domain/spec.fixture';
 import { HttpError } from './http';
 import { submitJob, type JobDeps } from './jobs';
 import { retryJob } from './jobs-cancel-retry';
-import { resolveProviderCallRoute } from './jobs-provider-calls';
+import { listProviderCallsRoute, resolveProviderCallRoute } from './jobs-provider-calls';
 import {
   OWNER_PROJECT_ID,
   UNKNOWN_JOB_ID,
@@ -53,6 +53,12 @@ type Settled = 'accepted' | 'completed' | 'ambiguous' | 'abandoned';
 interface ResolveBody {
   call: ProviderCallRecord;
   outcome: string;
+}
+
+interface ListBody {
+  calls: ProviderCallRecord[];
+  blocking: ProviderCallRecord[];
+  retryBlocked: boolean;
 }
 
 let world: JobsWorld;
@@ -110,6 +116,116 @@ beforeEach(async () => {
 afterEach(() => {
   world.close();
   vi.restoreAllMocks();
+});
+
+describe('GET /api/twi/jobs/:id/provider-calls', () => {
+  const list = (jobId: string): Promise<Response> => listProviderCallsRoute(jobId, deps());
+
+  it('answers an empty ledger for a job that never reached a provider', async () => {
+    const job = await failedJob();
+
+    const body = await readJson<ListBody>(await list(job.id));
+
+    expect(body.calls).toEqual([]);
+    expect(body.blocking).toEqual([]);
+    expect(body.retryBlocked).toBe(false);
+  });
+
+  it('returns every call in (attempt, label) order, whatever order they were written in', async () => {
+    const job = await failedJob();
+    await priorCall(job, 1, 'B', 'ambiguous');
+    await priorCall(job, 0, 'B', 'abandoned');
+    await priorCall(job, 1, 'A', 'completed');
+    await priorCall(job, 0, 'A', 'completed');
+
+    const body = await readJson<ListBody>(await list(job.id));
+
+    expect(body.calls.map(({ attempt, label }) => `${attempt}${label}`)).toEqual(['0A', '0B', '1A', '1B']);
+  });
+
+  it('discloses the fields an operator needs to resolve a call, and no binding or secret', async () => {
+    const job = await failedJob();
+    await priorCall(job, 0, 'A', 'ambiguous');
+
+    const response = await list(job.id);
+    const raw = await response.text();
+    const [call] = (JSON.parse(raw) as ListBody).calls;
+
+    expect(response.status).toBe(200);
+    expect(call).toMatchObject({
+      attempt: 0,
+      label: 'A',
+      state: 'ambiguous',
+      chargeCertainty: 'unknown',
+      providerMode: 'fake',
+      resolvedAt: null,
+      resolutionNote: null,
+    });
+    expect(call?.claimedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    // The ledger carries no credential, but a route that grew one would be the place it leaked.
+    expect(raw).not.toMatch(/secret|Authorization|accessKey|TWI_ORCHESTRATOR|DB\b/i);
+  });
+
+  it('answers 404 for an unknown job rather than an empty ledger', async () => {
+    const failure = await rejection(list(UNKNOWN_JOB_ID));
+    expect(failure.status).toBe(404);
+  });
+
+  /**
+   * THE POINT OF THIS ROUTE, and the assertion that makes it worth having.
+   *
+   * `blocking` is derived with `isUnreconciledProviderCall` — the SAME function `retryJob`
+   * filters with — so what this route shows an operator cannot disagree with what the gate
+   * actually refuses. A second, independently written predicate here would be free to drift,
+   * and the drift would surface as a retry that fails for a call the UI reported as fine.
+   * So the two are paired directly: for every fixture, `retryBlocked` must equal whether
+   * `retryJob` refuses.
+   */
+  it.each([
+    ['no calls', [] as const, false],
+    ['one abandoned call', [['A', 'abandoned']] as const, false],
+    ['one submitting call', [['A', undefined]] as const, true],
+    ['one ambiguous call', [['A', 'ambiguous']] as const, true],
+    ['one completed call', [['A', 'completed']] as const, true],
+    ['one accepted call', [['A', 'accepted']] as const, true],
+    ['abandoned plus ambiguous', [['A', 'abandoned'], ['B', 'ambiguous']] as const, true],
+    ['two abandoned calls', [['A', 'abandoned'], ['B', 'abandoned']] as const, false],
+  ])('agrees with the retry gate about %s', async (_case, fixture, expectedBlocked) => {
+    const job = await failedJob();
+    for (const [label, settle] of fixture) {
+      await priorCall(job, 0, label as 'A' | 'B', settle as Settled | undefined);
+    }
+
+    const body = await readJson<ListBody>(await list(job.id));
+    expect(body.retryBlocked).toBe(expectedBlocked);
+    expect(body.blocking.length > 0).toBe(expectedBlocked);
+
+    // The oracle: whatever this route says, the gate must do.
+    if (expectedBlocked) {
+      const failure = await rejection(retryJob(job.id, deps()));
+      expect(failure.code).toBe('unreconciled_provider_call');
+      // and it must name a call this route reported as blocking, not some other one
+      expect(body.blocking.some(({ attempt, label }) => failure.message.includes(`attempt ${attempt}`) && failure.message.includes(label))).toBe(true);
+    } else {
+      expect((await readJson<{ attempt: number }>(await retryJob(job.id, deps()))).attempt).toBe(1);
+    }
+  });
+
+  it('stops reporting a call as blocking once the resolve route has cleared it', async () => {
+    const job = await failedJob();
+    await priorCall(job, 0, 'A', 'ambiguous');
+    expect((await readJson<ListBody>(await list(job.id))).retryBlocked).toBe(true);
+
+    await resolve(job.id, { attempt: 0, label: 'A', to: 'accepted', note: 'the invoice shows this charge' });
+
+    const body = await readJson<ListBody>(await list(job.id));
+    expect(body.retryBlocked).toBe(false);
+    expect(body.blocking).toEqual([]);
+    // The row is still THERE — a resolution is an acknowledgement, not a deletion.
+    expect(body.calls).toHaveLength(1);
+    expect(body.calls[0]?.state).toBe('accepted');
+    expect(body.calls[0]?.resolutionNote).toBe('the invoice shows this charge');
+  });
 });
 
 describe('POST /api/twi/jobs/:id/resolve-provider-call', () => {

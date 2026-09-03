@@ -5,6 +5,7 @@ import { clockOf, requireJob, type JobDeps } from './jobs';
 import {
   CANDIDATE_LABELS,
   PROVIDER_CALL_RESOLUTIONS,
+  isUnreconciledProviderCall,
   type ProviderCallRecord,
   type ProviderCallResolution,
 } from './provider-call-types';
@@ -155,6 +156,37 @@ const notFound = (jobId: string, attempt: number, label: CandidateLabel): HttpEr
     `job ${jobId} has no recorded provider call for attempt ${attempt} candidate ${label}`,
     'provider_call_not_found',
   );
+
+// ---------------------------------------------------------------------------
+// GET /api/twi/jobs/:id/provider-calls
+// ---------------------------------------------------------------------------
+
+/**
+ * The read half of reconciliation: what this job has spent, and what of it blocks a retry.
+ *
+ * Without it the resolve route below is barely usable. `retryJob`'s 409 names ONE blocking
+ * call — the first the predicate matches — so an owner with two unreconciled candidates
+ * across two attempts discovers them one refusal at a time, and never sees the ones that
+ * are already settled.
+ *
+ * `blocking` IS `calls` filtered by `isUnreconciledProviderCall`, the same function
+ * `retryJob` filters with, and that sharing is the whole point. A second predicate written
+ * here would be free to drift from the gate, and the drift would show up as a retry that
+ * fails for a call this route had just reported as fine. The test pairs them directly:
+ * for every fixture, `retryBlocked` must equal whether `retryJob` refuses.
+ *
+ * Read-only, and the rows carry no credential — no binding name, no key, nothing derived
+ * from `env`. A test asserts that over the serialized body rather than over the type, so a
+ * field added later cannot smuggle one in unnoticed.
+ */
+export async function listProviderCallsRoute(jobId: string, deps: JobDeps): Promise<Response> {
+  const job = await requireJob(jobId, deps.repo);
+  // Ordered (attempt, label) by the repository, so the reading order matches the order the
+  // money was spent in. Not re-sorted here: two orderings of one list is one too many.
+  const calls = await deps.repo.listProviderCalls(job.id);
+  const blocking = calls.filter(isUnreconciledProviderCall);
+  return json({ calls, blocking, retryBlocked: blocking.length > 0 }, 200);
+}
 
 // ---------------------------------------------------------------------------
 // POST /api/twi/jobs/:id/resolve-provider-call
