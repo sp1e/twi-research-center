@@ -218,6 +218,10 @@ export const checkJobApi = (context, check) => {
     ["resource === 'jobs' && id && sub === 'cancel' && segments.length === 3 && method === 'POST'", 'cancelJob(id, jobs)'],
     ["resource === 'jobs' && id && sub === 'retry' && segments.length === 3 && method === 'POST'", 'retryJob(id, jobs)'],
     [
+      "resource === 'jobs' && id && sub === 'provider-calls' && segments.length === 3 && method === 'GET'",
+      'listProviderCallsRoute(id, jobs)',
+    ],
+    [
       "resource === 'jobs' && id && sub === 'resolve-provider-call' && segments.length === 3 && method === 'POST'",
       'resolveProviderCallRoute(id, request, jobs)',
     ],
@@ -251,7 +255,7 @@ export const checkJobApi = (context, check) => {
     `the ${JOB_ROUTES.length} job handlers are imported from the ${JOB_USE_CASE_FILES.length} job use-case modules and nowhere else, so the route file stays a route table`,
     /import \{ estimateJob, getJob, listJobs, submitJob \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs'/.test(route) &&
       /import \{ cancelJob, retryJob \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs-cancel-retry'/.test(route) &&
-      /import \{ resolveProviderCallRoute \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs-provider-calls'/.test(route) &&
+      /import \{ listProviderCallsRoute, resolveProviderCallRoute \} from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs-provider-calls'/.test(route) &&
       (route.match(/from '\.\.\/\.\.\/\.\.\/src\/twi\/server\/jobs(?:-[a-z-]+)?'/g) ?? []).length ===
         JOB_USE_CASE_FILES.length,
   );

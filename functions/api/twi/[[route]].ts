@@ -115,7 +115,7 @@ import type { TwiEnv } from '../../../src/twi/server/env';
 import { assertSameOriginMutation, cors, HttpError, json } from '../../../src/twi/server/http';
 import { estimateJob, getJob, listJobs, submitJob } from '../../../src/twi/server/jobs';
 import { cancelJob, retryJob } from '../../../src/twi/server/jobs-cancel-retry';
-import { resolveProviderCallRoute } from '../../../src/twi/server/jobs-provider-calls';
+import { listProviderCallsRoute, resolveProviderCallRoute } from '../../../src/twi/server/jobs-provider-calls';
 import { createProject, getProject, listProjects } from '../../../src/twi/server/projects';
 import { D1TwiRepository } from '../../../src/twi/server/repository';
 
@@ -200,11 +200,15 @@ export const onRequest = async (ctx: TwiRouteContext): Promise<Response> => {
     if (resource === 'jobs' && id && sub === 'retry' && segments.length === 3 && method === 'POST') {
       return await retryJob(id, jobs);
     }
-    // The reconciliation seam for the retry gate above: `retryJob` refuses while a provider
-    // call's charge is unknown or unacknowledged, and this is how a human clears one. It
-    // takes the request because the identity of the call — attempt and candidate — and the
-    // note travel in the body rather than the path, which keeps this a three-segment route
-    // like its neighbours.
+    // The reconciliation seam for the retry gate above, read then write. `retryJob` refuses
+    // while a provider call's charge is unknown or unacknowledged; the GET shows which calls
+    // those are (its 409 names only the first), and the POST is how a human clears one. The
+    // POST takes the request because the identity of the call — attempt and candidate — and
+    // the note travel in the body rather than the path, which keeps both three-segment
+    // routes like their neighbours.
+    if (resource === 'jobs' && id && sub === 'provider-calls' && segments.length === 3 && method === 'GET') {
+      return await listProviderCallsRoute(id, jobs);
+    }
     if (resource === 'jobs' && id && sub === 'resolve-provider-call' && segments.length === 3 && method === 'POST') {
       return await resolveProviderCallRoute(id, request, jobs);
     }

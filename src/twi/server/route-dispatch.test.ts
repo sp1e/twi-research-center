@@ -141,6 +141,9 @@ describe('/api/twi/* dispatch', () => {
       ['jobs/some-id/cancel', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
       ['jobs/some-id/retry', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
       ['jobs/some-id/resolve-provider-call', { method: 'POST', origin: 'https://sp1e.se', body: '{}' }],
+      // The read half. Ungated it would disclose the owner's spend per candidate and which
+      // of it is unreconciled, which is a ledger, not a page.
+      ['jobs/some-id/provider-calls', {}],
       ['unknown-resource', {}],
     ];
 
@@ -531,6 +534,22 @@ describe('/api/twi/* dispatch', () => {
       expect(orchestrator.calls).toHaveLength(dispatchesBefore);
     });
 
+    it('dispatches the provider-call ledger read and reports nothing blocking a fresh job', async () => {
+      const projectId = await owningProject();
+      const submitted = await call(['jobs'], {
+        method: 'POST',
+        cookie: OWNER_COOKIE,
+        origin: 'https://sp1e.se',
+        body: JSON.stringify(specFor(projectId, '88888888-8888-4888-8888-888888888885')),
+      });
+      const { job } = (await submitted.json()) as { job: { id: string } };
+
+      const listed = await call(['jobs', job.id, 'provider-calls'], { cookie: OWNER_COOKIE });
+
+      expect(listed.status).toBe(200);
+      expect(await listed.json()).toEqual({ calls: [], blocking: [], retryBlocked: false });
+    });
+
     it('refuses a malformed resolution through the error envelope, not as a 500', async () => {
       const projectId = await owningProject();
       const submitted = await call(['jobs'], {
@@ -557,8 +576,10 @@ describe('/api/twi/* dispatch', () => {
       [['jobs', 'some-id', 'cancel', 'extra'], 'POST'],
       [['jobs', 'some-id', 'retry', 'extra'], 'POST'],
       [['jobs', 'some-id', 'resolve-provider-call', 'extra'], 'POST'],
+      [['jobs', 'some-id', 'provider-calls', 'extra'], 'GET'],
       [['jobs', 'some-id', 'unknown'], 'GET'],
       [['jobs', 'some-id', 'resolve-provider-call'], 'GET'],
+      [['jobs', 'some-id', 'provider-calls'], 'POST'],
     ])('does not claim %s as a job route', async (route, method) => {
       const response = await call(route, {
         method,

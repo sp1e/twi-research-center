@@ -308,6 +308,22 @@ RESOLVED_COMMENT = (
 RESOLVED_SHORT_CIRCUIT = (
     "  if (call.resolvedAt !== null) return json({ call, outcome: 'already-resolved' }, 200);" + NL
 )
+LIST_ROUTE_BRANCH = (
+    "    if (resource === 'jobs' && id && sub === 'provider-calls'"
+    " && segments.length === 3 && method === 'GET') {" + NL
+    + "      return await listProviderCallsRoute(id, jobs);" + NL
+    + "    }" + NL
+)
+SHARED_PREDICATE = "  const blocking = calls.filter(isUnreconciledProviderCall);" + NL
+FORKED_PREDICATE = (
+    "  const blocking = calls.filter((c) => c.state === 'ambiguous' && c.resolvedAt === null);" + NL
+)
+RETRY_BLOCKED_FLAG = (
+    "  return json({ calls, blocking, retryBlocked: blocking.length > 0 }, 200);" + NL
+)
+RETRY_BLOCKED_CONSTANT = (
+    "  return json({ calls, blocking, retryBlocked: false }, 200);" + NL
+)
 
 M = [
     ("PCS-01", "state/certainty pairing CHECK deleted", MIGRATION, STATE_CERTAINTY_CHECK, "", [SCHEMA]),
@@ -385,6 +401,15 @@ M = [
      "!Number.isInteger(attempt)", "attempt === undefined", [SERVER]),
     ("PCS-32", "the note is trimmed instead of normalized, so a zero-width note reaches the CHECK as a 500",
      ROUTE_HANDLER, "const note = toSingleLineText(rawNote);", "const note = rawNote.trim();", [SERVER]),
+    # --- the ledger READ route. PCS-34 is the one that matters: it forks the blocking predicate
+    # --- away from the one retryJob uses, which is the drift the shared function exists to
+    # --- prevent -- and the symptom would be a retry that fails for a call the UI called fine.
+    ("PCS-33", "the ledger read is dropped from the table: an owner sees blocking calls one 409 at a time",
+     ROUTE_TABLE, LIST_ROUTE_BRANCH, "", [CONTRACTS]),
+    ("PCS-34", "the blocking predicate is FORKED from the retry gate: only ambiguous rows are reported",
+     ROUTE_HANDLER, SHARED_PREDICATE, FORKED_PREDICATE, [SERVER]),
+    ("PCS-35", "retryBlocked is hardcoded false while `blocking` still lists the rows",
+     ROUTE_HANDLER, RETRY_BLOCKED_FLAG, RETRY_BLOCKED_CONSTANT, [SERVER]),
 ]
 
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
