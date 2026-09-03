@@ -22,7 +22,7 @@ import {
   publicationManifest,
   transitionFingerprint,
 } from './repository.fixtures';
-import { SqliteD1 } from './repository.harness';
+import { SqliteD1, seedProjectSpecJob } from './repository.harness';
 
 const transitionOptions = {
   fromStatus: 'queued' as const,
@@ -49,32 +49,6 @@ const estimatedJobInput = (overrides: Partial<CreateEstimatedJobInput> = {}): Cr
   now: '2026-08-16T03:00:00.000Z',
   ...overrides,
 });
-
-function seedProjectSpecJob(
-  db: SqliteD1,
-  options: { status?: string; phase?: string | null; jobId?: string; idempotencyKey?: string } = {},
-): void {
-  const jobId = options.jobId ?? 'job-1';
-  db.exec(
-    `INSERT INTO twi_projects (id, name, lifecycle_state, created_at, updated_at)
-     VALUES ('project-1', 'Night Signal', 'active', '2026-08-16T00:00:00.000Z', '2026-08-16T00:00:00.000Z')`,
-  );
-  db.exec(
-    `INSERT INTO twi_generation_specs
-       (id, project_id, spec_json, spec_sha256, rights_assertion_version, created_at)
-     VALUES ('spec-1', 'project-1', '{}', 'spec-sha', 'v1', '2026-08-16T00:00:00.000Z')`,
-  );
-  db.exec(
-    `INSERT INTO twi_jobs
-       (id, project_id, spec_id, kind, status, phase, idempotency_key, estimate_json, created_at, updated_at)
-     VALUES (?, 'project-1', 'spec-1', 'full-song', ?, ?, ?, '{}',
-             '2026-08-16T00:00:00.000Z', '2026-08-16T00:00:00.000Z')`,
-    jobId,
-    options.status ?? 'queued',
-    options.phase ?? options.status ?? 'queued',
-    options.idempotencyKey ?? 'submission-1',
-  );
-}
 
 function seedCandidateAssets(
   db: SqliteD1,
@@ -621,6 +595,7 @@ describe('D1TwiRepository SQLite integration', () => {
     expect(db.value<string>("SELECT updated_at FROM twi_jobs WHERE id = 'job-1'")).toBe('2026-08-16T06:00:00.000Z');
   });
 });
+
 
 // The harness is not the subject under test, but a broken harness would make the
 // suite above meaningless. Kept in its own block so it cannot be mistaken for

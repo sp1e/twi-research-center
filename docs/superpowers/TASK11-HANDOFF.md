@@ -216,4 +216,16 @@ atomic publication.
   `not_submitted → submitting → accepted/completed/ambiguous` with a persisted request ID and
   charge certainty. Task 9 delivered the `charged: boolean | null` semantics and
   `mustNotRetry`, but **not** the D1 state machine. Scoped out on purpose.
+  **Landed 2026-09-02 on `feat/twi-ambiguous-paid-call-state`.** The table is
+  `twi_provider_calls` (migration `twi-migration-002-provider-call-state.sql`): one row per
+  billable call, written by `runGenerateStep` BEFORE the provider is called and settled
+  immediately after, with `state` and `charge_certainty` paired by a table CHECK.
+  `not_submitted` is never stored — it is the reader's word for the absence of a row. The gate is
+  in `retryJob`: `409 unreconciled_provider_call` while any earlier call's charge is not known to
+  be absent and unresolved, refused before the attempt ordinal and before any write. The
+  reconciliation primitive is `TwiRepository.resolveProviderCall` (no HTTP route yet); the
+  inventory is `countUnreconciledProviderCalls`, exposed beside `countOrphanedSpecs`. Three
+  consumers hard-code the migration set and all three load 002: the schema suite, the repository
+  harness and the orchestrator's vitest config. Mutants: `PCS-01..PCS-20` in the manifest, harness
+  `provider_call_state_mutants.py`.
 - Simon asked for a review of his other repositories for reusable patterns. Never done.

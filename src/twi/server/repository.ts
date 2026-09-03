@@ -5,6 +5,22 @@ import { assertEnum, assertNonBlank, assertNullableNonBlank, assertTimestamp } f
 import type { D1ResultLike, TwiRepositoryEnv } from './d1-types';
 import { collision, conflict, validation } from './errors';
 import { mapJob, mapProject } from './mappers';
+import type {
+  ClaimProviderCallInput,
+  ClaimProviderCallResult,
+  ProviderCallRecord,
+  ResolveProviderCallInput,
+  ResolveProviderCallResult,
+  SettleProviderCallInput,
+  SettleProviderCallResult,
+} from './provider-call-types';
+import {
+  claimProviderCall,
+  countUnreconciledProviderCalls,
+  listProviderCalls,
+  resolveProviderCall,
+  settleProviderCall,
+} from './provider-calls';
 import {
   costStatements,
   countJobEvents,
@@ -129,6 +145,24 @@ export type {
   TwiRepositoryEventSink,
   TwiRepositoryOptions,
 } from './repository-types';
+// The provider-call ledger's vocabulary (research P0). The logic lives in ./provider-calls and
+// is reached through the D1TwiRepository methods below; the names resolve from here like the rest.
+export type {
+  ChargeCertainty,
+  ClaimProviderCallInput,
+  ClaimProviderCallOutcome,
+  ClaimProviderCallResult,
+  ProviderCallRecord,
+  ProviderCallResolution,
+  ProviderCallSettledState,
+  ProviderCallState,
+  ResolveProviderCallInput,
+  ResolveProviderCallOutcome,
+  ResolveProviderCallResult,
+  SettleProviderCallInput,
+  SettleProviderCallOutcome,
+  SettleProviderCallResult,
+} from './provider-call-types';
 // The one sanctioned way to fingerprint a spec. `saveSpec` derives the stored
 // digest with it; the submit path needs the same value before the spec exists, to
 // find a job to replay, and must not roll its own.
@@ -499,6 +533,41 @@ export class D1TwiRepository implements TwiRepository {
     const completed = await findJobById(this.env.DB, input.jobId);
     if (!completed) conflict('candidate publication readback conflict', { jobId: input.jobId });
     return this.finishPublication(completed, 'published', input, startedAt);
+  }
+
+  // -------------------------------------------------------------------------
+  // The provider-call ledger (research P0). Logic in ./provider-calls; this class
+  // adds the telemetry event, the way every other write here reports itself.
+  // -------------------------------------------------------------------------
+
+  async claimProviderCall(input: ClaimProviderCallInput): Promise<ClaimProviderCallResult> {
+    const startedAt = Date.now();
+    const result = await claimProviderCall(this.env.DB, input);
+    this.emit({ op: 'claimProviderCall', jobId: input.jobId, outcome: result.outcome, durationMs: Date.now() - startedAt });
+    return result;
+  }
+
+  async settleProviderCall(input: SettleProviderCallInput): Promise<SettleProviderCallResult> {
+    const startedAt = Date.now();
+    const result = await settleProviderCall(this.env.DB, input);
+    this.emit({ op: 'settleProviderCall', jobId: input.jobId, outcome: result.outcome, durationMs: Date.now() - startedAt });
+    return result;
+  }
+
+  async resolveProviderCall(input: ResolveProviderCallInput): Promise<ResolveProviderCallResult> {
+    const startedAt = Date.now();
+    const result = await resolveProviderCall(this.env.DB, input);
+    this.emit({ op: 'resolveProviderCall', jobId: input.jobId, outcome: result.outcome, durationMs: Date.now() - startedAt });
+    return result;
+  }
+
+  listProviderCalls(jobId: string): Promise<ProviderCallRecord[]> {
+    return listProviderCalls(this.env.DB, jobId);
+  }
+
+  /** Read-only and estate-wide, like {@link countOrphanedSpecs}: no input, no telemetry. */
+  countUnreconciledProviderCalls(): Promise<number> {
+    return countUnreconciledProviderCalls(this.env.DB);
   }
 
   // -------------------------------------------------------------------------

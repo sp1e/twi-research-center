@@ -19,9 +19,20 @@ import type { D1DatabaseLike, D1PreparedStatementLike, D1ResultLike } from './d1
 
 const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
 
-export const MIGRATION_URL = new URL('../../../twi-migration-001-creation-core.sql', import.meta.url);
+/**
+ * EVERY TWI migration, in the lexical order the runner applies them. Kept as an explicit list
+ * rather than a glob so that adding a migration is a visible edit here — and so that forgetting
+ * one is a red test (a SELECT from its table fails with "no such table") rather than a suite that
+ * quietly runs against a database missing it. Three consumers hard-code the migration set: this
+ * harness, twi-orchestrator/vitest.config.ts and scripts/twi-schema-behavior.test.mjs.
+ */
+export const MIGRATION_URLS: readonly URL[] = [
+  new URL('../../../twi-migration-001-creation-core.sql', import.meta.url),
+  new URL('../../../twi-migration-002-provider-call-state.sql', import.meta.url),
+];
 
-export const readMigrationSql = (): string => readFileSync(MIGRATION_URL, 'utf8');
+/** The whole schema as one script: every migration, concatenated in order. */
+export const readMigrationSql = (): string => MIGRATION_URLS.map((url) => readFileSync(url, 'utf8')).join('\n');
 
 export interface RecordedStatement {
   sql: string;
@@ -197,4 +208,38 @@ export class SqliteD1 implements D1DatabaseLike {
   close(): void {
     this.database.close();
   }
+}
+
+/**
+ * The one project / spec / job a repository test needs before it can write anything else.
+ *
+ * Shared by `repository-sqlite.test.ts` and `repository-provider-calls.test.ts` (split off it at
+ * the 800-line ceiling) rather than copied, so the two suites cannot seed subtly different rows
+ * and then disagree about what the schema allows. `SqliteD1.exec` binds, so nothing here is
+ * interpolated into SQL.
+ */
+export function seedProjectSpecJob(
+  db: SqliteD1,
+  options: { status?: string; phase?: string | null; jobId?: string; idempotencyKey?: string } = {},
+): void {
+  const jobId = options.jobId ?? 'job-1';
+  db.exec(
+    `INSERT INTO twi_projects (id, name, lifecycle_state, created_at, updated_at)
+     VALUES ('project-1', 'Night Signal', 'active', '2026-08-16T00:00:00.000Z', '2026-08-16T00:00:00.000Z')`,
+  );
+  db.exec(
+    `INSERT INTO twi_generation_specs
+       (id, project_id, spec_json, spec_sha256, rights_assertion_version, created_at)
+     VALUES ('spec-1', 'project-1', '{}', 'spec-sha', 'v1', '2026-08-16T00:00:00.000Z')`,
+  );
+  db.exec(
+    `INSERT INTO twi_jobs
+       (id, project_id, spec_id, kind, status, phase, idempotency_key, estimate_json, created_at, updated_at)
+     VALUES (?, 'project-1', 'spec-1', 'full-song', ?, ?, ?, '{}',
+             '2026-08-16T00:00:00.000Z', '2026-08-16T00:00:00.000Z')`,
+    jobId,
+    options.status ?? 'queued',
+    options.phase ?? options.status ?? 'queued',
+    options.idempotencyKey ?? 'submission-1',
+  );
 }

@@ -18,6 +18,8 @@ python docs/superpowers/mutants/harnesses/task10_finish_mutants.py
 | `task8_publication_mutants.py` | publication invariants, INLINE, first pass | **9 of 12 SURVIVED** at `9377337` |
 | `guards_mutants.py` | the same invariants after extraction | 20/20 killed at `db289a1` |
 | `task10_finish_mutants.py` | finishing rules in `stems-gpu/finish.py` | 12/12 killed at `ce2c775` |
+| `task11_finishing_mutants.py` | the Modal finishing seam in `twi-orchestrator/` | 14/14 killed on the Task 11 branch tip |
+| `provider_call_state_mutants.py` | provider-call state (research P0): schema pairing, claim/settle/resolve, the step body's order, the retry gate, the migration consumers | 20/20 killed at `cd87b87`; PCS-14 died ONLY in the contract check, by design |
 
 `task8_publication_mutants.py` reports `NEEDLE-MISSING` at HEAD **by design** — the code it
 mutates was extracted into `publication-guards.ts`. To reproduce its finding, check out

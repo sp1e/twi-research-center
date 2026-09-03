@@ -3,6 +3,13 @@ import { NonRetryableError } from 'cloudflare:workflows';
 
 import type { CostEstimate, GenerationSpec } from '../../src/twi/domain/types';
 import type { CandidatePublicationEntry, RegisterAssetInput } from '../../src/twi/server/repository-types';
+import {
+  assetId,
+  objectPrefix,
+  sha256Hex,
+  type ObjectManifest,
+  type RawCandidateManifest,
+} from './candidate-manifest';
 import { TwiWorkflowStore } from './db';
 import {
   assertCallbackBindsCall,
@@ -14,14 +21,15 @@ import {
   type ValidatedRendition,
 } from './finishing/manifest';
 import { readFinishingConfig, submitFinish } from './finishing/modal';
-import { canCompleteRender, createProvider, mustNotRetry } from './providers/select';
+import { runGenerateStep } from './generate-step';
+import { canCompleteRender, createProvider } from './providers/select';
 import {
   assertBothCandidatesValidated,
   assertProvenance,
   assertRawWavIntegrity,
   assertStoredObject,
 } from './publication-guards';
-import type { CandidateLabel, MusicProvider, ProviderCandidate } from './providers/types';
+import type { CandidateLabel, MusicProvider } from './providers/types';
 
 export interface StartPayload {
   schemaVersion: 1;
@@ -49,31 +57,6 @@ export interface OrchestratorEnv {
   STEMS_PROXY_SECRET?: string;
 }
 
-interface ObjectManifest {
-  id: string;
-  key: string;
-  contentType: string;
-  /**
-   * The SIZE of the object, never its content. Named `sizeBytes` rather than `bytes`
-   * because a Workflow step result is durable state that crosses a step boundary, and a
-   * field called `bytes` is one careless edit away from carrying the audio itself. The
-   * integration test forbids the NAME on a step result for exactly that reason, and
-   * backs it with a 1 KiB ceiling on the serialized manifest.
-   */
-  sizeBytes: number;
-  sha256: string;
-  durationSeconds: number | null;
-}
-
-interface RawCandidateManifest extends ObjectManifest {
-  label: CandidateLabel;
-  provider: string;
-  model: string;
-  providerCostUsd: number;
-  providerRequestId: string;
-  provenanceKey: string;
-}
-
 interface FinishedCandidateManifest {
   label: CandidateLabel;
   ffmpegVersion: string;
@@ -99,17 +82,6 @@ const SUBMIT_FINISH_CONFIG = {
  */
 const FINISH_EVENT_TIMEOUT = '30 minutes' as const;
 const encoder = new TextEncoder();
-
-const sha256Hex = async (bytes: Uint8Array): Promise<string> => {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-};
-
-const objectPrefix = (payload: StartPayload, label: CandidateLabel): string =>
-  `twi/${payload.projectId}/jobs/${payload.jobId}/attempt-${payload.attempt}/${label}`;
-
-const assetId = (payload: StartPayload, label: CandidateLabel, kind: string): string =>
-  `${payload.jobId}:${payload.attempt}:${label}:${kind}`;
 
 const getObjectBytes = async (bucket: R2Bucket, manifest: ObjectManifest): Promise<Uint8Array> => {
   const object = await bucket.get(manifest.key);
@@ -216,35 +188,26 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
       return { spec: frozen.spec as GenerationSpec };
     });
 
+    /*
+     * THE BILLABLE STEP. Its body is `runGenerateStep` (./generate-step.ts), a function rather
+     * than inline code, because the order inside it -- claim the call in D1, THEN call the
+     * provider, THEN settle the claim before any other I/O -- is the research P0's defence
+     * against paying twice, and only a function can have that order unit-tested. Section 16 of
+     * the contract check asserts this step still calls it.
+     */
     const generate = (label: CandidateLabel): Promise<RawCandidateManifest> =>
       step.do(`generate-${label}`, STEP_CONFIG, async () => {
-        const candidate: ProviderCandidate = await this.callProvider(loaded.spec, label);
-        const prefix = objectPrefix(payload, label);
-        const key = `${prefix}/raw.wav`;
-        const provenanceKey = `${prefix}/provenance.json`;
-        const sha256 = await sha256Hex(candidate.bytes);
-        await this.env.FILES.put(key, candidate.bytes, {
-          httpMetadata: { contentType: candidate.contentType },
-          customMetadata: {
-            provider: candidate.provider,
-            model: candidate.model,
-            providerRequestId: candidate.providerRequestId,
-          },
-        });
-        return {
-          id: assetId(payload, label, 'raw'),
-          key,
-          contentType: candidate.contentType,
-          sizeBytes: candidate.bytes.byteLength,
-          sha256,
-          durationSeconds: candidate.durationSeconds,
+        const { provider, mode } = this.requireProvider();
+        return runGenerateStep({
+          store,
+          provider,
+          providerMode: mode,
+          payload,
+          spec: loaded.spec,
           label,
-          provider: candidate.provider,
-          model: candidate.model,
-          providerCostUsd: candidate.providerCostUsd,
-          providerRequestId: candidate.providerRequestId,
-          provenanceKey,
-        };
+          files: this.env.FILES,
+          now,
+        });
       });
 
     const rawA = await generate('A');
@@ -449,18 +412,15 @@ export class TwiRenderWorkflow extends WorkflowEntrypoint<OrchestratorEnv, Start
   }
 
   /*
-   * The provider seam. A ProviderError that might already have been paid for is promoted to
-   * NonRetryableError so the step policy cannot buy the same render a second time; anything
-   * else keeps the retries it was configured for.
+   * The provider seam. The promotion of a possibly-paid ProviderError to NonRetryableError, which
+   * used to live here as `callProvider`, moved into `runGenerateStep` so it sits beside the ledger
+   * writes it now has to be ordered against. What remains is naming the provider and the mode the
+   * claim row records; a deployment with neither refuses before anything is claimed.
    */
-  private async callProvider(spec: GenerationSpec, label: CandidateLabel): Promise<ProviderCandidate> {
+  private requireProvider(): { provider: MusicProvider; mode: string } {
+    const mode = this.env.TWI_PROVIDER_MODE;
     const provider = selectProvider(this.env);
-    if (provider === null) throw new NonRetryableError('provider_not_configured');
-    try {
-      return await provider.generate(spec, label);
-    } catch (error) {
-      if (mustNotRetry(error)) throw new NonRetryableError((error as { code: string }).code);
-      throw error;
-    }
+    if (provider === null || mode === undefined) throw new NonRetryableError('provider_not_configured');
+    return { provider, mode };
   }
 }

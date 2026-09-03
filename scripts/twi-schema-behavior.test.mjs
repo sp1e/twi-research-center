@@ -1,22 +1,29 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
-const migrationSql = readFileSync(
-  new URL('../twi-migration-001-creation-core.sql', import.meta.url),
-  'utf8',
-);
+import {
+  ALL_MIGRATIONS,
+  T0,
+  T1,
+  T2,
+  checkFailed,
+  exactly,
+  foreignKeyFailed,
+  freshDb,
+  insertJob,
+  insertProject,
+  insertSpec,
+  notNullFailed,
+  seedProjectAndSpec,
+  uniqueFailed,
+} from './lib/twi-schema-harness.mjs';
 
-/**
- * Fixed-width ISO-8601 UTC timestamps, the only shape the schema accepts.
- * `datetime('now')` deliberately does NOT appear in this file: the repository
- * layer advances `updated_at` with `MAX(updated_at, ?)`, a BINARY comparison
- * over TEXT, so a single space-separated timestamp would latch the column.
+/*
+ * The fixture (both migrations, the fresh database, the row builders, the exact-message assertion
+ * helpers) lives in scripts/lib/twi-schema-harness.mjs, shared with
+ * scripts/twi-schema-provider-calls.test.mjs -- which holds migration 002's own tests, moved there
+ * when this file crossed the project's 800-line ceiling. One `node --test` invocation runs both.
  */
-const T0 = '2026-08-16T00:00:00.000Z';
-const T1 = '2026-08-16T01:00:00.000Z';
-const T2 = '2026-08-16T02:00:00.000Z';
 
 /** Mirrors `JobStatus` in src/twi/domain/types.ts:1. */
 const JOB_STATUSES = [
@@ -58,64 +65,11 @@ const EXPECTED_INDEXES = [
   'idx_twi_assets_project',
   'idx_twi_assets_job',
   'idx_twi_cost_events_job',
+  // Migration 002. The retry gate reads a job's provider calls, and the reconciliation
+  // inventory reads every call whose charge outcome is still unknown across all jobs.
+  'idx_twi_provider_calls_job',
+  'idx_twi_provider_calls_unresolved',
 ];
-
-/**
- * Every negative assertion in this file names the exact engine message it
- * expects. A bare `assert.throws` passes on a typo'd column name, an unrelated
- * NOT NULL, or the wrong constraint firing — which is precisely how a widened
- * uniqueness key stays green while the money path double-bills.
- */
-function exactly(message) {
-  return (error) => {
-    assert.equal(error.message, message);
-    return true;
-  };
-}
-
-const checkFailed = (constraintName) => exactly(`CHECK constraint failed: ${constraintName}`);
-const uniqueFailed = (...qualifiedColumns) =>
-  exactly(`UNIQUE constraint failed: ${qualifiedColumns.join(', ')}`);
-const notNullFailed = (qualifiedColumn) => exactly(`NOT NULL constraint failed: ${qualifiedColumn}`);
-const foreignKeyFailed = exactly('FOREIGN KEY constraint failed');
-
-function freshDb(t) {
-  const db = new DatabaseSync(':memory:');
-  t.after(() => db.close());
-  db.exec('PRAGMA foreign_keys = ON');
-  // Pin it. node:sqlite already defaults foreign_keys on, so the PRAGMA above is
-  // a no-op here — but on an engine where it is not (better-sqlite3 defaults
-  // off, D1 has defer_foreign_keys) every FK test below would silently become a
-  // tautology instead of failing.
-  assert.equal(db.prepare('PRAGMA foreign_keys').get().foreign_keys, 1, 'foreign keys must be enforced');
-  db.exec(migrationSql);
-  return db;
-}
-
-function insertProject(db, id, name = `Project ${id}`) {
-  return db.prepare(`
-    INSERT INTO twi_projects (id, name, created_at, updated_at)
-    VALUES (?, ?, ?, ?)
-  `).run(id, name, T0, T0);
-}
-
-function insertSpec(db, projectId, id, specJson = '{"prompt":"A nocturnal electronic track"}') {
-  return db.prepare(`
-    INSERT INTO twi_generation_specs (
-      id,
-      project_id,
-      spec_json,
-      spec_sha256,
-      rights_assertion_version,
-      created_at
-    ) VALUES (?, ?, ?, 'spec-sha256', '2026-08-16', ?)
-  `).run(id, projectId, specJson, T0);
-}
-
-function seedProjectAndSpec(db, projectId = 'p1', specId = 's1') {
-  insertProject(db, projectId);
-  insertSpec(db, projectId, specId);
-}
 
 function insertRevision(db, { id, projectId = 'p1', parentRevisionId = null } = {}) {
   return db.prepare(`
@@ -129,49 +83,6 @@ function insertRevision(db, { id, projectId = 'p1', parentRevisionId = null } = 
       created_at
     ) VALUES (?, ?, ?, ?, 'revision-sha256', 'Test revision', ?)
   `).run(id, projectId, parentRevisionId, `twi/${projectId}/revisions/${id}.json`, T0);
-}
-
-function insertJob(db, id, idempotencyKey, {
-  projectId = 'p1',
-  specId = 's1',
-  kind = 'full-song',
-  status = 'queued',
-  phase = null,
-  actualCostUsd = 0,
-  estimateJson = null,
-  outputManifestJson = null,
-  createdAt = T0,
-  updatedAt = T0,
-} = {}) {
-  return db.prepare(`
-    INSERT INTO twi_jobs (
-      id,
-      project_id,
-      spec_id,
-      kind,
-      status,
-      phase,
-      idempotency_key,
-      actual_cost_usd,
-      estimate_json,
-      output_manifest_json,
-      created_at,
-      updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    id,
-    projectId,
-    specId,
-    kind,
-    status,
-    phase,
-    idempotencyKey,
-    actualCostUsd,
-    estimateJson,
-    outputManifestJson,
-    createdAt,
-    updatedAt,
-  );
 }
 
 function insertJobEvent(db, {
@@ -1117,6 +1028,7 @@ test('the hot Creation Core reads use an index instead of scanning', (t) => {
   );
 });
 
+
 // ---------------------------------------------------------------------------
 // Idempotent re-application
 // ---------------------------------------------------------------------------
@@ -1124,7 +1036,7 @@ test('the hot Creation Core reads use an index instead of scanning', (t) => {
 test('migration can execute twice without losing existing project data', (t) => {
   const db = freshDb(t);
   insertProject(db, 'p1');
-  db.exec(migrationSql);
+  for (const [, sql] of ALL_MIGRATIONS) db.exec(sql);
   assert.equal(db.prepare(`SELECT name FROM twi_projects WHERE id='p1'`).get().name, 'Project p1');
   const found = db.prepare(`
     SELECT COUNT(*) AS n FROM sqlite_master WHERE type='index' AND name LIKE 'idx_twi_%'
@@ -1132,41 +1044,68 @@ test('migration can execute twice without losing existing project data', (t) => 
   assert.equal(found, EXPECTED_INDEXES.length);
 });
 
+/** The least DDL each migration may carry — a file that shrank below this has lost a statement. */
+const MINIMUM_STATEMENTS = {
+  'twi-migration-001-creation-core.sql': 16,
+  'twi-migration-002-provider-call-state.sql': 3,
+};
+
 test('every statement in the migration is re-runnable and the file ends cleanly', () => {
-  // The runner applies and records in two separate wrangler calls, so a partial
-  // re-run must be safe: every DDL statement carries IF NOT EXISTS.
-  const statements = migrationSql
-    .split('\n')
-    .filter((line) => !line.trimStart().startsWith('--'))
-    .join('\n')
-    .split(';')
-    .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0);
-  assert.ok(statements.length >= 16, `expected the full DDL, found ${statements.length} statements`);
-  for (const statement of statements) {
-    assert.match(statement, /^CREATE (TABLE|INDEX|UNIQUE INDEX) IF NOT EXISTS /, statement.slice(0, 80));
-  }
-  // The D1 boot path in src/twi/server/repository-d1.test.ts splits this file on
-  // ';' and runs each trimmed chunk. A semicolon inside a comment produces a
-  // comment-only chunk, which D1 rejects with "SQL code did not contain a
-  // statement" — so every chunk must carry real DDL.
-  for (const chunk of migrationSql.split(';').map((part) => part.trim()).filter(Boolean)) {
-    const code = chunk
+  // Asserted PER FILE rather than over a concatenation, so a file violating one rule cannot
+  // hide inside the other's compliance.
+  for (const [name, sql] of ALL_MIGRATIONS) {
+    // The runner applies and records in two separate wrangler calls, so a partial
+    // re-run must be safe: every DDL statement carries IF NOT EXISTS.
+    const statements = sql
       .split('\n')
       .filter((line) => !line.trimStart().startsWith('--'))
       .join('\n')
-      .trim();
-    assert.notEqual(code, '', `comment-only chunk would break the D1 loader: ${chunk.slice(0, 80)}`);
-  }
+      .split(';')
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0);
+    const minimum = MINIMUM_STATEMENTS[name];
+    assert.ok(typeof minimum === 'number', `${name} has no statement floor recorded`);
+    assert.ok(statements.length >= minimum, `${name}: expected the full DDL, found ${statements.length} statements`);
+    for (const statement of statements) {
+      assert.match(statement, /^CREATE (TABLE|INDEX|UNIQUE INDEX) IF NOT EXISTS /, `${name}: ${statement.slice(0, 80)}`);
+    }
+    // The D1 boot path in src/twi/server/repository-d1.test.ts splits this file on
+    // ';' and runs each trimmed chunk. A semicolon inside a comment produces a
+    // comment-only chunk, which D1 rejects with "SQL code did not contain a
+    // statement" — so every chunk must carry real DDL.
+    for (const chunk of sql.split(';').map((part) => part.trim()).filter(Boolean)) {
+      const code = chunk
+        .split('\n')
+        .filter((line) => !line.trimStart().startsWith('--'))
+        .join('\n')
+        .trim();
+      assert.notEqual(code, '', `${name}: comment-only chunk would break the D1 loader: ${chunk.slice(0, 80)}`);
+    }
+    // A comment-only chunk is not the only way a stray semicolon breaks that loader, and this
+    // suite proved it: a `;` inside a comment placed BETWEEN two columns cuts the CREATE TABLE in
+    // half, both halves carry real DDL, so the chunk assertion above passes -- and D1 answers
+    // `incomplete input: SQLITE_ERROR` at boot. The `statements` reading above strips comments
+    // BEFORE splitting, so it cannot see it either. Only the D1 suite could, and only by failing
+    // its whole beforeAll. So: no comment line may contain a semicolon, at all.
+    for (const [index, line] of sql.split('\n').entries()) {
+      if (!line.trimStart().startsWith('--')) continue;
+      assert.equal(
+        line.includes(';'),
+        false,
+        `${name}:${index + 1}: a semicolon in a comment splits the statement the D1 loader boots: ${line.trim()}`,
+      );
+    }
 
-  // D1 caps LIKE/GLOB patterns at 50 characters and fails at *write* time with
-  // "LIKE or GLOB pattern too complex". node:sqlite has no such cap, so a long
-  // pattern would leave this suite green and break every insert on D1.
-  for (const [, pattern] of migrationSql.matchAll(/(?:LIKE|GLOB)\s+'((?:[^']|'')*)'/gi)) {
-    assert.ok(pattern.length <= 50, `D1 rejects LIKE/GLOB patterns over 50 chars: ${pattern}`);
-  }
+    // D1 caps LIKE/GLOB patterns at 50 characters and fails at *write* time with
+    // "LIKE or GLOB pattern too complex". node:sqlite has no such cap, so a long
+    // pattern would leave this suite green and break every insert on D1.
+    for (const [, pattern] of sql.matchAll(/(?:LIKE|GLOB)\s+'((?:[^']|'')*)'/gi)) {
+      assert.ok(pattern.length <= 50, `${name}: D1 rejects LIKE/GLOB patterns over 50 chars: ${pattern}`);
+    }
 
-  assert.equal(migrationSql.includes('\r'), false, 'migration must be LF-only');
-  assert.equal(migrationSql.charCodeAt(0) === 0xfeff, false, 'migration must not start with a BOM');
-  assert.equal(migrationSql.trimEnd().endsWith(';'), true, 'migration must end on its final semicolon');
+    assert.equal(sql.includes('\r'), false, `${name} must be LF-only`);
+    assert.equal(sql.charCodeAt(0) === 0xfeff, false, `${name} must not start with a BOM`);
+    assert.equal(sql.trimEnd().endsWith(';'), true, `${name} must end on its final semicolon`);
+    assert.equal(sql.endsWith(';\n'), true, `${name} must end on its final semicolon followed by exactly one newline`);
+  }
 });

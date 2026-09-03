@@ -14,7 +14,7 @@ money path. Those findings are the reason the manifest is worth maintaining.
 
 | Field | Meaning |
 |---|---|
-| `id` | Stable, namespaced, never reused: `DOM-*` domain, `SCH-*` schema, `REPO-*` repository, `APP-*` app shell, `MIG-*` migration tooling, `API-*` the authenticated API surface. |
+| `id` | Stable, namespaced, never reused: `DOM-*` domain, `SCH-*` schema, `REPO-*` repository, `APP-*` app shell, `MIG-*` migration tooling, `API-*` the authenticated API surface, `PUB-*` publication guards, `FIN-*` Modal finishing, `PCS-*` provider-call state. |
 | `historicalLabels` | What each round called it (`M1`, `M06`, `spot-check A`, …). Kept because the reports are the evidence and they use these labels. |
 | `target` | The file and the construct. |
 | `mutation` | A literal `find` / `replace` pair, or `sites[]` for one logical change at several places, or a `mechanicalRule` for line deletions. |

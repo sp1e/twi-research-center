@@ -106,15 +106,32 @@ const assertLyriaCanRender = (spec: NormalizedGenerationSpec): void => {
   }
 };
 
+/*
+ * The statuses this adapter can POSITIVELY argue are pre-billing: the request was refused before
+ * anything was rendered. Nothing else may claim `charged: false`.
+ *
+ * `charged: false` is not a shrug -- it settles the ledger row as abandoned/not_charged, which is
+ * the one verdict that stops blocking a retry, so a wrong `false` here is what buys a second
+ * render with no human consulted. A 408 Request Timeout, a 425 Too Early and a 499 from an
+ * intermediary are the shapes a front door returns WHILE the upstream render proceeds; they prove
+ * nothing about billing, which is exactly the reasoning the 5xx branch below already applies.
+ * An unrecognised status proves less still. Both therefore answer `null` -> ambiguous -> blocked
+ * until a human resolves it.
+ */
+const PRE_BILLING_STATUSES: ReadonlySet<number> = new Set([400, 401, 403, 404, 422]);
+
 const httpFailure = (status: number): ProviderError => {
   if (status === 429) {
     return new ProviderError('provider_unavailable', 'the provider rate limited this request', false);
+  }
+  if (PRE_BILLING_STATUSES.has(status)) {
+    return new ProviderError('provider_rejected', 'the provider rejected this request', false);
   }
   if (status >= 500) {
     // The render may have completed and been billed before the failure surfaced.
     return new ProviderError('provider_unavailable', 'the provider failed to serve this request', null);
   }
-  return new ProviderError('provider_rejected', 'the provider rejected this request', false);
+  return new ProviderError('provider_unavailable', 'the provider did not answer this request conclusively', null);
 };
 
 const readJson = async (response: Response): Promise<unknown> => {
@@ -173,6 +190,17 @@ export class LyriaMusicProvider implements MusicProvider {
   }
 
   async generate(spec: GenerationSpec, label: CandidateLabel): Promise<ProviderCandidate> {
+    /*
+     * `normalizeGenerationSpec` throws a ZodError, not a ProviderError, so nothing settles the
+     * claim row this call was made under: it stays `submitting`, the retry gate blocks the job,
+     * and only a human resolution can free it. That is the correct failure for MONEY (an
+     * unsettled claim always blocks) and the wrong one for a defect that cost nothing -- so it
+     * matters that it is unreachable in production. The specification is FROZEN and parsed
+     * through this same schema at submit (src/twi/server/jobs.ts), and the Workflow's load-job
+     * step reads that stored document; a spec that reaches here has already parsed once. If a
+     * schema change ever makes a stored document unparseable, validate it in load-job -- BEFORE
+     * the claim -- the way `canCompleteRender` already gates the finishing configuration.
+     */
     const normalized = normalizeGenerationSpec(spec);
     assertLyriaCanRender(normalized);
 
