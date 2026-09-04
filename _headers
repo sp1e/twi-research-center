@@ -1,0 +1,22 @@
+/*.sql
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+/*.md
+  X-Robots-Tag: noindex, nofollow
+
+/wrangler.toml
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+/.dev.vars*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+/*
+  Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+  X-Frame-Options: DENY
+

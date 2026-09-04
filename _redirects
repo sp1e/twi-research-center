@@ -1,0 +1,19 @@
+# Keep generated assets ahead of the SPA fallback: Cloudflare applies the first match.
+/twi/assets/*  /twi/assets/:splat  200
+/twi           /twi/index.html     200
+/twi/*         /twi/index.html     200
+
+# Source, internal tooling, migrations and local configuration are not public assets.
+/src/*                 /  301
+/scripts/*             /  301
+/docs/*                /  301
+/stems-gpu/*           /  301
+/twi-orchestrator/*    /  301
+/*.sql                 /  301
+/wrangler.toml         /  301
+/package.json          /  301
+/package-lock.json     /  301
+/.dev.vars             /  301
+/.dev.vars.example     /  301
+/.gitignore            /  301
+

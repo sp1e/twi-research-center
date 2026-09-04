@@ -1,0 +1,23 @@
+# Source-text tests use exact LF-delimited anchors. Keep local checkouts and CI identical.
+* text=auto eol=lf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.svg  text eol=lf
+*.mp4  binary
+*.webm binary
+*.mp3  binary
+*.wav  binary
+*.flac binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.pdf   binary
+*.zip   binary
+*.sqlite binary
+

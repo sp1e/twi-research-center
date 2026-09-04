@@ -1,6 +1,10 @@
 /**
  * functions-registry.mjs — every file that can answer a request, DECLARED.
  *
+ * This standalone repository contains only the TWI Pages Function. The registry
+ * remains an exact set equality so adding middleware, a sibling route, or another
+ * entry point fails closed until its relationship to the owner gate is reviewed.
+ *
  * Why a registry and not more analysis. The question "can any path reach
  * /api/twi/* without the owner gate?" is open-ended, and four rounds of review
  * answered it four different ways, each time by finding an entry point the
@@ -69,30 +73,15 @@ export const markerReason = (contents) => {
  *                       mislabelling a reachable file fails.
  */
 export const FUNCTIONS_REGISTRY = {
-  'functions/_middleware.ts': {
-    role: 'middleware',
-    twi: 'must-not-reference',
-    why: 'Fredagsfett session gate. Pages runs it BEFORE every route function, so a branch that returns instead of calling next() answers first — for any path, including /api/twi/*.',
-  },
   'functions/api/[[route]].ts': {
     role: 'route',
     twi: 'must-not-reference',
-    why: 'the /api/* catch-all. Pages prefers the more specific functions/api/twi/[[route]].ts, but this file must not dispatch a TWI path itself.',
-  },
-  'functions/api/fredagsfett/[[route]].ts': {
-    role: 'route',
-    twi: 'unreachable',
-    why: 'serves /api/fredagsfett/* only.',
-  },
-  'functions/api/tar/[[path]].ts': {
-    role: 'route',
-    twi: 'unreachable',
-    why: 'serves /api/tar/* only.',
+    why: 'the standalone health and owner-session API; the more-specific TWI route owns the TWI URL space.',
   },
   'functions/api/twi/[[route]].ts': {
     role: 'route',
     twi: 'gated',
-    why: 'the owner gate lives here; scripts/lib/twi-route-structure.mjs pins its structure.',
+    why: 'the standalone repository\'s only Pages entry point; the owner gate lives here and scripts/lib/twi-route-structure.mjs pins its structure.',
   },
 };
 

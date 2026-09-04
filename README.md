@@ -5,23 +5,37 @@ arrangement, stems, MIDI, a timeline, and DAW-friendly export.
 
 ## What this repository is
 
-A **history-preserving mirror** of the TWI paths extracted from the `sp1e.se` repository,
-where TWI is developed. Every commit here is a real commit, with its original message and
-date, filtered to the TWI files.
+A self-contained TWI checkout that can install dependencies, build the browser app, run
+the TWI verification suites, and deploy the Pages application and Function from this
+repository.
 
-## What this repository is not
+The application history is still synchronized from the TWI paths in `sp1e.se`, where the
+feature was originally developed. The root integration files in this repository make that
+extracted history usable on its own.
 
-**It is not the source of truth, and it does not build or deploy on its own.**
+## Local development
 
-TWI ships as a nested Cloudflare Pages Function inside the `sp1e.se` site. It shares that
-project's `wrangler.toml`, `package.json`, D1 and R2 bindings, test runner and legacy
-contract suite — none of which are TWI files, so none of them are here. Consequences:
+Requirements: Node.js 20 or newer, npm, Python 3 for the finishing-helper suite, and a
+separate install for the orchestrator Worker.
 
-- There is no `package.json`, so `npm install` and `npm test` do not work here.
-- The eight-suite runner, the per-suite count floors and the manifest baseline gate all
-  live in `sp1e.se`.
-- Work happens in `sp1e.se` on `codex/twi-research-center-design`. This mirror is
-  refreshed from it; edits made here would be overwritten.
+```sh
+npm ci
+npm ci --prefix twi-orchestrator
+npm test
+npm run typecheck
+npm run build
+```
+
+Run the Pages application locally with `npm run dev`. The browser app is served under
+`/twi/`, and the API is handled by `functions/api/twi/[[route]].ts`.
+
+## Cloudflare deployment
+
+`wrangler.toml` declares the Pages project plus its D1 `DB`, R2 `FILES`, and
+`TWI_ORCHESTRATOR` service bindings. The checked-in migrations remain the schema source
+for the TWI tables. Configure Cloudflare credentials and set `AUTH_PASSWORD_HASH` as a
+Pages secret before using `npm run deploy`; tokens, password hashes, and provider secrets
+must stay in Cloudflare or `.dev.vars`, never in Git.
 
 ## What to read first
 
@@ -34,15 +48,15 @@ contract suite — none of which are TWI files, so none of them are here. Conseq
 
 ## State
 
-Release 1 — Creation Core. Tasks 1–7 of 15 complete: the isolated React studio shell, the
-typed domain contracts and prompt compiler, the D1 schema, the repository and job state
-machine, the authenticated Projects and Bootstrap API, image-reference ingestion, and the
-estimate / idempotent submit / poll / cancel / retry path.
+Release 1 — Creation Core. Tasks 1–11 of 15 are present: the React studio shell, typed
+domain and persistence layers, authenticated API, image ingestion, job lifecycle, Workflow
+orchestrator, Lyria provider adapter, Modal finishing, publication validation, and
+provider-call reconciliation safeguards. Task 12—the typed API client and project
+library—is the next planned product increment.
 
-Nothing generates audio yet. The provider adapter is Task 9.
+## Repository boundaries
 
-## Not mirrored
-
-The development audit trail — review gates, fix-round reports and the controller ledger —
-lives under a gitignored directory in `sp1e.se` and is therefore absent here. The tracked
-documents above are the durable record.
+The development audit trail—review gates, fix-round reports, and the controller ledger—
+is intentionally not copied from `sp1e.se`. The tracked design, plan, handover, mutation
+manifest, application code, deployment configuration, and runnable verification suites
+are the durable standalone record here.

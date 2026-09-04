@@ -1,0 +1,52 @@
+{
+  "name": "twi-research-center",
+  "version": "0.0.0",
+  "private": true,
+  "description": "TWI Research Center — private AI music studio",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev .",
+    "build": "npm run build:twi",
+    "build:twi": "vite build --config vite.twi.config.ts",
+    "typecheck": "npm run typecheck:twi",
+    "typecheck:twi": "tsc --noEmit -p tsconfig.twi.json",
+    "test:twi": "vitest run --config vitest.twi.config.ts",
+    "test:twi:schema": "node --test scripts/twi-schema-behavior.test.mjs scripts/twi-schema-provider-calls.test.mjs",
+    "test:twi:structure": "node --test scripts/twi-route-structure.test.mjs",
+    "test:twi:contracts": "node scripts/twi-contract-check.mjs",
+    "test:stems:finish": "python stems-gpu/test_finish.py",
+    "test:twi:orchestrator:guard": "node --test scripts/twi-orchestrator-suite.test.mjs",
+    "test:twi:orchestrator": "node scripts/twi-orchestrator-suite.mjs",
+    "test:twi:bundle": "node scripts/twi-bundle-check.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "verify": "npm run typecheck && npm test",
+    "deploy": "npm run verify && npm run build && wrangler pages deploy . --project-name twi-research-center"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "3.25.76",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260702.1",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.4",
+    "@types/jsdom": "30.0.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "6.0.5",
+    "jsdom": "29.1.1",
+    "typescript": "5.9.3",
+    "vite": "8.2.1",
+    "vitest": "2.1.9",
+    "wrangler": "3.114.17"
+  },
+  "overrides": {
+    "@vitest/mocker": {
+      "vite": "5.4.21"
+    }
+  }
+}

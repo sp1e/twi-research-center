@@ -1,9 +1,18 @@
 {
-  "extends": "./tsconfig.sp1epacker.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true
   },
   // functions/api/twi is listed explicitly even though src/twi/server/route-dispatch.test.ts
   // imports it and would pull it into the program anyway. Relying on that would make the
@@ -13,6 +22,7 @@
   "include": [
     "src/twi/**/*.ts",
     "src/twi/**/*.tsx",
+    "functions/api/**/*.ts",
     "functions/api/twi/**/*.ts",
     "vite.twi.config.ts",
     "vitest.twi.config.ts"

@@ -471,7 +471,7 @@ test('L4b — a factored preflight whose helper does NOT return the verified res
 
 // ── 5. The registry: which FILE can answer ───────────────────────────────────
 
-const TREE = ['functions/_middleware.ts', ...Object.keys(FUNCTIONS_REGISTRY).filter((f) => f !== 'functions/_middleware.ts')];
+const TREE = Object.keys(FUNCTIONS_REGISTRY);
 const contentsFor = (overrides = {}) => (file) => overrides[file] ?? '';
 
 test('the committed functions/ tree and FUNCTIONS_REGISTRY agree exactly', () => {
@@ -495,10 +495,20 @@ test('the committed functions/ tree and FUNCTIONS_REGISTRY agree exactly', () =>
 });
 
 test('R6 — the existing functions/_middleware.ts answering a TWI path is refused', () => {
+  const middleware = 'functions/_middleware.ts';
+  const registry = {
+    ...FUNCTIONS_REGISTRY,
+    [middleware]: {
+      role: 'middleware',
+      twi: 'must-not-reference',
+      why: 'a root middleware runs before every standalone TWI route',
+    },
+  };
   const verdict = classifyFunctionsTree({
-    files: TREE,
+    files: [...TREE, middleware],
+    registry,
     contentsOf: contentsFor({
-      'functions/_middleware.ts': "if (path === '/api/twi/projects') return new Response('leak');",
+      [middleware]: "if (path === '/api/twi/projects') return new Response('leak');",
     }),
   });
   assert.ok(
